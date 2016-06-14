@@ -8,6 +8,23 @@ from luiginlp.util import replaceextension
 from pynlpl.formats import folia
 
 
+def processposts(parent_folia, parent_forum, doc_id):
+    #process all posts
+    for postnode in parent_forum.xpath('post'):
+        timestamp = postnode.xpath('timestamp')[0].text
+        author = postnode.xpath('author')[0].text
+
+        post = parent_folia.add(folia.Event, cls="post", id=doc_id+'.post.' + postnode.attrib['id'],begindatetime=datetime.strptime(timestamp, '%d-%m-%Y %H:%M'), actor=author)
+        post.add(folia.TextContent, postnode.xpath('body')[0].text)
+
+        #Encoding upvotes and downvotes (if present) as folia.Metric
+        for metrictype in ('upvotes', 'downvotes'):
+            if len(postnode.xpath(metrictype)) > 0:
+                post.add(folia.Metric, cls=metrictype, value=postnode.xpath(metrictype)[0])
+
+        #recursion
+        processposts(post, postnode, doc_id)
+
 
 def forumxml2folia(inputfilename, outputfilename):
     #read the input document
@@ -37,20 +54,10 @@ def forumxml2folia(inputfilename, outputfilename):
 
     #Encoding nrofviews (if present) as folia.Metric
     if len(threadnode.xpath('nrofviews')) > 0:
-        post.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
+        thread.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
 
-    #process all posts
-    for postnode in forumdoc.xpath('//post'):
-        timestamp = postnode.xpath('timestamp')[0].text
-        author = postnode.xpath('author')[0].text
+    processposts(thread, threadnode, doc_id)
 
-        post = thread.add(folia.Event, cls="post", id=doc_id+'.post.' + postnode.attrib['id'],begindatetime=datetime.strptime(timestamp, '%d-%m-%Y %H:%M'), actor=author)
-        post.add(folia.TextContent, postnode.xpath('body')[0].text)
-
-        #Encoding upvotes and downvotes (if present) as folia.Metric
-        for metrictype in ('upvotes', 'downvotes'):
-            if len(postnode.xpath(metrictype)) > 0:
-                post.add(folia.Metric, cls=metrictype, value=postnode.xpath(metrictype)[0])
 
     #add the text body to the document
     doc.append(textbody)
