@@ -56,7 +56,7 @@ def forumxml2folia(inputfilename, outputfilename):
     if len(threadnode.xpath('nrofviews')) > 0:
         thread.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
 
-    processposts(thread, threadnode, doc_id)
+    processposts(thread, threadnode.xpath('posts')[0], doc_id)
 
 
     #add the text body to the document
