@@ -2,6 +2,9 @@ import sys
 import os
 from datetime import datetime
 import lxml.etree
+from luigi import Parameter
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, TargetInfo
+from luiginlp.util import replaceextension
 from pynlpl.formats import folia
 
 
@@ -54,6 +57,30 @@ def forumxml2folia(inputfilename, outputfilename):
     
     #save everything
     doc.save(outputfilename)
+
+
+class ForumXML2FoLiA_Task(Task):
+    in_forumxml = None #input slot
+
+    outputdir = Parameter(default="")
+
+    def out_folia(self):
+        if self.outputdir and self.outputdir != '.':
+            return TargetInfo(self, os.path.join(self.outputdir, os.path.basename(replaceextension(self.in_forumxml().path, '.xml','.folia.xml'))))
+        else:
+            return TargetInfo(self, replaceextension(self.in_forumxml().path, '.xml','.folia.xml'))
+
+    def run(self):
+        forumxml2folia(self.in_forumxml().path, self.out_folia().path)
+
+
+@registercomponent
+class ForumXML2FoLiA(StandardWorkFlowComponent):
+    def autosetup(self):
+        return ForumXML2FoLiA_Task
+
+    def accepts(self):
+        return InputFormat(self, format_id='forumxml', extension='xml'),
 
 
 if __name__ == '__main__':
