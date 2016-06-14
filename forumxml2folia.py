@@ -12,7 +12,8 @@ def forumxml2folia(inputfilename, outputfilename):
 
     #determine a good ID to use for everything
     forumtype = forumdoc.xpath('/forum')[0].attrib['type']
-    thread_id = forumdoc.xpath('/forum/thread')[0].attrib['id']
+    threadnode =  forumdoc.xpath('/forum/thread')[0]
+    thread_id = threadnode.attrib['id']
     doc_id = forumtype + '.' + thread_id
 
 
@@ -24,18 +25,29 @@ def forumxml2folia(inputfilename, outputfilename):
     doc.metadata['category'] = forumdoc.xpath('/forum/thread/category')[0].text
 
     #declare event (set definition doesn't exist yet but doesn't matter)
-    doc.declare(folia.Event, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum.xml")
+    doc.declare(folia.Event, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_events.xml")
+    doc.declare(folia.Metric, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_metric.xml")
 
     #add text container and an event for the thread
     textbody = folia.Text(doc, id=doc_id+'.text')
     thread = textbody.add(folia.Event, cls="thread", id=doc_id+'.thread')
 
+    #Encoding nrofviews (if present) as folia.Metric
+    if len(threadnode.xpath('nrofviews')) > 0:
+        post.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
+
     #process all posts
     for postnode in forumdoc.xpath('//post'):
         timestamp = postnode.xpath('timestamp')[0].text
         author = postnode.xpath('author')[0].text
+
         post = thread.add(folia.Event, cls="post", id=doc_id+'.post.' + postnode.attrib['id'],begindatetime=datetime.strptime(timestamp, '%d-%m-%Y %H:%M'), actor=author)
         post.add(folia.TextContent, postnode.xpath('body')[0].text)
+
+        #Encoding upvotes and downvotes (if present) as folia.Metric
+        for metrictype in ('upvotes', 'downvotes'):
+            if len(postnode.xpath(metrictype)) > 0:
+                post.add(folia.Metric, cls=metrictype, value=postnode.xpath(metrictype)[0])
 
     #add the text body to the document
     doc.append(textbody)
