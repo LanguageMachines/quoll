@@ -75,12 +75,15 @@ class ForumXML2FoLiA_Task(Task):
 
 
 @registercomponent
-class ForumXML2FoLiA(StandardWorkFlowComponent):
+class ForumXML2FoLiA(StandardWorkflowComponent):
+    outputdir = Parameter(default="")
+
     def autosetup(self):
         return ForumXML2FoLiA_Task
 
     def accepts(self):
         return InputFormat(self, format_id='forumxml', extension='xml'),
+
 
 
 if __name__ == '__main__':
