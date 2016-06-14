@@ -1,0 +1,22 @@
+
+
+
+
+class Featurizer:
+
+    def __init__(self, foliadoc):
+        self.doc = foliadoc
+        self.features = []
+        
+    def extract_words(self, skip_punctuation = True):
+        for p in doc.paragraphs():
+            for s in p.sentences():
+                for word in s.words():
+                    if skip_punctuation and word.pos() == 'LET()':
+                        continue
+                    else:
+                        self.features.append
+                    
+    
+    
+    def extract_postags(self)
