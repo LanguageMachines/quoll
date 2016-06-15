@@ -9,6 +9,7 @@ from pynlpl.formats import folia
 
 
 
+
 def forumxml2folia(inputfilename, outputfilename):
     #read the input document
     forumdoc = lxml.etree.parse(inputfilename).getroot()
@@ -28,33 +29,40 @@ def forumxml2folia(inputfilename, outputfilename):
     doc.metadata['category'] = forumdoc.xpath('/forum/thread/category')[0].text
 
     #declare event (set definition doesn't exist yet but doesn't matter)
-    doc.declare(folia.Event, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_events.xml")
-    doc.declare(folia.Metric, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_metric.xml")
+    doc.declare(folia.Event, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_events.foliaset.xml")
+    doc.declare(folia.Metric, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_metric.foliaset.xml")
+    doc.declare(folia.Alignment, "https://raw.githubusercontent.com/LanguageMachines/quoll/master/setdefinitions/forum_alignment.foliaset.xml")
 
     #add text container and an event for the thread
     textbody = folia.Text(doc, id=doc_id+'.text')
+
+    #add the text body to the document
+    doc.append(textbody)
+
     thread = textbody.add(folia.Event, cls="thread", id=doc_id+'.thread')
 
     #Encoding nrofviews (if present) as folia.Metric
     if len(threadnode.xpath('nrofviews')) > 0:
-        post.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
+        thread.add(folia.Metric, cls='nrofviews', value=threadnode.xpath('nrofviews')[0])
 
-    #process all posts
-    for postnode in forumdoc.xpath('//post'):
+    for postnode in threadnode.xpath('//post'):
         timestamp = postnode.xpath('timestamp')[0].text
         author = postnode.xpath('author')[0].text
 
         post = thread.add(folia.Event, cls="post", id=doc_id+'.post.' + postnode.attrib['id'],begindatetime=datetime.strptime(timestamp, '%d-%m-%Y %H:%M'), actor=author)
         post.add(folia.TextContent, postnode.xpath('body')[0].text)
 
+        #Include link to parent post (if present)
+        if len(postnode.xpath('parentid')) > 0 and postnode.xpath('parentid')[0].text:
+            alignment = post.add(folia.Alignment, cls="parent")
+            parentid = doc_id+'.post.'+ postnode.xpath('parentid')[0].text
+            alignment.add(folia.AlignReference,id=parentid, type='event')
+
         #Encoding upvotes and downvotes (if present) as folia.Metric
         for metrictype in ('upvotes', 'downvotes'):
             if len(postnode.xpath(metrictype)) > 0:
                 post.add(folia.Metric, cls=metrictype, value=postnode.xpath(metrictype)[0])
 
-    #add the text body to the document
-    doc.append(textbody)
-    
     #save everything
     doc.save(outputfilename)
 
@@ -76,11 +84,13 @@ class ForumXML2FoLiA_Task(Task):
 
 @registercomponent
 class ForumXML2FoLiA(StandardWorkflowComponent):
+    outputdir = Parameter(default="")
     def autosetup(self):
         return ForumXML2FoLiA_Task
 
     def accepts(self):
         return InputFormat(self, format_id='forumxml', extension='xml'),
+
 
 
 if __name__ == '__main__':
