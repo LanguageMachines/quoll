@@ -52,6 +52,7 @@ class FeaturizerTask_single(Task):
         with open(self.out_featuretxt().path,'w',encoding = 'utf-8') as f_out:
             f_out.write(' '.join(features))
 
+@registercomponent
 class FeaturizerComponent_single(StandardWorkflowComponent):
     def autosetup(self):
         return FeaturizerTask_single
@@ -78,6 +79,7 @@ class FeaturizerTask_dir(Task):
         #in this case we run the FeaturizerTask_single component for each input file in the directory
         yield [ FeaturizerTask_single(inputfile=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
 
+@registercomponent
 class FeaturizerComponent_dir(StandardWorkflowComponent):
     def autosetup(self):
         return FeaturizerTask_dir
