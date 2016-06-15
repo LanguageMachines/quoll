@@ -85,7 +85,6 @@ class ForumXML2FoLiA_Task(Task):
 @registercomponent
 class ForumXML2FoLiA(StandardWorkflowComponent):
     outputdir = Parameter(default="")
-
     def autosetup(self):
         return ForumXML2FoLiA_Task
 

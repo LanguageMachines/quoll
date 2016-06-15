@@ -1,0 +1,2 @@
+luiginlp ForumXML2FoLiA --module forumxml2folia --inputfile /vol/bigdata2/datasets2/Viva_forum/samples/kankerthreads_new/102133.xml
+luiginlp ParallelFromDir --module forumxml2folia --component ForumXML2FoLiA --directory /vol/bigdata2/datasets2/Viva_forum/samples/kankerthreads_new/ --workers 10
