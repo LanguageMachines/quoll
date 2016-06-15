@@ -50,6 +50,14 @@ class FeaturizerTask_single(Task):
         with open(self.out_featuretxt().path,'w',encoding = 'utf-8') as f_out:
             f_out.write(' '.join(features))
 
+class FeaturizerComponent_single(StandardWorkflowComponent):
+    def autosetup(self):
+        return FeaturizerTask_single
+
+    def accepts(self):
+        return InputFormat(self, format_id='folia', extension='folia.xml'),
+
+
 
 
 if __name__ == '__main__':
