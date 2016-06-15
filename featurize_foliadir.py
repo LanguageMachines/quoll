@@ -1,7 +1,7 @@
 
 import sys
 import os
-
+import glob
 from pynlpl.formats import folia
 from luigi import Parameter
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, TargetInfo
@@ -35,15 +35,17 @@ class FeaturizerTask_single(Task):
 
     outputdir = Parameter(default="") #optional output directory (output will be written to same dir as inputfile otherwise)
 
-    in_folia = None #input slot
+    in_folia = None #input slot for a FoLiA document
 
     def out_featuretxt(self):
+        """Output slot -- outputs a single *.features.txt file"""
         if self.outputdir and self.outputdir != '.': #handle optional outputdir
             return TargetInfo(self, os.path.join(self.outputdir, os.path.basename(replaceextension(self.in_folia().path, '.folia.xml','.features.txt'))))
         else:
             return TargetInfo(self, replaceextension(self.in_folia().path, '.folia.xml','.features.txt'))
 
     def run(self):
+        """Run the featurizer"""
         ft = featurizer.Featurizer()
         doc = folia.Document(file=self.in_folia().path, encoding = 'utf-8')
         features = ft.extract_words(doc)
@@ -58,7 +60,30 @@ class FeaturizerComponent_single(StandardWorkflowComponent):
         return InputFormat(self, format_id='folia', extension='folia.xml'),
 
 
+class FeaturizerTask_dir(Task):
+    in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
+    def out_featuredir(self):
+        """Output slot - Directory of feature files"""
+        return TargetInfo(self, replaceextension(self.in_folia().path, '.foliadir','.featuredir'))
+
+    def run(self):
+        #Set up the output directory, will create it and tear it down on failure automatically
+        self.setup_output_dir(self.out_featuredir().path)
+
+        #gather input files
+        inputfiles = [ filename for filename in glob.glob(self.in_foliadir().path + '/*.folia.xml') ]
+
+        #inception aka dynamic dependencies: we yield a list of tasks to perform which could not have been predicted statically
+        #in this case we run the FeaturizerTask_single component for each input file in the directory
+        yield [ FeaturizerTask_single(inputfile=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
+
+class FeaturizerComponent_dir(StandardWorkflowComponent):
+    def autosetup(self):
+        return FeaturizerTask_dir
+
+    def accepts(self):
+        return InputFormat(self, format_id='foliadir', extension='foliadir',directory=True),
 
 if __name__ == '__main__':
     foliadir = sys.argv[1]
