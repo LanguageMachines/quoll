@@ -75,7 +75,7 @@ class ForumXML2FoLiA_Task(Task):
 
 
 @registercomponent
-class ForumXML2FoLiA(StandardWorkFlowComponent):
+class ForumXML2FoLiA(StandardWorkflowComponent):
     def autosetup(self):
         return ForumXML2FoLiA_Task
 
