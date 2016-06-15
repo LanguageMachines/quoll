@@ -67,7 +67,7 @@ def forumxml2folia(inputfilename, outputfilename):
     doc.save(outputfilename)
 
 
-class ForumXML2FoLiA_Task(Task):
+class ForumXML2FoLiATask(Task):
     in_forumxml = None #input slot
 
     outputdir = Parameter(default="")
@@ -81,16 +81,40 @@ class ForumXML2FoLiA_Task(Task):
     def run(self):
         forumxml2folia(self.in_forumxml().path, self.out_folia().path)
 
-
 @registercomponent
 class ForumXML2FoLiA(StandardWorkflowComponent):
     outputdir = Parameter(default="")
     def autosetup(self):
-        return ForumXML2FoLiA_Task
+        return ForumXML2FoLiATask
 
     def accepts(self):
         return InputFormat(self, format_id='forumxml', extension='xml'),
 
+class ForumXML2FoLiATask_dir(Task):
+    in_forumxmldir = None #inputslot - Directory of Forum XML files (suzan's format)
+
+    def out_foliadir(self):
+        """Output slot - Directory of FoLiA document"""
+        return TargetInfo(self, replaceextension(self.in_forumxmldir().path, '.forumdir','.foliadir'))
+
+    def run(self):
+        #Set up the output directory, will create it and tear it down on failure automatically
+        self.setup_output_dir(self.out_foliadir().path)
+
+        #gather input files
+        inputfiles = [ filename for filename in glob.glob(self.in_forumxmldir().path + '/*.xml') ]
+
+        #inception aka dynamic dependencies: we yield a list of tasks to perform which could not have been predicted statically
+        #in this case we run the FeaturizerTask_single component for each input file in the directory
+        yield [ ForumXML2FoLiA(inputfile=inputfile,outputdir=self.out_foliadir().path) for inputfile in inputfiles ]
+
+
+class ForumXML2FoLiA_dir(StandardWorkflowComponent):
+    def autosetup(self):
+        return ForumXML2FoLiATask_dir
+
+    def accepts(self):
+        return InputFormat(self, format_id='forumxml', extension='forumdir', directory=True)
 
 
 if __name__ == '__main__':
