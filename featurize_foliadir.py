@@ -57,13 +57,15 @@ class FeaturizerTask_single(Task):
 @registercomponent
 class FeaturizerComponent_single(StandardWorkflowComponent):
 
+    outputdir = Parameter(default="") #optional output directory (output will be written to same dir as inputfile otherwise)
+
     def autosetup(self):
         return FeaturizerTask_single
 
     def accepts(self):
         return InputFormat(self, format_id='folia', extension='folia.xml'),
 
-FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
+#FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
     in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
@@ -78,11 +80,11 @@ class FeaturizerTask_dir(Task):
 
         #gather input files
         inputfiles = [ filename for filename in glob.glob(self.in_foliadir().path + '/*.folia.xml') ]
+        print("INPUTFILES: ", repr(inputfiles),file=sys.stderr)
 
         #inception aka dynamic dependencies: we yield a list of tasks to perform which could not have been predicted statically
         #in this case we run the FeaturizerTask_single component for each input file in the directory
         yield [ FeaturizerComponent_single(inputfile=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
-        #yield [ FeaturizerTask_single(in_folia=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
 
 @registercomponent
 class FeaturizerComponent_dir(StandardWorkflowComponent):
@@ -90,11 +92,10 @@ class FeaturizerComponent_dir(StandardWorkflowComponent):
         return FeaturizerTask_dir
 
     def accepts(self):
-#        return InputFormat(self, format_id='foliadir', extension='foliadir',directory=True),
-        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True),
+        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True)
 
 if __name__ == '__main__':
     foliadir = sys.argv[1]
     outdir = sys.argv[2]
-    
+
     luiginlp.run(FeaturizerComponent_dir(inputfile = foliadir))
