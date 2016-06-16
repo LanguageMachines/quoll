@@ -4,3 +4,4 @@ audit/*
 */audit/*
 *~
 *.pyc
+__pycache__/*
