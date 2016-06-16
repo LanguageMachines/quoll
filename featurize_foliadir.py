@@ -47,6 +47,7 @@ class FeaturizerTask_single(Task):
     def run(self):
         """Run the featurizer"""
         ft = featurizer.Featurizer()
+        print(self.in_folia().path)
         doc = folia.Document(file=self.in_folia().path, encoding = 'utf-8')
         features = ft.extract_words(doc)
         with open(self.out_featuretxt().path,'w',encoding = 'utf-8') as f_out:
