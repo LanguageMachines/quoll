@@ -22,11 +22,11 @@ class Featurizer:
         self.lowercase = lowercase
         self.setname = setname
         
-    def extract_features(self, foliadoc):
+    def extract_words(self, foliadoc):
         """
-        Feature extractor
+        Word extractor
         =====
-        Function to extract features
+        Function to extract words
         
         Parameters
         -----
@@ -35,26 +35,23 @@ class Featurizer:
 
         Returns
         -----
-        features : list of tuples
-            the extracted features with format (word, pos)
+        features : list
+            the extracted words of type str
         
         """
         features = []
         for word in foliadoc.words():
-            try:
-                if self.skip_punctuation and word.pos() == 'LET()':
+            if self.skip_punctuation and hasattr(word, 'pos'):
+                if word.pos() == 'LET()':
                     continue
-                else:
-                    word_str = word.text(self.setname)
-                    if self.lowercase:
-                        word_str = word_str.lower()
-                    pos = word.pos()
-                    features.append((word_str, pos))
-            except:
-                continue
+            else:
+                word_str = word.text(self.setname)
+                if self.lowercase:
+                    word_str = word_str.lower()
+            features.append((word_str, pos))
         return features
         
-    def extract_words(self, foliadoc):
+#    def extract_words(self, foliadoc):
         """
         Word extractor
         =====
@@ -70,11 +67,11 @@ class Featurizer:
             list of all words in the original order
 
         """
-        features = self.extract_features(foliadoc)
-        word_features = [feature[0] for feature in features] 
-        return word_features
+#        features = self.extract_features(foliadoc)
+#        word_features = [feature[0] for feature in features] 
+#        return word_features
     
-    def extract_postags(self, foliadoc):
+#    def extract_postags(self, foliadoc):
         """
         POS extractor
         =====
@@ -90,8 +87,6 @@ class Featurizer:
             list of all pos tags in the original order
         
         """
-        features = self.extract_features(foliadoc)
-        pos_features = [feature[1] for feature in features]
-        return pos_features
-        
-
+#        features = self.extract_features(foliadoc)
+#        pos_features = [feature[1] for feature in features]
+#        return pos_features
