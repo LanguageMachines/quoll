@@ -57,15 +57,13 @@ class FeaturizerTask_single(Task):
 @registercomponent
 class FeaturizerComponent_single(StandardWorkflowComponent):
 
-    outputdir = Parameter(default="") #optional output directory (output will be written to same dir as inputfile otherwise)
-
     def autosetup(self):
         return FeaturizerTask_single
 
     def accepts(self):
         return InputFormat(self, format_id='folia', extension='folia.xml'),
 
-#FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
+FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
     in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
