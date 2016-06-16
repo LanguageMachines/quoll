@@ -5,8 +5,7 @@ import glob
 from pynlpl.formats import folia
 from luigi import Parameter
 import luiginlp
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, TargetInfo
-from luiginlp.util import replaceextension
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent
 import featurizer
 
 #def featurizer_foliadir(foliadir, outdir):
@@ -40,10 +39,7 @@ class FeaturizerTask_single(Task):
 
     def out_featuretxt(self):
         """Output slot -- outputs a single *.features.txt file"""
-        if self.outputdir and self.outputdir != '.': #handle optional outputdir
-            return TargetInfo(self, os.path.join(self.outputdir, os.path.basename(replaceextension(self.in_folia().path, '.folia.xml','.features.txt'))))
-        else:
-            return TargetInfo(self, replaceextension(self.in_folia().path, '.folia.xml','.features.txt'))
+        return self.outputfrominput(inputformat='folia', inputextension='.folia.xml', outputextension='.features.txt')
 
     def run(self):
         """Run the featurizer"""
@@ -70,7 +66,7 @@ class FeaturizerTask_dir(Task):
 
     def out_featuredir(self):
         """Output slot - Directory of feature files"""
-        return TargetInfo(self, replaceextension(self.in_foliadir().path, '.foliadir','.featuredir'))
+        return self.outputfrominput(inputformat='foliadir', inputextension='.foliadir', outputextension='.featuredir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically
