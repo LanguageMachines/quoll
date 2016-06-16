@@ -2,3 +2,5 @@ log/*
 audit/*
 */log/*
 */audit/*
+*~
+*.pyc
