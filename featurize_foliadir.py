@@ -58,12 +58,13 @@ class FeaturizerTask_single(Task):
 class FeaturizerComponent_single(StandardWorkflowComponent):
 
     def autosetup(self):
+        workflow_task=self.workflow_task
         return FeaturizerTask_single
 
     def accepts(self):
         return InputFormat(self, format_id='folia', extension='folia.xml'),
 
-FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
+#FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
     in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)

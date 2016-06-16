@@ -41,7 +41,7 @@ class Featurizer:
         """
         features = []
         for word in foliadoc.words():
-            if self.skip_punctuation and hasattr(word, 'pos'):
+            if self.skip_punctuation and word.hasannotation(folia.PosAnnotation):
                 if word.pos() == 'LET()':
                     continue
             else:
