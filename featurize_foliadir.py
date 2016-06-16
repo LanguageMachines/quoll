@@ -48,7 +48,6 @@ class FeaturizerTask_single(Task):
     def run(self):
         """Run the featurizer"""
         ft = featurizer.Featurizer()
-        print(self.in_folia().path)
         doc = folia.Document(file=self.in_folia().path, encoding = 'utf-8')
         features = ft.extract_words(doc)
         with open(self.out_featuretxt().path,'w',encoding = 'utf-8') as f_out:
@@ -66,6 +65,7 @@ class FeaturizerComponent_single(StandardWorkflowComponent):
 FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
+ 
     in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
     def out_featuredir(self):
@@ -82,7 +82,6 @@ class FeaturizerTask_dir(Task):
         #inception aka dynamic dependencies: we yield a list of tasks to perform which could not have been predicted statically
         #in this case we run the FeaturizerTask_single component for each input file in the directory
         yield [ FeaturizerComponent_single(inputfile=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
-        #yield [ FeaturizerTask_single(in_folia=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
 
 @registercomponent
 class FeaturizerComponent_dir(StandardWorkflowComponent):
@@ -90,11 +89,9 @@ class FeaturizerComponent_dir(StandardWorkflowComponent):
         return FeaturizerTask_dir
 
     def accepts(self):
-#        return InputFormat(self, format_id='foliadir', extension='foliadir',directory=True),
-        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True),
+        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True)
 
 if __name__ == '__main__':
     foliadir = sys.argv[1]
-    outdir = sys.argv[2]
-    
+
     luiginlp.run(FeaturizerComponent_dir(inputfile = foliadir))

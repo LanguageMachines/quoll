@@ -1,4 +1,5 @@
 
+from pynlpl.formats import folia
 
 class Featurizer:
     """
@@ -41,14 +42,13 @@ class Featurizer:
         """
         features = []
         for word in foliadoc.words():
-            if self.skip_punctuation and hasattr(word, 'pos'):
+            if self.skip_punctuation and word.hasannotation(folia.PosAnnotation):
                 if word.pos() == 'LET()':
                     continue
-            else:
-                word_str = word.text(self.setname)
-                if self.lowercase:
-                    word_str = word_str.lower()
-            features.append((word_str, pos))
+            word_str = word.text(self.setname)
+            if self.lowercase:
+                word_str = word_str.lower()
+            features.append(word_str)
         return features
         
 #    def extract_words(self, foliadoc):
