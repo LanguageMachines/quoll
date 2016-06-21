@@ -69,7 +69,6 @@ def forumxml2folia(inputfilename, outputfilename):
 class ForumXML2FoLiATask(Task):
     in_forumxml = None #input slot
 
-    outputdir = Parameter(default="")
 
     def out_folia(self):
         return self.outputfrominput(inputformat='forumxml', inputextension='.xml', outputextension='.folia.xml')
@@ -79,7 +78,6 @@ class ForumXML2FoLiATask(Task):
 
 @registercomponent
 class ForumXML2FoLiA(StandardWorkflowComponent):
-    outputdir = Parameter(default="")
     def autosetup(self):
         return ForumXML2FoLiATask
 

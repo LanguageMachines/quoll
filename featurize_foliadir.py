@@ -33,7 +33,6 @@ import featurizer
 class FeaturizerTask_single(Task):
     """Featurizes a single FoLiA XML file"""
 
-    outputdir = Parameter(default="") #optional output directory (output will be written to same dir as inputfile otherwise)
 
     in_folia = None #input slot for a FoLiA document
 
