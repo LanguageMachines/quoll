@@ -5,30 +5,9 @@ import glob
 from pynlpl.formats import folia
 from luigi import Parameter
 import luiginlp
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent
+from luiginlp.modules.ucto import Ucto_dir
 import featurizer
-
-#def featurizer_foliadir(foliadir, outdir):
-#    files = os.listdir(foliadir)
-
-    #ft = featurizer.Featurizer(lowercase = False, skip_punctuation = False, setname = 'piccl')
-#    ft = featurizer.Featurizer()
-
-#    for f in files:
-#        print(f, foliadir + f)
-#        try:
-#            outfile = f[:-4] + '.txt'
-#            if outfile in os.listdir(outdir):
-#                print('file already generated, skipping')
-#                continue
-#            else:
-#                doc = folia.Document(file = foliadir + f, encoding = 'utf-8')
-#                features = ft.extract_words(doc)
-#                with open(outfile, 'w', encoding = 'utf-8') as f_out:
-#                    f_out.write(' '.join(features))
-#        except:
-            #exc_type, exc_obj, exc_tb = sys.exc_info()
-#            print('Error parsing doc', foliadir + f)
 
 class FeaturizerTask_single(Task):
     """Featurizes a single FoLiA XML file"""
@@ -80,13 +59,22 @@ class FeaturizerTask_dir(Task):
 
 @registercomponent
 class FeaturizerComponent_dir(StandardWorkflowComponent):
-    def autosetup(self):
-        return FeaturizerTask_dir
+
+    language = Parameter()
+
+    def setup(self, workflow, input_feeds):
+        featurizertask = workflow.new_task(self, FeaturizerTask_dir, autopass=True)
+        if 'tokfoliadir' in input_feeds:
+            featurizertask.in_foliadir = input_feeds['tokfoliadir']
+        elif 'foliadir' in input_feeds:
+            featurizertask.in_foliadir = input_feeds['foliadir']
+        return featurizertask
 
     def accepts(self):
-        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True)
+        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True), InputComponent(self, Ucto_dir, language = self.language)
 
 if __name__ == '__main__':
     foliadir = sys.argv[1]
+    lang = sys.argv[2]
 
-    luiginlp.run(FeaturizerComponent_dir(inputfile = foliadir))
+    luiginlp.run(FeaturizerComponent_dir(inputfile = foliadir, language = lang, startcomponent = 'Ucto_dir'))
