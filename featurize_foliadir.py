@@ -40,11 +40,11 @@ FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
  
-    in_foliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
+    in_tokfoliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
     def out_featuredir(self):
         """Output slot - Directory of feature files"""
-        return self.outputfrominput(inputformat='foliadir', inputextension='.foliadir', outputextension='.featuredir')
+        return self.outputfrominput(inputformat='tokfoliadir', inputextension='.tokfoliadir', outputextension='.featuredir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically
@@ -64,10 +64,7 @@ class FeaturizerComponent_dir(StandardWorkflowComponent):
 
     def setup(self, workflow, input_feeds):
         featurizertask = workflow.new_task(self, FeaturizerTask_dir, autopass=True)
-        if 'tokfoliadir' in input_feeds:
-            featurizertask.in_foliadir = input_feeds['tokfoliadir']
-        elif 'foliadir' in input_feeds:
-            featurizertask.in_foliadir = input_feeds['foliadir']
+        featurizertask.in_tokfoliadir = input_feeds['tokfoliadir']
         return featurizertask
 
     def accepts(self):
