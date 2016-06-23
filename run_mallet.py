@@ -1,7 +1,6 @@
 
-from luiginlp.engine import Task, InputSlot
+from luiginlp.engine import Task, InputSlot, Parameter
 from luiginlp.util import replaceextension
-from luigi import Parameter
 
 class RunMalletTask(Task):
 
