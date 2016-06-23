@@ -63,15 +63,15 @@ class FeaturizerComponent_dir(StandardWorkflowComponent):
     language = Parameter()
 
     def setup(self, workflow, input_feeds):
-        featurizertask = workflow.new_task(self, FeaturizerTask_dir, autopass=True)
+        featurizertask = workflow.new_task('FeaturizerTask_dir', FeaturizerTask_dir, autopass=True)
         featurizertask.in_tokfoliadir = input_feeds['tokfoliadir']
         return featurizertask
 
     def accepts(self):
-        return InputFormat(self, format_id='foliadir', extension='foliadir', directory=True), InputComponent(self, Ucto_dir, language = self.language)
+        return InputFormat(self, format_id='tokfoliadir', extension='.tok.foliadir', directory=True), InputComponent(self, Ucto_dir, language = self.language)
 
 if __name__ == '__main__':
     foliadir = sys.argv[1]
     lang = sys.argv[2]
 
-    luiginlp.run(FeaturizerComponent_dir(inputfile = foliadir, language = lang, startcomponent = 'Ucto_dir'))
+    luiginlp.run(FeaturizerComponent_dir(inputfile=foliadir, language=lang, startcomponent=Ucto_dir))
