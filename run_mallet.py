@@ -1,27 +1,26 @@
 
-from luiginlp.engine import Task
+from luiginlp.engine import Task, InputSlot
 from luiginlp.util import replaceextension
 from luigi import Parameter
 
 class RunMalletTask(Task):
 
-    executable = 'mallet' 
+    executable = 'mallet'
 
     mallet_rundir = Parameter()
     num_topics = Parameter(default=100)
     interval = Parameter(default=10)
 
-    #this is the input slot for plaintext files, input slots are always set
-    #to None and are connected to output slots of other tasks by a workflow
-    #component
-    in_dir = None 
+    #this is the input slot for plaintext files, input slots are
+    #connected to output slots of other tasks by a workflow component
+    in_dir = InputSlot()
 
     #Define an output slot, output slots are methods that start with out_
-    def out_malletdir(self): 
+    def out_malletdir(self):
         #Output slots always return TargetInfo instances pointing to the
         #output file, we derive the name of the output file from the input
         #file, and replace the extension
-        return self.outputfrominput(inputformat='featuredir', inputextension='.featuredir', outputextension='.malletdir')
+        return self.outputfrominput(inputformat='featuredir', stripextension='.featuredir', addextension='.malletdir')
 
     #Define the run method, this will be called to do the actual work
     def run(self):
