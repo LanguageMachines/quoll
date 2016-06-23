@@ -3,9 +3,8 @@ import sys
 import os
 import glob
 from pynlpl.formats import folia
-from luigi import Parameter
 import luiginlp
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter
 from luiginlp.modules.ucto import Ucto_dir
 import featurizer
 
