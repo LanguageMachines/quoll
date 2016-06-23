@@ -2,8 +2,9 @@ import sys
 import os
 from datetime import datetime
 import lxml.etree
+import glob
 from luigi import Parameter
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot
 from pynlpl.formats import folia
 
 
@@ -67,11 +68,11 @@ def forumxml2folia(inputfilename, outputfilename):
 
 
 class ForumXML2FoLiATask(Task):
-    in_forumxml = None #input slot
+    in_forumxml = InputSlot() #input slot
 
 
     def out_folia(self):
-        return self.outputfrominput(inputformat='forumxml', inputextension='.xml', outputextension='.folia.xml')
+        return self.outputfrominput(inputformat='forumxml', stripextension='.xml', addextension='.folia.xml')
 
     def run(self):
         forumxml2folia(self.in_forumxml().path, self.out_folia().path)
@@ -89,7 +90,7 @@ class ForumXML2FoLiATask_dir(Task):
 
     def out_foliadir(self):
         """Output slot - Directory of FoLiA document"""
-        return self.outputfrominput(inputformat='forumdir', inputextension='.forumdir', outputextension='.foliadir')
+        return self.outputfrominput(inputformat='forumdir', stripextension='.forumdir', addextension='.foliadir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically

@@ -5,7 +5,7 @@ import glob
 from pynlpl.formats import folia
 from luigi import Parameter
 import luiginlp
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot
 from luiginlp.modules.ucto import Ucto_dir
 import featurizer
 
@@ -13,11 +13,11 @@ class FeaturizerTask_single(Task):
     """Featurizes a single FoLiA XML file"""
 
 
-    in_folia = None #input slot for a FoLiA document
+    in_folia = InputSlot() #input slot for a FoLiA document
 
     def out_featuretxt(self):
         """Output slot -- outputs a single *.features.txt file"""
-        return self.outputfrominput(inputformat='folia', inputextension='.folia.xml', outputextension='.features.txt')
+        return self.outputfrominput(inputformat='folia', stripextension='.folia.xml', addextension='.features.txt')
 
     def run(self):
         """Run the featurizer"""
@@ -40,18 +40,18 @@ FeaturizerComponent_single.inherit_parameters(FeaturizerTask_single)
 
 class FeaturizerTask_dir(Task):
  
-    in_tokfoliadir = None #input slot, directory of FoLiA documents (files must have folia.xml extension)
+    in_tokfoliadir = InputSlot() #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
     def out_featuredir(self):
         """Output slot - Directory of feature files"""
-        return self.outputfrominput(inputformat='tokfoliadir', inputextension='.tokfoliadir', outputextension='.featuredir')
+        return self.outputfrominput(inputformat='tokfoliadir', stripextension='.tok.foliadir', addextension='.featuredir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically
         self.setup_output_dir(self.out_featuredir().path)
 
         #gather input files
-        inputfiles = [ filename for filename in glob.glob(self.in_foliadir().path + '/*.folia.xml') ]
+        inputfiles = [ filename for filename in glob.glob(self.in_tokfoliadir().path + '/*.folia.xml') ]
 
         #inception aka dynamic dependencies: we yield a list of tasks to perform which could not have been predicted statically
         #in this case we run the FeaturizerTask_single component for each input file in the directory

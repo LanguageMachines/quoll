@@ -6,7 +6,7 @@ import os.path
 import numpy
 
 import luiginlp
-from luiginlp.engine import Task,TargetInfo, StandardWorkflowComponent, registercomponent, InputFormat
+from luiginlp.engine import Task,TargetInfo, StandardWorkflowComponent, registercomponent, InputFormat, InputSlot
 from luiginlp.util import replaceextension
 
 from sklearn.feature_extraction.text import CountVectorizer
@@ -14,10 +14,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 class FolderStructureToLCSIndex(Task):
     """Assumes you have a folder structures with 1 file for every document, organized in folders per document type"""
 
-    in_txtdir = None
+    in_txtdir = InputSlot()
 
     def out_txt(self):
-        return TargetInfo(self, replaceextension(self.in_txtdir().path, '.txtdir','.index'))
+        return self.outputfrominput(inputformat='txtdir',stripextension='.txtdir',addextension='.npy')
 
     def run(self):
         indexfile = open(self.out_txt().path,'w')
@@ -34,10 +34,10 @@ class FolderStructureToLCSIndex(Task):
 
 class FolderStructureToSklearnVector(Task):
 
-    in_txtdir = None
+    in_txtdir = InputSlot()
 
     def out_npy(self):
-        return TargetInfo(self, replaceextension(self.in_txtdir().path, '.txtdir','.npy'))
+        return self.outputfrominput(inputformat='txtdir',stripextension='.txtdir',addextension='.npy')
 
     def run(self):
         all_file_names = []
