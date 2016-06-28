@@ -5,6 +5,7 @@ import os
 from luigi import Parameter, IntParameter
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, TargetInfo, InputSlot
 from luiginlp.util import replaceextension
+import gensimLDA
 from gensim import corpora, models
 
 class Featuredir2CorpusTask(Task):
@@ -15,7 +16,6 @@ class Featuredir2CorpusTask(Task):
         return self.outputfrominput(inputformat='featuredir', stripextension='.featuredir', addextension='.corpus.txt')
 
     def run(self):
-
         inputfiles = [filename for filename in glob.glob(self.in_featuredir().path + '/*.features.txt')]
         docs = []
         for inputfile in inputfiles:
@@ -36,7 +36,7 @@ class Featuredir2corpusComponent(StandardWorkflowComponent):
 
 class RunGensimLDATask(Task):
 
-    num_topics = IntParameter(default = 100)
+    num_topics = IntParameter(default = 50)
 
     in_corpus = InputSlot()
 
@@ -44,27 +44,17 @@ class RunGensimLDATask(Task):
         return self.outputfrominput(inputformat='corpus', stripextension='.corpus.txt', addextension='.gensimlda')    
 
     def run(self):
+        GLDA = gensimLDA.GensimLDA()
+        GLDA.run_lda(self.in_corpus().path, num_topics=self.num_topics)
         os.mkdir(self.out_topics().path)
-        corpus = corpora.TextCorpus(self.in_corpus().path)
-        lda = models.LdaModel(corpus=corpus, id2word=corpus.dictionary, num_topics=self.num_topics)
-        for i, doc in enumerate(corpus.get_texts()):
-            with open(self.out_topics().path + '/document_' + str(i) + '.txt', 'w', encoding = 'utf-8') as doc_out:
-                topics = lda.get_document_topics(bow=corpus.dictionary.doc2bow(doc), minimum_probability=0.1)
-                for topic in topics:
-                    doc_out.write('### Topic ' + str(topic[0]) + ', Probability: ' + str(topic[1]) + '\n---------------------\n')
-                    for word in lda.show_topic(topic[0], topn=15):
-                        doc_out.write(word[0] + '\t' + str(word[1]) + '\n')
-                    doc_out.write('\n')
-        with open(self.out_topics().path + '/topics.txt', 'w', encoding = 'utf-8') as topics_out:
-            topics = lda.show_topics(num_topics=self.num_topics,  num_words = 15)
-            for topic in topics:
-                topics_out.write('***Topic ' + str(topic[0]) + '\n------------------------\n' + topic[1] + '\n\n')            
-        lda.save(self.out_topics().path + '/model.pcl')
-
+        GLDA.write_document_topics(self.out_topics().path)
+        GLDA.write_topics(self.out_topics().path + '/topics.txt', num_topics = self.num_topics)
+        GLDA.save_lda(self.out_topics().path + '/model.pcl')
+        
 @registercomponent
 class RunGensimLDAComponent(StandardWorkflowComponent):
     
-    num_topics = IntParameter(default=100)
+    num_topics = IntParameter(default=50)
 
     def accepts(self):
         return InputComponent(self, Featuredir2corpusComponent)
