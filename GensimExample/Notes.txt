@@ -1,7 +1,0 @@
-Each notebook has a corresponding HTML file. If you cannot open ipynb files, you can open the HTML files with any browser.
-
-
-The section “LDA on Tweets of Genocide/Rohingya” in genocide_analysis.ipynb
-contains the code to do LDA with Gensim.
-
-Gensim_vis2.ipynb contains the code to visualise generated LDA model.

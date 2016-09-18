@@ -6,7 +6,7 @@ from pynlpl.formats import folia
 import luiginlp
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter
 from luiginlp.modules.ucto import Ucto_dir
-import featurizer
+import simple_featurizer
 
 class FeaturizerTask_single(Task):
     """Featurizes a single FoLiA XML file"""
@@ -20,8 +20,8 @@ class FeaturizerTask_single(Task):
 
     def run(self):
         """Run the featurizer"""
-        ft = featurizer.Featurizer()
-        doc = folia.Document(file=self.in_folia().path, encoding = 'utf-8')
+        ft = simple_featurizer.SimpleFeaturizer()
+        doc = folia.Document(file=self.in_folia().path, encoding = 'utf-8', recover=True)
         features = ft.extract_words(doc)
         with open(self.out_featuretxt().path,'w',encoding = 'utf-8') as f_out:
             f_out.write(' '.join(features))

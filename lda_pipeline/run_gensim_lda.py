@@ -5,6 +5,7 @@ import os
 from luigi import Parameter, IntParameter
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, TargetInfo, InputSlot
 from luiginlp.util import replaceextension
+from featuredir2corpus import Featuredir2corpusComponent
 import gensimLDA
 from gensim import corpora, models
 
@@ -41,11 +42,12 @@ class RunGensimLDATask(Task):
     in_corpus = InputSlot()
 
     def out_topics(self):
-        return self.outputfrominput(inputformat='corpus', stripextension='.corpus.txt', addextension='.gensimlda')    
+        return self.outputfrominput(inputformat='corpus', stripextension='.corpus.txt', addextension='.gensimlda')   
 
     def run(self):
         GLDA = gensimLDA.GensimLDA()
-        GLDA.run_lda(self.in_corpus().path, num_topics=self.num_topics)
+        GLDA.load_corpus(self.in_corpus().path)
+        GLDA.run_lda(nt=self.num_topics)
         os.mkdir(self.out_topics().path)
         GLDA.write_document_topics(self.out_topics().path)
         GLDA.write_topics(self.out_topics().path + '/topics.txt', num_topics = self.num_topics)
@@ -61,12 +63,3 @@ class RunGensimLDAComponent(StandardWorkflowComponent):
 
     def autosetup(self):
         return RunGensimLDATask
-
-#    def setup(self, workflow, input_feeds):
-#        gensimtask = workflow.new_task('RunGensimLDATask', RunGensimLDATask, autopass=True)
-#        gensimtask.in_corpus = input_feeds['corpus']
-#        gensimtask.num_topics = num_topics
-
-        #print('INPUTFEEDS', input_feeds['corpus'])
-        
-        return gensimtask

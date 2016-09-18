@@ -1,7 +1,7 @@
 
 from pynlpl.formats import folia
 
-class Featurizer:
+class SimpleFeaturizer:
     """
     Featurizer
     =====

@@ -7,9 +7,11 @@ class GensimLDA:
         self.corpus = False
         self.lda = False
 
-    def run_lda(self, infile, num_topics=50):
+    def load_corpus(self, infile):
         self.corpus = corpora.TextCorpus(infile)
-        self.lda = models.LdaModel(corpus=self.corpus, id2word=self.corpus.dictionary, num_topics = num_topics)
+
+    def run_lda(self, nt=50):
+        self.lda = models.LdaModel(corpus=self.corpus, id2word=self.corpus.dictionary, num_topics = nt)
 
     def load_lda(self, infile):
         pass
