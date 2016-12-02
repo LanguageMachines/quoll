@@ -53,3 +53,35 @@ class ExperimentComponent(WorkflowComponent):
         reporter.in_labels = input_feeds['testlabels']
 
         return reporter
+
+@registercomponent
+class ExperimentComponentVector(WorkflowComponent):
+
+    train = Parameter()
+    trainlabels = Parameter()
+    test = Parameter()
+    testlabels = Parameter()
+    featurenames = Parameter()
+    
+    classifier = Parameter(default='naive_bayes')
+    documents = Parameter(default=False)
+    
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='featurenames', extension='.featurenames.txt', inputparameter='featurenames') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer.in_train = input_feeds['train']
+        trainer.in_trainlabels = input_feeds['trainlabels']
+
+        predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True)
+        predictor.in_test = input_feeds['test']
+        predictor.in_labels = input_feeds['trainlabels']
+        predictor.in_model = trainer.out_model
+
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, documents=self.documents)
+        reporter.in_predictions = predictor.out_classifications
+        reporter.in_labels = input_feeds['testlabels']
+
+        return reporter

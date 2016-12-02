@@ -5,14 +5,23 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, labels, probabilities=False, documents=False):
-        if len(predictions) != len(labels):
-            print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
-            quit()
-        self.ce = self.save_classifier_output(labels, predictions)
-        self.labels = labels 
-        self.unique_labels = list(set(labels))
+    def __init__(self, predictions, probabilities, labels = False, documents=False):
         self.predictions = predictions
+        if len(predictions) != len(probabilities):
+            print('The number of probabilities (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
+            quit()
+        else:
+            self.probabilities = probabilities
+        if labels:
+            if len(predictions) != len(labels):
+                print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
+                quit()
+            self.ce = self.save_classifier_output(labels, predictions)
+            self.labels = labels 
+            self.unique_labels = list(set(labels))
+        else:
+            self.labels = ['-'] * len(self.predictions)
+            self.unique_labels=['-']
         if documents:
             if len(predictions) != len(documents):
                 print('The number of documents (', len(documents), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -21,14 +30,6 @@ class Reporter:
                 self.documents = documents
         else:
             self.documents = ['-'] * len(labels)
-        if probabilities:
-            if len(predictions) != len(probabilities):
-                print('The number of probabilities (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
-                quit()
-            else:
-                self.probabilities = probabilities
-        else:
-            self.probabilities = ['-'] * len(labels) 
 
     def save_classifier_output(self, labels, predictions):
         ce = evaluation.ClassEvaluation()
@@ -42,7 +43,7 @@ class Reporter:
         return label_performance
 
     def assess_micro_performance(self):
-        micro_performance = [self.ce.precision(), self.ce.recall(), self.ce.fscore(), self.ce.tp_rate(), self.ce.fp_rate(), auc([0, self.ce.fp_rate(), 1], [0, self.ce.tp_rate(), 1]), len(self.ce.observations), len(self.ce.observations), sum([self.ce.tp[label] for label in self.labels])]
+        micro_performance = [self.ce.precision(), self.ce.recall(), self.ce.fscore(), self.ce.tp_rate(), self.ce.fp_rate(), auc([0, self.ce.fp_rate(), 1], [0, self.ce.tp_rate(), 1]), len(self.ce.observations), len(self.ce.observations), sum([self.ce.tp[label] for label in list(set(self.labels))])]
         micro_performance = ['micro'] + [round(x,2) for x in micro_performance]        
         return micro_performance
 
@@ -55,10 +56,10 @@ class Reporter:
         return performance
     
     def predictions_by_document(self):
-        predictions = [['document', 'target', 'prediction', 'prob']] 
+        docpredictions = [['document', 'target', 'prediction', 'prob']] 
         for index in range(len(self.documents)):
-            predictions.append([self.documents[index], self.labels[index], self.predictions[index], self.probabilities[index]])
-        return predictions
+            docpredictions.append([self.documents[index], self.labels[index], self.predictions[index], self.probabilities[index]])
+        return docpredictions
 
     def return_confusion_matrix(self):
         confusion_matrix = self.ce.confusionmatrix()

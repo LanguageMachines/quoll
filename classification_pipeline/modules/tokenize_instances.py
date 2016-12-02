@@ -9,7 +9,7 @@ class Tokenize_instances(Task):
     in_txt = InputSlot()
 
     config = Parameter()
-    strip_punctuation = BoolParameter(default=False)
+    strip_punctuation = BoolParameter()
 
     def out_tokenized(self):
         return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.tok.txt')
@@ -35,7 +35,7 @@ class Tokenize_instances(Task):
 class Tokenize(StandardWorkflowComponent):
     
     config = Parameter()
-    strip_punctuation = BoolParameter(default=False)
+    strip_punctuation = BoolParameter()
 
     def autosetup(self):
         return Tokenize_instances

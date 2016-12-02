@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from functions.classifier import SKLearnClassifier
+from functions.classifier import AbstractSKLearnClassifier, SVMClassifier, NaiveBayesClassifier
 
 class TrainClassifier(Task):
 
@@ -23,7 +23,10 @@ class TrainClassifier(Task):
     def run(self):
 
         # inititate classifier
-        clf = SKLearnClassifier()
+        if self.classifier == 'naive_bayes':
+            clf = NaiveBayesClassifier()
+        elif self.classifier == 'svm':
+            clf = SVMClassifier()
 
         # load vectorized instances 
         loader = numpy.load(self.in_train().path)
@@ -37,7 +40,8 @@ class TrainClassifier(Task):
         clf.set_label_encoder(trainlabels)
 
         # train classifier
-        model = clf.train_classifier(self.classifier, vectorized_instances, trainlabels)
+        clf.train_classifier(vectorized_instances, trainlabels)
+        model = clf.return_classifier()
 
         # save classifier
         with open(self.out_model().path, 'wb') as fid:
@@ -72,7 +76,7 @@ class ApplyClassifier(Task):
             labels = infile.read().split('\n')
 
         # inititate classifier
-        clf = SKLearnClassifier()
+        clf = AbstractSKLearnClassifier()
 
         # transform labels
         clf.set_label_encoder(labels)

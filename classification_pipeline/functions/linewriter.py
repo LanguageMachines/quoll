@@ -15,7 +15,7 @@ class Linewriter:
     def __init__(self, lines):
         self.lines = lines
 
-    def write_xls(self, headers, header_style, outfile):
+    def write_xlsx(self, headers, header_style, outfile):
         wb = Workbook(encoding = 'utf-8')
         ws = wb.active
         ws.title = 'sheet1'
@@ -28,14 +28,20 @@ class Linewriter:
 #            print('\t'.join([str(x) for x in line]).encode('utf-8'))
             i += 2
             for j, col in enumerate(line):
+                # try:
+                #     print(col)
+                # except:
+                #     print(col.encode('utf-8'))
                 j += 1
 #                print(type(col))
 #                if j != 1:
 #                    print(i, j, col)
                 _cell = ws.cell(row = i, column = j, value = col)
                 if re.search('^http', str(col)) and not ' ' in str(col):
-                    _cell.hyperlink = col
+                    #_cell.hyperlink = col
+                    _cell = ws.cell(row = i, column = j, value = '=HYPERLINK("' + col + '","' + col + '")')
                 else:
+                    _cell = ws.cell(row = i, column = j, value = col)
                     st = header_style[number_header[j]]
  #                   print(col, st)
                     if not st == 'general':

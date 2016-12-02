@@ -48,7 +48,7 @@ class ReportPerformance(Task):
             documents = False
 
         # initiate reporter
-        rp = reporter.Reporter(predictions, labels, probabilities, documents)
+        rp = reporter.Reporter(predictions, probabilities, labels, documents)
 
         # report performance
         performance = rp.assess_performance()
@@ -81,6 +81,34 @@ class ReportPerformance(Task):
             lw = linewriter.Linewriter(ranked_tps)
             lw.write_csv(outfile)
 
+class ReportDocpredictions(Task):
+
+    in_predictions = InputSlot()
+    in_documents = InputSlot()
+    
+    def out_docpredictions(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.docpredictions.csv')
+
+    def run(self):
+
+        # load predictions and probabilities
+        with open(self.in_predictions().path) as infile:
+            predictions_probabilities = [line.split('\t') for line in infile.read().split('\n')]
+        predictions = [x[0] for x in predictions_probabilities]
+        probabilities = [x[1] for x in predictions_probabilities]
+
+        # load documents
+        with open(self.in_documents().path,'r',encoding='utf-8') as infile:
+            documents = infile.read().split('\n')
+
+        # initiate reporter
+        rp = reporter.Reporter(predictions, probabilities, documents=documents)
+
+        # report predictions by document
+        predictions_by_document = rp.predictions_by_document()
+        lw = linewriter.Linewriter(predictions_by_document)
+        lw.write_csv(self.out_docpredictions().path)
+
 @registercomponent
 class ReporterComponent(WorkflowComponent):    
    
@@ -98,3 +126,19 @@ class ReporterComponent(WorkflowComponent):
         reporter.in_labels = input_feeds['labels']
 
         return reporter
+
+class ReportDocpredictionsComponent(WorkflowComponent):
+
+    predictions = Parameter()
+    documents = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        reportdocs = workflow.new_task('report_performance', ReportDocpredictions, autopass=True)
+        reportdocs.in_predictions = input_feeds['predictions']
+        reportdocs.in_documents = input_feeds['documents']
+
+        return reportdocs
