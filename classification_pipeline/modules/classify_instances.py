@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from functions.classifier import AbstractSKLearnClassifier, SVMClassifier, NaiveBayesClassifier
+from functions.classifier import *
 
 class TrainClassifier(Task):
 
@@ -23,10 +23,8 @@ class TrainClassifier(Task):
     def run(self):
 
         # inititate classifier
-        if self.classifier == 'naive_bayes':
-            clf = NaiveBayesClassifier()
-        elif self.classifier == 'svm':
-            clf = SVMClassifier()
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_la':OrdinalLogisticLA(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal'}
+        clf = classifierdict[self.classifier]
 
         # load vectorized instances 
         loader = numpy.load(self.in_train().path)
