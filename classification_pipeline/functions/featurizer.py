@@ -10,7 +10,7 @@ from collections import Counter
 
 import colibricore
 
-import utils
+from functions import utils
 
 class Featurizer:
     """
