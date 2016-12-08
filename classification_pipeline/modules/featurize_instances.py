@@ -3,7 +3,7 @@ import numpy
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter
 
 from functions import featurizer
-from tokenize_instances import Tokenize
+from modules.tokenize_instances import Tokenize
 
 class Featurize_tokens(Task):
 
