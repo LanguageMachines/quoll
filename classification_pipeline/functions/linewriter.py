@@ -3,7 +3,7 @@ import re
 import datetime
 import csv
 
-from openpyxl import Workbook
+from openpyxl.workbook import Workbook
 from openpyxl.styles import numbers, is_date_format, Style
 from openpyxl.utils.datetime import to_excel
 
