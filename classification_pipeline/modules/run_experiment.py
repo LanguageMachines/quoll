@@ -5,9 +5,9 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-import vectorize_instances
-import classify_instances 
-import report_performance
+from modules import vectorize_instances
+from modules import classify_instances 
+from modules import report_performance
    
 @registercomponent
 class ExperimentComponent(WorkflowComponent):
