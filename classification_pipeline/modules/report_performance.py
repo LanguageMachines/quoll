@@ -93,7 +93,7 @@ class ReportDocpredictions(Task):
 
         # load predictions and probabilities
         with open(self.in_predictions().path) as infile:
-            predictions_probabilities = [line.split('\t') for line in infile.read().split('\n')]
+            predictions_probabilities = [line.split('\t') for line in infile.read().strip().split('\n')]
         predictions = [x[0] for x in predictions_probabilities]
         probabilities = [x[1] for x in predictions_probabilities]
 
