@@ -36,11 +36,11 @@ class Vectorize_traininstances(Task):
 
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
-            trainlabels = infile.read().split('\n')
+            trainlabels = infile.read().strip().split('\n')
 
         # load vocabulary
         with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
-            vocabulary = infile.read().split('\n')
+            vocabulary = infile.read().strip().split('\n')
 
         # balance instances by label frequency
         if self.balance:
