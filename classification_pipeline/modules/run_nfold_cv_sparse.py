@@ -8,8 +8,8 @@ import functions.nfold_cv_functions as nfold_cv_functions
 import functions.linewriter as linewriter
 import functions.docreader as docreader
 
-from run_experiment import ExperimentComponent 
-from report_performance import ReporterComponent
+from modules.run_experiment import ExperimentComponent 
+from modules.report_performance import ReporterComponent
 
 class RunFold(Task):
 
