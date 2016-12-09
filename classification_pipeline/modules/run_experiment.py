@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from modules import vectorize_instances
+from modules import vectorize_sparse_instances
 from modules import classify_instances 
 from modules import report_performance
    
@@ -29,7 +29,7 @@ class ExperimentComponent(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        train_vectors = workflow.new_task('vectorize_traininstances', vectorize_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
+        train_vectors = workflow.new_task('vectorize_traininstances', vectorize_sparse_instances.vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
         train_vectors.in_train = input_feeds['train']
         train_vectors.in_trainlabels = input_feeds['trainlabels']
         train_vectors.in_vocabulary = input_feeds['vocabulary']
