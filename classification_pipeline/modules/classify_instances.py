@@ -23,7 +23,7 @@ class TrainClassifier(Task):
     def run(self):
 
         # inititate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_la':OrdinalLogisticLA(), 'ordinal_se':OrdinalLogisticSE()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_la':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances 
