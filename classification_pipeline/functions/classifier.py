@@ -3,8 +3,8 @@ from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
-import mord
-from mord.datasets.base import load_housing
+#import mord
+#from mord.datasets.base import load_housing
 import numpy
 
 class AbstractSKLearnClassifier:
@@ -53,10 +53,10 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
     def train_classifier(self, trainvectors, labels):
-        paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
-        paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
-        best_alpha = paramsearch.best_estimator_.alpha
-        self.model = naive_bayes.MultinomialNB(alpha=best_alpha)
+#        paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
+#        paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
+#        best_alpha = paramsearch.best_estimator_.alpha
+        self.model = naive_bayes.MultinomialNB()
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
     
     def return_classifier(self):

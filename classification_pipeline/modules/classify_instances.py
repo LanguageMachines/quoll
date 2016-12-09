@@ -17,8 +17,8 @@ class TrainClassifier(Task):
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model.pkl')
 
-    def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.le')
+#    def out_label_encoding(self):
+#        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.le')
 
     def run(self):
 
@@ -46,9 +46,9 @@ class TrainClassifier(Task):
             pickle.dump(model, fid) 
         
         # save label encoding
-        label_encoding = clf.return_label_encoding(trainlabels)
-        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))  
+#        label_encoding = clf.return_label_encoding(trainlabels)
+#        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+#            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))  
 
 class ApplyClassifier(Task):
 
