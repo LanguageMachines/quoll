@@ -99,7 +99,7 @@ class ReportDocpredictions(Task):
 
         # load documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
-            documents = infile.read().split('\n')
+            documents = infile.read().strip().split('\n')
 
         # initiate reporter
         rp = reporter.Reporter(predictions, probabilities, documents=documents)
