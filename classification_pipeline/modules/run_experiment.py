@@ -34,7 +34,7 @@ class ExperimentComponent(WorkflowComponent):
         train_vectors.in_trainlabels = input_feeds['trainlabels']
         train_vectors.in_vocabulary = input_feeds['vocabulary']
 
-        test_vectors = workflow.new_task('vectorize_testinstances', vectorize_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
+        test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
         test_vectors.in_test = input_feeds['test']
         test_vectors.in_sourcevocabulary = input_feeds['vocabulary']
         test_vectors.in_topfeatures = train_vectors.out_topfeatures
