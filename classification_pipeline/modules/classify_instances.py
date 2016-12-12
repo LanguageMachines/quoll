@@ -16,11 +16,16 @@ class TrainClassifier(Task):
     classifier_args = Parameter()
     
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.classifier + 'model.pkl')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.classifier + '.model.pkl')
 
+<<<<<<< HEAD
 #    def out_label_encoding(self):
 #        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.le')
 
+=======
+    def out_label_encoding(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.classifier + '.le')
+>>>>>>> 3b8986a22ad2d66f2c60a5fe763f256e22a45f9a
 
     def run(self):
 
