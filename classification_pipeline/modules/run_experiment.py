@@ -22,6 +22,7 @@ class ExperimentComponent(WorkflowComponent):
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)    
     classifier = Parameter(default='naive_bayes')
+    classifier_args = Parameter(default=False)
     documents = Parameter(default=False)
     
     def accepts(self):
@@ -39,7 +40,7 @@ class ExperimentComponent(WorkflowComponent):
         test_vectors.in_sourcevocabulary = input_feeds['vocabulary']
         test_vectors.in_topfeatures = train_vectors.out_topfeatures
 
-        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
         trainer.in_train = train_vectors.out_train
         trainer.in_trainlabels = train_vectors.out_labels
 
@@ -64,6 +65,7 @@ class ExperimentComponentVector(WorkflowComponent):
     featurenames = Parameter()
     
     classifier = Parameter(default='naive_bayes')
+    classifier_args = Parameter(default=False)
     documents = Parameter(default=False)
     
     def accepts(self):
@@ -71,7 +73,7 @@ class ExperimentComponentVector(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
         trainer.in_train = input_feeds['train']
         trainer.in_trainlabels = input_feeds['trainlabels']
 

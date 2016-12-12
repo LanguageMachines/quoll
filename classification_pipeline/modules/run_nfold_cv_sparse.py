@@ -23,6 +23,7 @@ class RunFold(Task):
     prune = IntParameter()
     balance = BoolParameter()
     classifier = Parameter()
+    classifier_args = Parameter()
     documents = Parameter()
     
     def out_fold(self):
@@ -77,7 +78,7 @@ class RunFold(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponent(trainfeatures=trf_out, trainlabels=trl_out, testfeatures=tef_out, testlabels=tel_out, vocabulary=self.in_vocabulary().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, documents=docs_out) 
+        yield ExperimentComponent(trainfeatures=trf_out, trainlabels=trl_out, testfeatures=tef_out, testlabels=tel_out, vocabulary=self.in_vocabulary().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=docs_out) 
     
 
 class Fold(WorkflowComponent):
@@ -92,6 +93,7 @@ class Fold(WorkflowComponent):
     prune = IntParameter()
     balance = BoolParameter()
     classifier = Parameter()
+    classifier_args = Parameter()
     documents = Parameter()
 
     def accepts(self):
@@ -99,7 +101,7 @@ class Fold(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
         
-        fold = workflow.new_task('fold', RunFold, autopass=True, i = self.i, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, documents=self.documents)            
+        fold = workflow.new_task('fold', RunFold, autopass=True, i = self.i, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)            
         fold.in_features = input_feeds['features']
         fold.in_labels = input_feeds['labels']
         fold.in_vocabulary = input_feeds['vocabulary']        
@@ -117,6 +119,7 @@ class Run_nfold_cv(Task):
     prune = IntParameter()
     balance = BoolParameter()  
     classifier = Parameter()
+    classifier_args = Parameter()
     documents = Parameter()
 
     def out_folds(self):
@@ -144,7 +147,7 @@ class Run_nfold_cv(Task):
         performance_files = []
         docprediction_files = []
         for fold in range(self.n):
-            yield Fold(features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=bins_out, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, documents=self.documents)
+            yield Fold(features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=bins_out, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, self.documents)
             
             performance_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.performance.csv')
             docprediction_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.docpredictions.csv')
@@ -200,6 +203,7 @@ class NFoldCV(WorkflowComponent):
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
+    classifier_args = Parameter(default=False)
     documents = Parameter(default=False)
 
     def accepts(self):
@@ -207,7 +211,7 @@ class NFoldCV(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        nfold_cv = workflow.new_task('nfold_cv', Run_nfold_cv, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, documents=self.documents)
+        nfold_cv = workflow.new_task('nfold_cv', Run_nfold_cv, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)
         nfold_cv.in_features = input_feeds['features']
         nfold_cv.in_labels = input_feeds['labels']
         nfold_cv.in_vocabulary = input_feeds['vocabulary']
