@@ -28,7 +28,7 @@ class AbstractSKLearnClassifier:
         predictions = []
         probabilities = []
         for i, instance in enumerate(testvectors):
-            prediction=clf.predict(instance)[0]
+            prediction = clf.predict(instance)[0]
             predictions.append(prediction)
             try:
                 probabilities.append(clf.predict_proba(instance)[0][prediction])

@@ -120,7 +120,7 @@ class Run_nfold_cv(Task):
     documents = Parameter()
 
     def out_folds(self):
-        return self.outputfrominput(inputformat='features', stripextension='.features.npz', addextension='.' + str(self.n) + 'fold_cv')
+        return self.outputfrominput(inputformat='features', stripextension='.features.npz', addextension='.' + str(self.n) + 'fold_cv.weight_' + self.weight + '.prune_' + str(self.prune) + '.balance_' + str(self.balance) + '.classifier' + self.classifier)
         
     def run(self):
 
