@@ -96,13 +96,14 @@ class Train(WorkflowComponent):
     trainlabels = Parameter()
 
     classifier = Parameter()
+    classifier_args = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
         trainer.in_train = input_feeds['trainvectors']
         trainer.in_trainlabels = input_feeds['trainlabels']
 
