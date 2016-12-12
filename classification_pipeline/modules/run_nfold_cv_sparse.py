@@ -147,7 +147,7 @@ class Run_nfold_cv(Task):
         performance_files = []
         docprediction_files = []
         for fold in range(self.n):
-            yield Fold(features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=bins_out, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, self.documents)
+            yield Fold(features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=bins_out, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)
             
             performance_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.performance.csv')
             docprediction_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.docpredictions.csv')
