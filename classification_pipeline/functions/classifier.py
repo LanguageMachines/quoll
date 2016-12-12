@@ -85,11 +85,12 @@ class SVMClassifier(AbstractSKLearnClassifier):
         else: # only two classes to distinguish
             parameters = ['C', 'kernel', 'gamma', 'degree']
             multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'grid' else [int(c)]
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'grid' else [float(c)]
         kernel_values = ['linear', 'rbf', 'poly'] if kernel == 'grid' else [kernel]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'grid' else [gamma]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'grid' else [float(gamma)]
         degree_values = [1, 2, 3, 4] if degree == 'grid' else [int(degree)]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
+        iterations=int(iterations)
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
             for i, parameter in enumerate(parameters):
