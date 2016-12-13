@@ -21,8 +21,8 @@ class TrainClassifier(Task):
 #    def out_label_encoding(self):
 #        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.le')
 
-    def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.classifier + '.le')
+#    def out_label_encoding(self):
+#        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.classifier + '.le')
 
     def run(self):
 
