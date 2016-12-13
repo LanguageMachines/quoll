@@ -34,7 +34,7 @@ class Tokenize_instances(Task):
 @registercomponent
 class Tokenize(StandardWorkflowComponent):
     
-    config = Parameter()
+    tokconfig = Parameter()
     strip_punctuation = BoolParameter()
 
     def autosetup(self):
