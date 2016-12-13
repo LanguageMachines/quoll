@@ -8,7 +8,7 @@ class Tokenize_instances(Task):
 
     in_txt = InputSlot()
 
-    config = Parameter()
+    tokconfig = Parameter()
     strip_punctuation = BoolParameter()
 
     def out_tokenized(self):
@@ -22,7 +22,7 @@ class Tokenize_instances(Task):
             lines = file_in.readlines()
 
         with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
-            tokenizer = ucto.Tokenizer(self.config)
+            tokenizer = ucto.Tokenizer(self.tokconfig)
             for line in lines:
                 tokenizer.process(line)
                 tokens = []
