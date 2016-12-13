@@ -1,7 +1,7 @@
 
 import sys
-import xlrd
-from openpyxl import load_workbook
+#import xlrd
+#from openpyxl import load_workbook
 import csv
 import json
 import copy
