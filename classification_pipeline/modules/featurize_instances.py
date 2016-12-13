@@ -51,7 +51,7 @@ class Featurize(StandardWorkflowComponent):
     strip_punctuation = BoolParameter(default=True)
 
     def accepts(self):
-        return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputComponent(self, Tokenize, config=self.tokconfig, strip_punctuation=self.strip_punctuation)
+        return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputComponent(self, Tokenize, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
                     
     def autosetup(self):
         return Featurize_tokens
