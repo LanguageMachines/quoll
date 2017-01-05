@@ -82,6 +82,7 @@ class FoldVectorsTask(Task):
     
     i = IntParameter()
     classifier = Parameter()
+    classifier_args = Parameter()
     
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', addextension='/fold' + str(self.i))    
@@ -142,7 +143,7 @@ class FoldVectorsTask(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_documents().path, classifier=self.classifier) 
+        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_documents().path, classifier=self.classifier, classifier_args=self.classifier_args) 
 
 @registercomponent
 class FoldVectors(WorkflowComponent):
@@ -155,13 +156,14 @@ class FoldVectors(WorkflowComponent):
 
     i = IntParameter()
     classifier = Parameter()
+    classifier_args = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), inputparameter='featurenames'), InputFormat(self, format_id='bins', extension='.bins.csv', inputparameter='bins'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='bins', extension='.bins.csv', inputparameter='bins'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
     
     def setup(self, workflow, input_feeds):
         
-        fold = workflow.new_task('fold', FoldVectorsTask, autopass=True, i=self.i, classifier=self.classifier, documents=self.documents)            
+        fold = workflow.new_task('fold', FoldVectorsTask, autopass=True, i=self.i, classifier=self.classifier, classifier_args=self.classifier_args)            
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']   
@@ -178,6 +180,7 @@ class RunFoldsVectorsTask(Task):
 
     n = IntParameter()
     classifier = Parameter()
+    classifier_args = Parameter()
 
     def out_exp(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.exp')
@@ -189,7 +192,7 @@ class RunFoldsVectorsTask(Task):
     performance_files = []
     docprediction_files = []
     for fold in range(self.n):
-        yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier)
+        yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args)
 
 @registercomponent
 class RunFoldsVectors(WorkflowComponent):
@@ -208,7 +211,7 @@ class RunFoldsVectors(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        foldrunner = workflow.new_task('run_folds_vectors_task', RunFoldsVectorsTask, autopass=True, n = self.n, classifier=self.classifier, documents=self.documents)
+        foldrunner = workflow.new_task('run_folds_vectors_task', RunFoldsVectorsTask, autopass=True, n = self.n, classifier=self.classifier, classifier_args=self.classifier_args)
         foldrunner.in_bins = input_feeds['bins']
         foldrunner.in_vectors = input_feeds['vectors']
         foldrunner.in_labels = input_feeds['labels']
