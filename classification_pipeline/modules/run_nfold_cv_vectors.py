@@ -3,6 +3,7 @@ from luiginlp.engine import Task, WorkflowComponent, InputFormat, InputComponent
 import numpy
 from scipy import sparse
 from collections import defaultdict
+import glob
 
 import functions.nfold_cv_functions as nfold_cv_functions
 import functions.linewriter as linewriter
@@ -11,21 +12,95 @@ import functions.docreader as docreader
 from run_experiment import ExperimentComponentVector 
 from report_performance import ReporterComponent
 
-class RunFold(Task):
+class ReportFoldsTask(Task):
 
+    in_expdirectory = InputSlot()
+
+    def out_performance(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.performance.csv')    
+
+    def out_docpredictions(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.docpredictions.csv')    
+ 
+    def run(self):
+
+        # gather fold reports
+        print('gathering fold reports')
+        performance_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/test.performance.csv') ]
+        docprediction_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/test.docpredictions.csv') ]
+
+        # calculate average performance
+        dr = docreader.Docreader()
+        performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
+        all_performance = [performance_combined[0][0]] # headers
+        label_performance = defaultdict(list)
+        for p in performance_combined:
+            for i in range(1,len(p)): # labels 
+                performance = []
+                label = p[i][0] # name of label
+                for j in range(1,len(p[i])): # report values
+                    performance.append(float(p[i][j]))
+                label_performance[label].append(performance)
+
+        # compute mean and sum per label
+        labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
+        for label in labels_order:
+            average_performance = [label]
+            for j in range(0,len(label_performance[label][0])-3):
+                average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
+            for j in range(len(label_performance[label][0])-3,len(label_performance[label][0])):
+                average_performance.append(str(sum([int(p[j]) for p in label_performance[label]])))
+            all_performance.append(average_performance)
+
+        lw = linewriter.Linewriter(all_performance)
+        lw.write_csv(self.out_performance().path)
+
+        # write predictions per document
+        docpredictions = sum([dr.parse_csv(docprediction_file) for docprediction_file in docprediction_files], [])
+        lw = linewriter.Linewriter(docpredictions)
+        lw.write_csv(out_docpredictions().path)
+
+@registercomponent
+class ReportFolds(StandardWorkflowComponent):
+
+    expdirectory = Parameter()
+
+    def accepts(self):
+        return InputFormat(self,format_id='expdirectory',extension='.exp',inputparameter='expdirectory')
+    
+    def autosetup(self):
+        return ReportFoldsTask
+
+
+class FoldVectorsTask(Task):
+
+    in_directory = InputSlot()
     in_vectors = InputSlot()
     in_labels = InputSlot()
-    in_featurelabels = InputSlot()
-    in_featurenames = InputSlot()
+    in_documents = InputSlot()
     in_bins = InputSlot()
     
     i = IntParameter()
     classifier = Parameter()
-    documents = Parameter()
     
     def out_fold(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.fold' + str(self.i))    
-    
+        return self.outputfrominput(inputformat='directory', addextension='/fold' + str(self.i))    
+
+    def out_trainvectors(self):
+        return self.out_fold().path + '/train.vectors.npz'
+
+    def out_testvectors(self):
+        return self.out_fold().path + '/test.vectors.npz'
+
+    def out_trainlabels(self):
+        return self.out_fold().path + '/train.labels'
+
+    def out_testlabels(self):
+        return self.out_fold().path + '/test.labels'
+
+    def out_documents(self):
+        return self.out_fold().path + '/docs.txt'
+   
     def run(self):
 
         # make fold directory
@@ -45,11 +120,8 @@ class RunFold(Task):
             labels = numpy.array(infile.read().strip().split('\n'))
 
         # open documents
-        try:
-            with open(self.documents,'r',encoding='utf-8') as infile:
-                documents = numpy.array(infile.read().split('\n'))
-        except FileNotFoundError:
-            documents = numpy.array(['-'] * len(labels))
+        with open(self.in_documents().path,'r',encoding='utf-8') as infile:
+            documents = numpy.array(infile.read().split('\n'))
 
         # set training and test data
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
@@ -59,60 +131,102 @@ class RunFold(Task):
         test_documents = documents[bins[self.i]]
 
         # write experiment data to files in fold directory
-        trv_out = self.out_fold().path + '/train.vectors.npz'
-        numpy.savez(trv_out, data=train_vectors.data, indices=train_vectors.indices, indptr=train_vectors.indptr, shape=train_vectors.shape)        
-        trl_out = self.out_fold().path + '/train.labels'
-        with open(trl_out,'w',encoding='utf-8') as outfile:
+        numpy.savez(self.out_trainvectors().path, data=train_vectors.data, indices=train_vectors.indices, indptr=train_vectors.indptr, shape=train_vectors.shape)        
+        numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
+        with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(train_labels))
-        tev_out = self.out_fold().path + '/test.vectors.npz'
-        numpy.savez(tev_out, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)        
-        tel_out = self.out_fold().path + '/test.labels'
-        with open(tel_out,'w',encoding='utf-8') as outfile:
+        with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
-        docs_out = self.out_fold().path + '/docs.txt'
-        with open(docs_out,'w',encoding='utf-8') as outfile:
+        with open(self.out_documents().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponentVector(train=trv_out, trainlabels=trl_out, test=tev_out, testlabels=tel_out, featurenames=self.in_featurenames().path, classifier=self.classifier, documents=docs_out) 
-    
+        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_documents().path, classifier=self.classifier) 
 
-class Fold(WorkflowComponent):
+@registercomponent
+class FoldVectors(WorkflowComponent):
 
+    directory = Parameter()
     vectors = Parameter()
     labels = Parameter()
-    featurenames = Parameter()
     bins = Parameter()
-    
-    i = IntParameter()
-    classifier = Parameter()
     documents = Parameter()
 
+    i = IntParameter()
+    classifier = Parameter()
+
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='featurenames', extension='.featurenames.txt', inputparameter='featurenames'), InputFormat(self, format_id='bins', extension='.bins.csv', inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), inputparameter='featurenames'), InputFormat(self, format_id='bins', extension='.bins.csv', inputparameter='bins'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
     
     def setup(self, workflow, input_feeds):
         
-        fold = workflow.new_task('fold', RunFold, autopass=True, i=self.i, classifier=self.classifier, documents=self.documents)            
+        fold = workflow.new_task('fold', FoldVectorsTask, autopass=True, i=self.i, classifier=self.classifier, documents=self.documents)            
+        fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
-        fold.in_labels = input_feeds['labels']
-        fold.in_featurenames = input_feeds['featurenames']        
+        fold.in_labels = input_feeds['labels']   
         fold.in_bins = input_feeds['bins']
+        fold.in_documents = input_feeds['documents']
         return fold
     
-class Run_nfold_cv(Task):
+class RunFoldsVectorsTask(Task):
 
+    in_bins = InputSlot()
     in_vectors = InputSlot()
     in_labels = InputSlot()
-    in_featurenames = InputSlot()
+    in_documents = InputSlot()
 
     n = IntParameter()
     classifier = Parameter()
+
+    def out_exp(self):
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.exp')
+        
+    # make experiment directory
+    self.setup_output_dir(self.out_exp().path)
+
+    # for each fold
+    performance_files = []
+    docprediction_files = []
+    for fold in range(self.n):
+        yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier)
+
+@registercomponent
+class RunFoldsVectors(WorkflowComponent):
+    
+    bins = Parameter()
+    vectors = Parameter()
+    labels = Parameter()
     documents = Parameter()
 
+    n = IntParameter(default=10)
+    classifier = Parameter(default='naive_bayes')
+    classifier_args = Parameter(default=False)
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), inputparameter='featurenames'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+    
+    def setup(self, workflow, input_feeds):
+
+        foldrunner = workflow.new_task('run_folds_vectors_task', RunFoldsVectorsTask, autopass=True, n = self.n, classifier=self.classifier, documents=self.documents)
+        foldrunner.in_bins = input_feeds['bins']
+        foldrunner.in_vectors = input_feeds['vectors']
+        foldrunner.in_labels = input_feeds['labels']
+        foldrunner.in_documents = input_feeds['documents']
+
+        return foldrunner
+
+class MakeBinsTask(Task):
+
+    in_labels = InputSlot()
+
+    n = IntParameter()
+
     def out_folds(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + str(self.n) + 'fold_cv')
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv')
+
+    def out_bins(self):
+        return self.out_folds().path + '/folds.bins.csv'
         
     def run(self):
 
@@ -128,73 +242,49 @@ class Run_nfold_cv(Task):
         fold_indices = nfold_cv_functions.return_fold_indices(num_instances, self.n)        
         
         # write indices of bins to file
-        bins_out = self.out_folds().path + '/folds.bins.csv'
         lw = linewriter.Linewriter(fold_indices)
-        lw.write_csv(bins_out)
-        
-        # run folds
-        performance_files = []
-        docprediction_files = []
-        for fold in range(self.n):
-            yield Fold(vectors=self.in_vectors().path, labels=self.in_labels().path, featurenames=self.in_featurenames().path, bins=bins_out, i=fold, classifier=self.classifier, documents=self.documents)
-            
-            performance_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.performance.csv')
-            docprediction_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.docpredictions.csv')
-            
-        performance_out = self.out_folds().path + '/folds.performance.csv'
-        docpredictions_out = self.out_folds().path + '/folds.docpredictions.csv'
+        lw.write_csv(self.out_bins().path)
 
-        # calculate average performance
-        dr = docreader.Docreader()
-        performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
-        all_performance = [performance_combined[0][0]] # headers
-        label_performance = defaultdict(list)
-        for p in performance_combined:
-            for i in range(1,len(p)): # labels 
-                performance = []
-                label = p[i][0] # name of label
-                for j in range(1,len(p[i])): # report values
-                    performance.append(float(p[i][j]))
-                label_performance[label].append(performance)
-        # compute mean and sum per label
-        labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
-        for label in labels_order:
-            average_performance = [label]
-            for j in range(0,len(label_performance[label][0])-3):
-                average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
-            for j in range(len(label_performance[label][0])-3,len(label_performance[label][0])):
-                average_performance.append(str(sum([int(p[j]) for p in label_performance[label]])))
-            all_performance.append(average_performance)
+@registercomponent
+class MakeBins(WorkflowComponent):
+    
+    labels = Inputslot()
 
-        lw = linewriter.Linewriter(all_performance)
-        lw.write_csv(performance_out)
+    n = IntParameter(default=10)
 
-        # write predictions per document
-        docpredictions = sum([dr.parse_csv(docprediction_file) for docprediction_file in docprediction_files], [])
-        lw = linewriter.Linewriter(docpredictions)
-        lw.write_csv(docpredictions_out)
+    def accepts(self):
+        return InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels')
+    
+    def autosetup(self):
+        return MakeBinsTask
+
 
 @registercomponent
 class NFoldCV(WorkflowComponent):
     
     vectors = Parameter()
     labels = Parameter()
-    featurenames = Parameter()
+    documents = Parameter()
 
     n = IntParameter(default=10)
     classifier = Parameter(default='naive_bayes')
-    documents = Parameter(default=False)
+    classifier_args = Paramter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='featurenames', extension='.featurenames.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        nfold_cv = workflow.new_task('nfold_cv', Run_nfold_cv, autopass=True, n = self.n, classifier=self.classifier, documents=self.documents)
-        nfold_cv.in_vectors = input_feeds['vectors']
-        nfold_cv.in_labels = input_feeds['labels']
-        nfold_cv.in_featurenames = input_feeds['featurenames']
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker.in_labels = input_feeds['labels']
 
-        return nfold_cv
+        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
+        fold_runner.in_bins = bin_maker.out_bins
+        fold_runner.in_vectors = input_feeds['vectors']
+        fold_runner.in_labels = input_feeds['labels']
+        fold_runner.in_documents = input_feeds['documents']        
 
+        folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
+        folds_reporter.in_expdirectory = fold_runner.out_exp
 
+        return folds_reporter

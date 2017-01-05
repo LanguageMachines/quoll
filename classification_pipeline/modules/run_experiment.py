@@ -17,16 +17,16 @@ class ExperimentComponent(WorkflowComponent):
     testfeatures = Parameter()
     testlabels = Parameter()
     vocabulary = Parameter()
+    documents = Parameter()
     
     weight = Parameter(default='frequency')
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)    
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default=False)
-    documents = Parameter(default=False)
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -49,9 +49,10 @@ class ExperimentComponent(WorkflowComponent):
         predictor.in_labels = train_vectors.out_labels
         predictor.in_model = trainer.out_model
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, documents=self.documents)
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True)
         reporter.in_predictions = predictor.out_classifications
         reporter.in_labels = input_feeds['testlabels']
+        reporter.in_documents = input_feeds['documents']
 
         return reporter
 
@@ -62,14 +63,13 @@ class ExperimentComponentVector(WorkflowComponent):
     trainlabels = Parameter()
     test = Parameter()
     testlabels = Parameter()
-    featurenames = Parameter()
+    documents = Parameter()
     
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default=False)
-    documents = Parameter(default=False)
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='featurenames', extension='.featurenames.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -82,8 +82,9 @@ class ExperimentComponentVector(WorkflowComponent):
         predictor.in_labels = input_feeds['trainlabels']
         predictor.in_model = trainer.out_model
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, documents=self.documents)
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True)
         reporter.in_predictions = predictor.out_classifications
         reporter.in_labels = input_feeds['testlabels']
+        reporter.in_documents = input_feeds['documents']
 
         return reporter
