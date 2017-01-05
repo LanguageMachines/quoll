@@ -31,7 +31,7 @@ class NFoldCV(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBinsk, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
@@ -139,7 +139,7 @@ class FoldVectors(WorkflowComponent):
         fold.in_documents = input_feeds['documents']     
         fold.in_bins = input_feeds['bins']   
 
-        return folds
+        return fold
 
 class FoldVectorsTask(Task):
 
