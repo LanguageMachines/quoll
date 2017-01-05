@@ -31,16 +31,16 @@ class NFoldCV(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBinsTask, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBinsk, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectorsTask, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
+        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
         fold_runner.in_documents = input_feeds['documents']        
 
-        folds_reporter = workflow.new_task('report_folds', ReportFoldsTask, autopass = False)
+        folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
 
         return folds_reporter
@@ -50,7 +50,7 @@ class NFoldCV(WorkflowComponent):
 ###Binner
 ################################################################################
 
-class MakeBinsTask(Task):
+class MakeBins(Task):
 
     in_labels = InputSlot()
 
@@ -84,7 +84,7 @@ class MakeBinsTask(Task):
 ###Experiment wrapper
 ################################################################################
 
-class RunFoldsVectorsTask(Task):
+class RunFoldsVectors(Task):
 
     in_bins = InputSlot()
     in_vectors = InputSlot()
@@ -113,6 +113,33 @@ class RunFoldsVectorsTask(Task):
 ################################################################################
 ###Fold Wrapper
 ################################################################################
+
+@registercomponent
+class FoldVectors(WorkflowComponent):
+
+    directory = Parameter()
+    vectors = Parameter()
+    labels = Parameter()
+    documents = Parameter()
+    bins = Parameter()
+
+    i = IntParameter()
+    classifier = Parameter()
+    classifier_args = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+    
+    def setup(self, workflow, input_feeds):
+
+        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, classifier_args=self.classifier_args)
+        fold.in_directory = input_feeds['directory']
+        fold.in_vectors = input_feeds['vectors']
+        fold.in_labels = input_feeds['labels']
+        fold.in_documents = input_feeds['documents']     
+        fold.in_bins = input_feeds['bins']   
+
+        return folds
 
 class FoldVectorsTask(Task):
 
@@ -192,7 +219,7 @@ class FoldVectorsTask(Task):
 ###Reporter
 ################################################################################
 
-class ReportFoldsTask(Task):
+class ReportFolds(Task):
 
     in_expdirectory = InputSlot()
 
