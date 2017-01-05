@@ -1,5 +1,5 @@
 
-from luiginlp.engine import Task, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
+from luiginlp.engine import Task, WorkflowComponent, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 import numpy
 from scipy import sparse
 from collections import defaultdict
@@ -10,7 +10,6 @@ import functions.linewriter as linewriter
 import functions.docreader as docreader
 
 from run_experiment import ExperimentComponentVector 
-from report_performance import ReporterComponent
 
 class ReportFoldsTask(Task):
 
@@ -58,7 +57,7 @@ class ReportFoldsTask(Task):
         # write predictions per document
         docpredictions = sum([dr.parse_csv(docprediction_file) for docprediction_file in docprediction_files], [])
         lw = linewriter.Linewriter(docpredictions)
-        lw.write_csv(out_docpredictions().path)
+        lw.write_csv(self.out_docpredictions().path)
 
 @registercomponent
 class ReportFolds(StandardWorkflowComponent):
@@ -85,22 +84,22 @@ class FoldVectorsTask(Task):
     classifier_args = Parameter()
     
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', addextension='/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
 
     def out_trainvectors(self):
-        return self.out_fold().path + '/train.vectors.npz'
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vectors.npz')
 
     def out_testvectors(self):
-        return self.out_fold().path + '/test.vectors.npz'
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vectors.npz')
 
     def out_trainlabels(self):
-        return self.out_fold().path + '/train.labels'
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
 
     def out_testlabels(self):
-        return self.out_fold().path + '/test.labels'
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
     def out_documents(self):
-        return self.out_fold().path + '/docs.txt'
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/docs.txt')
    
     def run(self):
 
@@ -183,16 +182,18 @@ class RunFoldsVectorsTask(Task):
     classifier_args = Parameter()
 
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.exp')
         
-    # make experiment directory
-    self.setup_output_dir(self.out_exp().path)
+    def run(self):
 
-    # for each fold
-    performance_files = []
-    docprediction_files = []
-    for fold in range(self.n):
-        yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args)
+        # make experiment directory
+        self.setup_output_dir(self.out_exp().path)
+
+        # for each fold
+        performance_files = []
+        docprediction_files = []
+        for fold in range(self.n):
+            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args)
 
 @registercomponent
 class RunFoldsVectors(WorkflowComponent):
@@ -207,7 +208,7 @@ class RunFoldsVectors(WorkflowComponent):
     classifier_args = Parameter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), inputparameter='featurenames'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
     
     def setup(self, workflow, input_feeds):
 
@@ -229,7 +230,7 @@ class MakeBinsTask(Task):
         return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv')
 
     def out_bins(self):
-        return self.out_folds().path + '/folds.bins.csv'
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv/folds.bins.csv')
         
     def run(self):
 
@@ -248,18 +249,18 @@ class MakeBinsTask(Task):
         lw = linewriter.Linewriter(fold_indices)
         lw.write_csv(self.out_bins().path)
 
-@registercomponent
-class MakeBins(WorkflowComponent):
+# @registercomponent
+# class MakeBins(WorkflowComponent):
     
-    labels = Inputslot()
+#     labels = InputSlot()
 
-    n = IntParameter(default=10)
+#     n = IntParameter(default=10)
 
-    def accepts(self):
-        return InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels')
+#     def accepts(self):
+#         return InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels')
     
-    def autosetup(self):
-        return MakeBinsTask
+#     def autosetup(self):
+#         return MakeBinsTask
 
 
 @registercomponent
@@ -271,23 +272,23 @@ class NFoldCV(WorkflowComponent):
 
     n = IntParameter(default=10)
     classifier = Parameter(default='naive_bayes')
-    classifier_args = Paramter(default=False)
+    classifier_args = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBinsTask, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
+        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectorsTask, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
         fold_runner.in_documents = input_feeds['documents']        
 
-        folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
+        folds_reporter = workflow.new_task('report_folds', ReportFoldsTask, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
 
         return folds_reporter
