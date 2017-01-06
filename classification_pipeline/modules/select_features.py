@@ -6,7 +6,7 @@ import glob
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 
 from modules import run_ga, run_nfold_cv_vectors
-from functions import ga_functions, vectorizer
+from functions import ga_functions, vectorizer, docreader, linewriter
 
 ################################################################################
 ###Component to thread the tasks together
@@ -111,7 +111,7 @@ class FoldGA(WorkflowComponent):
     fitness_metric = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.feature_selection',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
     
     def setup(self, workflow, input_feeds):
 
