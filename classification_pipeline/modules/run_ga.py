@@ -1,6 +1,7 @@
 
 import numpy
 from scipy import sparse
+import glob
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 
@@ -140,7 +141,7 @@ class ManageGAIterations(Task):
         # run iterations
         iterdir = self.out_pre_iteration().path
         for i in range(1,self.num_iterations+1):
-            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=in_trainvectors().path, trainlabels=in_trainlabels().path, testvectors=in_testvectors().path, testlabels=in_testlabels().path, documents=in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric))
+            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric))
             iterdir = iterdir[:-11] + str(i) + '.iteration'
 
 
@@ -156,7 +157,7 @@ class ReportGAIterations(Task):
         return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.report.txt')
 
     def out_best_solution(self):
-        return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.best_solution.npz')
+        return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.best_solution.txt')
 
     def run(self):
 
@@ -187,5 +188,6 @@ class ReportGAIterations(Task):
         # extract best solution and write to output
         loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/population.npz')
         population_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_solution = population_best_iteration[index_best_fitness_iterations[1],:].toarray()
-        numpy.save(self.out_best_solution().path,best_solution)
+        best_solution = list(population_best_iteration[index_best_fitness_iterations[1],:].nonzero()[1])
+        with open(self.out_best_solution().path,'w') as outfile:
+            outfile.write(' '.join([str(i) for i in best_solution]))
