@@ -168,9 +168,12 @@ class FoldVectorsTask(Task):
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
-    def out_documents(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/docs.txt')
-   
+    def out_traindocuments(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.feature_selection/fold' + str(self.i) + '/train.docs.txt')
+
+    def out_testdocuments(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.feature_selection/fold' + str(self.i) + '/test.docs.txt')
+
     def run(self):
 
         # make fold directory
