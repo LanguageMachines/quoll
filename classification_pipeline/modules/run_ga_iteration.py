@@ -197,7 +197,7 @@ class ScoreFitnessSolutionTask(Task):
         # load solution
         loader = numpy.load(self.in_population().path)
         population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']) 
-        solution = population[self.soution_index,:].nonzero()      
+        solution = population[self.soution_index,:].nonzero()
         
         # transform train and test vectors according to solution
         transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,solution)
