@@ -5,7 +5,7 @@ import glob
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 
-from modules import run_ga, run_nfold_cv_vectors
+from modules import run_ga, make_bins
 from functions import ga_functions, vectorizer, docreader, linewriter
 
 ################################################################################
@@ -35,7 +35,7 @@ class SelectFeatures(WorkflowComponent):
                                 
     def setup(self, workflow, input_feeds):
 
-        binner = workflow.new_task('make_bins', run_nfold_cv_vectors.MakeBins, autopass=True, n=self.training_split)
+        binner = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
         foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=False, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
@@ -44,7 +44,7 @@ class SelectFeatures(WorkflowComponent):
         foldrunner.in_labels = input_feeds['trainlabels']
         foldrunner.in_documents = input_feeds['documents']
 
-        foldreporter = workflow.new_task('report_folds', ReportFolds, autopass=False)
+        foldreporter = workflow.new_task('report_folds', ReportFoldsGA, autopass=False)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
         foldreporter.in_trainvectors = input_feeds['trainvectors']
 
@@ -201,19 +201,21 @@ class FoldGATask(Task):
             outfile.write('\n'.join(train_labels))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
-        with open(self.out_documents().path,'w',encoding='utf-8') as outfile:
+        with open(self.out_traindocuments().path,'w',encoding='utf-8') as outfile:
+            outfile.write('\n'.join(train_documents))
+        with open(self.out_testdocuments().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
-        print('Running experiment for fold',self.i)
+        print('Running feature selection for fold',self.i)
 
-        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_documents().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
 
 
 ################################################################################
 ###Reporter
 ################################################################################
 
-class ReportFolds(Task):
+class ReportFoldsGA(Task):
 
     in_feature_selection_directory = InputSlot()
     in_trainvectors = InputSlot()
@@ -229,7 +231,7 @@ class ReportFolds(Task):
         # gather fold reports
         print('gathering fold reports')
         fold_reports = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.report.txt') ]
-        fold_best_solutions = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/train.ga.best_solution.txt') ]
+        fold_best_solutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_solution.txt') ]
 
         # summarize reports
         dr = docreader.Docreader()

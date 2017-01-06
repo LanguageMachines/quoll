@@ -169,10 +169,10 @@ class FoldVectorsTask(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
     def out_traindocuments(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.feature_selection/fold' + str(self.i) + '/train.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.docs.txt')
 
     def out_testdocuments(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.feature_selection/fold' + str(self.i) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
 
     def run(self):
 
@@ -199,6 +199,7 @@ class FoldVectorsTask(Task):
         # set training and test data
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
+        train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
         test_vectors = instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
@@ -210,12 +211,14 @@ class FoldVectorsTask(Task):
             outfile.write('\n'.join(train_labels))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
-        with open(self.out_documents().path,'w',encoding='utf-8') as outfile:
+        with open(self.out_traindocuments().path,'w',encoding='utf-8') as outfile:
+            outfile.write('\n'.join(train_documents))
+        with open(self.out_testdocuments().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_documents().path, classifier=self.classifier, classifier_args=self.classifier_args) 
+        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, classifier=self.classifier, classifier_args=self.classifier_args) 
 
 
 ################################################################################
