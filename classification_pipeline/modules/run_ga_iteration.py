@@ -1,5 +1,5 @@
 
-import os
+import glob
 import numpy
 from scipy import sparse
 
@@ -122,7 +122,7 @@ class ScoreFitnessPopulation(Task):
         self.setup_output_dir(self.out_fitness_exp().path)
 
         # score fitness for each solution
-        yield [ ScoreFitnessSolution(in_fitness_exp=self.out_fitness_exp().path, in_population=self.in_population().path, in_trainvectors=self.in_trainvectors().path, in_trainlabels=self.in_trainlabels().path, in_testvectors=self.in_testvectors().path, in_testlabels=self.in_testlabels().path, in_documents=self.in_documents().path, solution_index=i, classifier=self.classifier, classifier_args=self.classifier_args) for i in range(self.population_size) ]
+        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, population=self.in_population().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, solution_index=i, classifier=self.classifier, classifier_args=self.classifier_args) for i in range(self.population_size) ]
 
 
 ################################################################################
@@ -132,28 +132,28 @@ class ScoreFitnessPopulation(Task):
 @registercomponent
 class ScoreFitnessSolution(WorkflowComponent):
 
-    in_fitness_exp = Paramter()
-    in_population = Parameter()
-    in_trainvectors = Parameter()
-    in_trainlabels = Parameter()
-    in_testvectors = Parameter()
-    in_testlabels = Parameter()
-    in_documents = Paramteter()
+    fitness_exp = Parameter()
+    population = Parameter()
+    trainvectors = Parameter()
+    trainlabels = Parameter()
+    testvectors = Parameter()
+    testlabels = Parameter()
+    documents = Parameter()
 
     solution_index = IntParameter()
     classifier = Parameter(default='svm')
     classifier_args = Parameter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.offspring.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.vectorlabels', inputparameter='testlabels') ) ]
+        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels') ) ]
                                 
     def setup(self, workflow, input_feeds):
-        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metrix=self.fitness_metric)
+        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, classifier_args=self.classifier_args)
         solution_fitness_assessor.in_fitness_exp = input_feeds['fitness_exp']
         solution_fitness_assessor.in_population = input_feeds['population']
-        solution_fitness_assessor.in_train = input_feeds['trainvectors']
+        solution_fitness_assessor.in_trainvectors = input_feeds['trainvectors']
         solution_fitness_assessor.in_trainlabels = input_feeds['trainlabels']
-        solution_fitness_assessor.in_test = input_feeds['testvectors']
+        solution_fitness_assessor.in_testvectors = input_feeds['testvectors']
         solution_fitness_assessor.in_testlabels = input_feeds['testlabels']
 
         return solution_fitness_assessor
@@ -173,13 +173,13 @@ class ScoreFitnessSolutionTask(Task):
     classifier_args = Parameter()
 
     def out_solutiondir(self):
-        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(solution_index))
+        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index))
 
     def out_solution_trainvectors(self):
-        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(solution_index) + '/train.vectors.npz')
+        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index) + '/train.vectors.npz')
 
     def out_solution_testvectors(self):
-        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(solution_index) + '/test.vectors.npz')
+        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index) + '/test.vectors.npz')
 
     def run(self):
 
@@ -197,7 +197,7 @@ class ScoreFitnessSolutionTask(Task):
         # load solution
         loader = numpy.load(self.in_population().path)
         population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']) 
-        solution = population[self.soution_index,:].nonzero()
+        solution = population[self.solution_index,:].nonzero()[1]      
         
         # transform train and test vectors according to solution
         transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,solution)
@@ -207,8 +207,8 @@ class ScoreFitnessSolutionTask(Task):
         numpy.savez(self.out_solution_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
         numpy.savez(self.out_solution_testvectors().path, data=transformed_testinstances.data, indices=transformed_testinstances.indices, indptr=transformed_testinstances.indptr, shape=transformed_testinstances.shape)
 
-        # perform classification and report outcomes
-        yield run_experiment.ExperimentComponentVector(trainvectors=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=self.classifier_args)
+        # # perform classification and report outcomes
+        # yield run_experiment.ExperimentComponentVector(trainvectors=solution_trainvectors, trainlabels=self.in_trainlabels().path, testvectors=solution_testvectors, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=self.classifier_args)
 
 
 ################################################################################
@@ -236,5 +236,5 @@ class ReportFitnessPopulation(Task):
         performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
         all_fitness = [performance[coordinates[0]][coordinates[1]] for performance in performance_combined]
         with open(self.out_fitnessreport().path,'w') as outfile:
-            outfile.write('\n'.join(fitness))
+            outfile.write('\n'.join(all_fitness))
 

@@ -32,7 +32,7 @@ class RunGA(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='ga_dir',extension='.ga',inputparameter='ga_dir'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.vectorlabels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='ga_dir',extension='.ga',inputparameter='ga_dir'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
