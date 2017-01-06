@@ -15,7 +15,6 @@ from functions import ga_functions
 @registercomponent
 class RunGA(WorkflowComponent):
     
-    ga_dir = Parameter()
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
@@ -33,12 +32,11 @@ class RunGA(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='ga_dir',extension='.ga',inputparameter='ga_dir'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
         population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=True, population_size=self.population_size)
-        population_generator.in_ga_dir = input_feeds['ga_dir']
         population_generator.in_vectors = input_feeds['trainvectors']
 
         fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=True, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
@@ -73,13 +71,12 @@ class RunGA(WorkflowComponent):
 
 class GenerateRandomPopulation(Task):
 
-    in_ga_dir = InputSlot()
     in_vectors = InputSlot()
 
     population_size = IntParameter()
 
     def out_population(self):
-        return self.outputfrominput(inputformat='ga_dir', stripextension='.ga', addextension='.ga.population.npz')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.ga.population.npz')
 
     def run(self):
 
