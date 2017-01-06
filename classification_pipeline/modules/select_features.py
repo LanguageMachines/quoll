@@ -38,7 +38,7 @@ class SelectFeatures(WorkflowComponent):
         binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
-        foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=False, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
         foldrunner.in_bins = binner.out_bins
         foldrunner.in_vectors = input_feeds['trainvectors']
         foldrunner.in_labels = input_feeds['trainlabels']
@@ -255,5 +255,5 @@ class ReportFoldsGA(Task):
             best_solution_features = [int(x) for x in infile.read().strip().split()]
         loader = numpy.load(self.in_trainvectors().path)
         train_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        transformed_traininstances = vectorizer.compress_vectors(traininstances,best_solution)
+        transformed_traininstances = vectorizer.compress_vectors(train_instances,best_solution_features)
         numpy.savez(self.out_best_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
