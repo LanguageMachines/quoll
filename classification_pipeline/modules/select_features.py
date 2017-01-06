@@ -38,9 +38,17 @@ class SelectFeatures(WorkflowComponent):
         binner = workflow.new_task('make_bins', run_nfold_cv_vectors.MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
+        foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=False, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        foldrunner.in_bins = binner.out_bins
+        foldrunner.in_vectors = input_feeds['trainvectors']
+        foldrunner.in_labels = input_feeds['trainlabels']
+        foldrunner.in_documents = input_feeds['documents']
 
+        foldreporter = workflow.new_task('report_folds', ReportFolds, autopass=False)
+        foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
+        foldreporter.in_trainvectors = input_feeds['trainvectors']
 
-        return ga_iterator
+        return foldreporter
 
 
 ################################################################################
