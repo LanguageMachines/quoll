@@ -35,7 +35,7 @@ class SelectFeatures(WorkflowComponent):
                                 
     def setup(self, workflow, input_feeds):
 
-        binner = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.training_split)
+        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
         foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=False, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
