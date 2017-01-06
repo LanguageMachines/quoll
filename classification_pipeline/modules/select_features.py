@@ -158,9 +158,12 @@ class FoldGATask(Task):
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/test.labels')
 
-    def out_documents(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/docs.txt')
-   
+    def out_traindocuments(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/train.docs.txt')
+
+    def out_testdocuments(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/test.docs.txt')
+
     def run(self):
 
         # make fold directory
@@ -186,6 +189,7 @@ class FoldGATask(Task):
         # set training and test data
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
+        train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
         test_vectors = instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
