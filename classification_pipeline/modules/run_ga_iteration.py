@@ -33,7 +33,7 @@ class RunGAIteration(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.vectorlabels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
@@ -69,10 +69,10 @@ class GenerateOffspring(Task):
     n_crossovers = IntParameter()    
 
     def out_iterationdir(self):
-        return self.outputfrominput(inputformat='in_dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration')
+        return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration')
 
     def out_offspring(self):
-        return self.outputfrominput(inputformat='in_dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration/population.npz')
+        return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration/population.npz')
 
     def run(self):
 
@@ -90,7 +90,7 @@ class GenerateOffspring(Task):
             fitness = [float(value) for value in infile.read().split('\n')]
 
         # generate offspring
-        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_prob),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate))
+        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate))
 
         # output offspring
         numpy.savez(self.out_offspring().path, data=offspring.data, indices=offspring.indices, indptr=offspring.indptr, shape=offspring.shape)
