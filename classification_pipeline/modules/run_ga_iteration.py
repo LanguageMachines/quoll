@@ -145,7 +145,7 @@ class ScoreFitnessSolution(WorkflowComponent):
     classifier_args = Parameter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels') ) ]
+        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='documents', extension='.txt', inputparameter='documents') ) ]
                                 
     def setup(self, workflow, input_feeds):
         solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, classifier_args=self.classifier_args)
@@ -155,6 +155,7 @@ class ScoreFitnessSolution(WorkflowComponent):
         solution_fitness_assessor.in_trainlabels = input_feeds['trainlabels']
         solution_fitness_assessor.in_testvectors = input_feeds['testvectors']
         solution_fitness_assessor.in_testlabels = input_feeds['testlabels']
+        solution_fitness_assessor.in_documents = input_feeds['documents']
 
         return solution_fitness_assessor
 
