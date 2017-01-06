@@ -207,8 +207,8 @@ class ScoreFitnessSolutionTask(Task):
         numpy.savez(self.out_solution_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
         numpy.savez(self.out_solution_testvectors().path, data=transformed_testinstances.data, indices=transformed_testinstances.indices, indptr=transformed_testinstances.indptr, shape=transformed_testinstances.shape)
 
-        # # perform classification and report outcomes
-        # yield run_experiment.ExperimentComponentVector(trainvectors=solution_trainvectors, trainlabels=self.in_trainlabels().path, testvectors=solution_testvectors, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=self.classifier_args)
+        # perform classification and report outcomes
+        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=self.classifier_args)
 
 
 ################################################################################
