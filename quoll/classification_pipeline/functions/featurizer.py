@@ -10,7 +10,7 @@ from collections import Counter
 
 import colibricore
 
-from functions import utils
+from quoll.classification_pipeline.functions import utils
 
 class Featurizer:
     """
