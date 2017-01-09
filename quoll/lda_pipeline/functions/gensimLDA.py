@@ -12,7 +12,7 @@ class GensimLDA:
 
     def load_corpus(self, infile):
         self.corpus = corpora.MmCorpus(infile)
-        
+
     def load_dict(self, infile):
         self.dict = corpora.Dictionary.load(infile)
 
@@ -30,7 +30,7 @@ class GensimLDA:
 
     def return_document_topics(self, document):
         with open(document,'r',encoding='utf-8') as infile:
-            document_text = infile.read().split() 
+            document_text = infile.read().split()
         topics = self.lda.get_document_topics(bow=self.dict.doc2bow(document_text), minimum_probability=0.1)
         topics_str = []
         for topic in topics:
@@ -57,8 +57,8 @@ class GensimCorpus:
 
     def __init__(self, lines=False):
         self.lines=lines # list of lists
-        
-    def load_lines(self, lines):    
+
+    def load_lines(self, lines):
         self.lines=lines
 
     def save_corpus(self, corpusfile, dictfile):
@@ -72,20 +72,20 @@ class GensimCorpus:
             stopwords = infile.read().split('\n')
         newlines = [[word for word in line if word not in stopwords] for line in self.lines]
         self.lines = newlines
-    
+
     def strip_shortwords(self, lowest_wordlength):
         newlines = []
         for line in self.lines:
             newlines.append([word for word in line if len(word)>=lowest_wordlength])
         self.lines = newlines
-        
+
     def strip_numbers(self):
         number = re.compile(r'(\.?\d+(\.|,)?(\d+)?)+')
         newlines = []
         for line in self.lines:
             newlines.append([word for word in line if not (number.match(word))])
         self.lines = newlines
-        
+
     def tolower(self):
         newlines = [[word.lower() for word in line] for line in self.lines]
         self.lines = newlines

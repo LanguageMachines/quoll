@@ -34,7 +34,7 @@ class RunMalletTask(Task):
         #Values will be passed in a shell-safe manner, protecting against injection attacks
         #os.chdir(self.mallet_rundir)
         self.ex('import-dir', keep__sequence=True, input=self.in_featuredir().path, output=self.output()[0].path, __options_last=True)
-        self.ex('train-topics', num__iterations=self.num_iter, random__seed=self.rand_var, num__topics=self.num_topics, optimize__interval=self.interval, input=self.output()[0].path, doc__topics__threshold=self.topic_threshold, output__doc__topics=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.THR'+self.topic_threshold+'.doc-topics', output__topic__keys=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.rand'+self.rand_var+'.topic-keys.txt', inferencer__filename=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.rand'+self.rand_var+'.inferencer', __options_last=True)   
+        self.ex('train-topics', num__iterations=self.num_iter, random__seed=self.rand_var, num__topics=self.num_topics, optimize__interval=self.interval, input=self.output()[0].path, doc__topics__threshold=self.topic_threshold, output__doc__topics=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.THR'+self.topic_threshold+'.doc-topics', output__topic__keys=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.rand'+self.rand_var+'.topic-keys.txt', inferencer__filename=self.output()[0].path+'.NT'+self.num_topics+'.I'+self.interval+'.rand'+self.rand_var+'.inferencer', __options_last=True)
 
 @registercomponent
 class RunMalletComponent(StandardWorkflowComponent):
