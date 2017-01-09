@@ -4,7 +4,7 @@ from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercompon
 from quoll.lda_pipeline.functions.lda_visualizer import LDAVisualizer
 
 class Task_Visualizedoctopics(Task):
- 
+
     in_ldadir = InputSlot()
     in_corpusdir = InputSlot()
 
@@ -13,37 +13,37 @@ class Task_Visualizedoctopics(Task):
     select_topics = Parameter()
     doctopics = BoolParameter()
     probs_by_topic = BoolParameter()
-    heatmap = BoolParameter()    
+    heatmap = BoolParameter()
     topic_words = BoolParameter()
     network_graph = BoolParameter()
-        
+
     def out_visualizations(self):
         return self.outputfrominput(inputformat='ldadir', stripextension='.topics.outputdir', addextension='.visualizations')
-                            
+
     def run(self):
         # setup output directory
         self.setup_output_dir(self.out_visualizations().path)
 
         # set lda model path
         lda_model = self.in_ldadir().path + '/model.pcl'
-        
+
         # set lda dictionary path
         lda_dict = self.in_corpusdir().path + '/corpus.dict'
-        
+
         # set list of documents
         documents = [filename for filename in glob.glob(self.in_corpusdir().path + '/*.corpus.txt')]
-        document_names = [filename.split('/')[-1].strip('.corpus.txt') for filename in documents]        
-        
+        document_names = [filename.split('/')[-1].strip('.corpus.txt') for filename in documents]
+
         # set topic labels
 #        print('TOPIC LABELS',self.topic_labels,type(self.topic_labels))
 #        if not self.topic_labels == 'False':
 #            with open(self.topic_labels,'r',encoding='utf-8') as tl_in:
 #                topic_labels = tl_in.read().strip().split('\n')
-        
+
         #    topic_labels = False
-        
-        
-        
+
+
+
         # set lda_vis object
         lda_vis = LDAVisualizer(lda_model, lda_dict)
         lda_vis.set_document_names(document_names)
@@ -73,9 +73,9 @@ class Task_Visualizedoctopics(Task):
         #    lda_vis.set_topic_labels(indices)
         lda_vis.set_topic_labels()
 
-        
+
         if self.doctopics:
-            # make stacked bar plot of topics by document 
+            # make stacked bar plot of topics by document
             stacked_bar_fn = self.out_visualizations().path + '/doctopic_probs.png'
             lda_vis.visualize_document_topic_probs(stacked_bar_fn)
 
@@ -88,7 +88,7 @@ class Task_Visualizedoctopics(Task):
             # plot document-topic heatmap
             heatmap_fn = self.out_visualizations().path + '/heatmap.png'
             if self.select_topics != 'False':
-                indices = [int(x) for x in self.select_topics.split(',')]               
+                indices = [int(x) for x in self.select_topics.split(',')]
                 lda_vis.visualize_document_topics_heatmap(heatmap_fn,indices)
             else:
                 lda_vis.visualize_document_topics_heatmap(heatmap_fn)
@@ -104,12 +104,12 @@ class Task_Visualizedoctopics(Task):
                 indices = range(lda_vis.columns)
             lda_vis.topics2rows(topicrows_fn,indices)
 
-            
-                                   
-                    
+
+
+
 @registercomponent
 class Component_Visualizedoctopics(WorkflowComponent):
-    
+
     ldadir = Parameter()
     corpusdir = Parameter()
 
@@ -118,7 +118,7 @@ class Component_Visualizedoctopics(WorkflowComponent):
     select_topics = Parameter(default=False)
     doctopics = BoolParameter()
     probs_by_topic = BoolParameter()
-    heatmap = BoolParameter()    
+    heatmap = BoolParameter()
     topic_words = BoolParameter()
     network_graph = BoolParameter()
 

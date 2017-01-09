@@ -7,28 +7,28 @@ from quoll.lda_pipeline.functions.gensimLDA import GensimCorpus
 import glob
 
 class Task_Features2corpusfile(Task):
-    
+
     in_features = InputSlot()
 
     bow=Parameter()
-        
+
     def out_corpusfile(self):
         return self.outputfrominput(inputformat='features', stripextension='.features.txt', addextension='.corpus.txt')
-                            
+
     def run(self):
         with open(self.out_corpusfile().path,'w',encoding='utf-8') as outfile:
             outfile.write(self.bow)
-                                                                                                
+
 class Component_Features2corpusfile(StandardWorkflowComponent):
 
     bow=Parameter()
 
     def accepts(self):
         return InputFormat(self, format_id='features', extension='.features.txt')
-    
+
     def autosetup(self):
         return Task_Features2corpusfile
-    
+
 class Featuredir2CorpusTask(Task):
 
     in_featuredir = InputSlot()
@@ -42,10 +42,10 @@ class Featuredir2CorpusTask(Task):
 
     def out_corpus(self):
         return self.outputfrominput(inputformat='featuredir', stripextension='.featuredir', addextension='corpusdir/corpus.mm')
-        
+
     def out_dictionary(self):
         return self.outputfrominput(inputformat='featuredir', stripextension='.featuredir', addextension='corpusdir/corpus.dict')
-            
+
     def run(self):
         self.setup_output_dir(self.out_corpusdir().path)
 
@@ -56,7 +56,7 @@ class Featuredir2CorpusTask(Task):
                 file_str = infile.read()
                 words = file_str.strip().split()
                 docs.append(words)
-    
+
         gc = GensimCorpus(docs)
         if self.strip_stopwords:
             gc.strip_stopwords(self.strip_stopwords)
@@ -67,9 +67,9 @@ class Featuredir2CorpusTask(Task):
         gc.tolower()
 
         gc.save_corpus(self.out_corpus().path, self.out_dictionary().path)
-        
+
         yield [ Component_Features2corpusfile(inputfile=inputfile,outputdir=self.out_corpusdir().path,bow=' '.join(gc.lines[i])) for i,inputfile in enumerate(inputfiles) ]
-        
+
 
 class Featuredir2corpusComponent(StandardWorkflowComponent):
 

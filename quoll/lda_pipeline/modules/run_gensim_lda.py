@@ -12,23 +12,23 @@ from gensim import corpora, models
 class Task_Writedoctopics(Task):
 
     in_corpusfile = InputSlot()
-    
+
     doctopics=Parameter()
-        
+
     def out_doctopics(self):
         return self.outputfrominput(inputformat='corpusfile', stripextension='.corpus.txt', addextension='.topics.txt')
-                    
+
     def run(self):
         with open(self.out_doctopics().path,'w',encoding='utf-8') as outfile:
-            outfile.write(self.doctopics)        
-                                            
+            outfile.write(self.doctopics)
+
 class Component_Writedoctopics(StandardWorkflowComponent):
-                                                
+
     doctopics=Parameter()
-                                                
+
     def accepts(self):
         return InputFormat(self, format_id='corpusfile', extension='.corpus.txt')
-                                                            
+
     def autosetup(self):
         return Task_Writedoctopics
 
@@ -39,7 +39,7 @@ class RunGensimLDATask(Task):
     in_corpus = InputSlot()
 
     def out_topics(self):
-        return self.outputfrominput(inputformat='corpus', stripextension='.corpusdir', addextension='.'+str(self.num_topics)+'topics.outputdir')   
+        return self.outputfrominput(inputformat='corpus', stripextension='.corpusdir', addextension='.'+str(self.num_topics)+'topics.outputdir')
 
     def run(self):
         self.setup_output_dir(self.out_topics().path)
@@ -52,13 +52,13 @@ class RunGensimLDATask(Task):
         with open(self.out_topics().path + '/topics.txt','w',encoding='utf-8') as outfile:
             outfile.write(topics)
 
-        documents = [filename for filename in glob.glob(self.in_corpus().path + '/*.corpus.txt')] 
-        yield [ Component_Writedoctopics(inputfile=inputfile,outputdir=self.out_topics().path,doctopics = GLDA.return_document_topics(inputfile)) for inputfile in documents ]        
-        
-        
+        documents = [filename for filename in glob.glob(self.in_corpus().path + '/*.corpus.txt')]
+        yield [ Component_Writedoctopics(inputfile=inputfile,outputdir=self.out_topics().path,doctopics = GLDA.return_document_topics(inputfile)) for inputfile in documents ]
+
+
 @registercomponent
 class RunGensimLDAComponent(StandardWorkflowComponent):
-    
+
     num_topics = IntParameter(default=50)
 
     def accepts(self):

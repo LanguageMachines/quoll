@@ -67,7 +67,7 @@ class FeaturizerComponent_singletxt(StandardWorkflowComponent):
 FeaturizerComponent_singletxt.inherit_parameters(FeaturizerTask_singletxt)
 
 class FeaturizerTask_dirfolia(Task):
- 
+
     in_tokfoliadir = InputSlot() #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
     def out_featuredir(self):
@@ -86,7 +86,7 @@ class FeaturizerTask_dirfolia(Task):
         yield [ FeaturizerComponent_singlefolia(inputfile=inputfile,outputdir=self.out_featuredir().path) for inputfile in inputfiles ]
 
 class FeaturizerTask_dirtxt(Task):
- 
+
     in_toktxtdir = InputSlot() #input slot, directory of FoLiA documents (files must have folia.xml extension)
 
     def out_featuredir(self):
