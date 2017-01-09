@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classify_pipeline.modules import vectorize_sparse_instances, classify_instances, report_performance
+from quoll.classification_pipeline.modules import vectorize_sparse_instances, classify_instances, report_performance
    
 @registercomponent
 class ExperimentComponent(WorkflowComponent):
