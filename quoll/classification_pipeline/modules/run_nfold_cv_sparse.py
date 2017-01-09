@@ -4,9 +4,9 @@ import numpy
 from scipy import sparse
 from collections import defaultdict
 
-import functions.nfold_cv_functions as nfold_cv_functions
-import functions.linewriter as linewriter
-import functions.docreader as docreader
+import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
+import quoll.classification_pipeline.functions.linewriter as linewriter
+import quoll.classification_pipeline.functions.docreader as docreader
 
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent 
 from quoll.classification_pipeline.modules.report_performance import ReporterComponent
