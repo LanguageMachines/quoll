@@ -12,7 +12,7 @@ def read(fname):
 
 
 setup(
-    name = "Quoll",
+    name = "quoll",
     version = "0.1",
     author = "Florian Kunneman, Maarten van Gompel, Wessel Stoop, Louis Onrust, Suzan Verberne, Iris Hendrikx, Ali Hürriyetoğlu",
     author_email = "f.kunneman@let.ru.nl",
