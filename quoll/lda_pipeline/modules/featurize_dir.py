@@ -7,7 +7,7 @@ import luiginlp
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter
 from luiginlp.modules.ucto import Ucto_dir
 
-from quoll.lda_pipeline.modules import simple_featurizer #TODO @fkunneman: this one doesn't seem to exist?
+from quoll.lda_pipeline.functions import simple_featurizer
 
 class FeaturizerTask_singlefolia(Task):
     """Featurizes a single FoLiA XML file"""
