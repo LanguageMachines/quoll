@@ -6,7 +6,7 @@ import pickle
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.modules import vectorize_sparse_instances, classify_instances, report_performance
-   
+
 @registercomponent
 class ExperimentComponent(WorkflowComponent):
 
@@ -16,13 +16,13 @@ class ExperimentComponent(WorkflowComponent):
     testlabels = Parameter()
     vocabulary = Parameter()
     documents = Parameter()
-    
+
     weight = Parameter(default='frequency')
     prune = IntParameter(default=5000)
-    balance = BoolParameter(default=False)    
+    balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default=False)
-    
+
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
@@ -62,10 +62,10 @@ class ExperimentComponentVector(WorkflowComponent):
     test = Parameter()
     testlabels = Parameter()
     documents = Parameter()
-    
+
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default=False)
-    
+
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 

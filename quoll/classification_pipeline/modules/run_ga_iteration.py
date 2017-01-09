@@ -14,7 +14,7 @@ from quoll.classification_pipeline.functions import ga_functions, vectorizer, do
 
 @registercomponent
 class RunGAIteration(WorkflowComponent):
-    
+
     dir_latest_iter = Parameter()
     trainvectors = Parameter()
     trainlabels = Parameter()
@@ -25,7 +25,7 @@ class RunGAIteration(WorkflowComponent):
     iteration = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter(default='0.9')
-    mutation_rate = Parameter(default='0.3') 
+    mutation_rate = Parameter(default='0.3')
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
@@ -34,7 +34,7 @@ class RunGAIteration(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers)
@@ -64,9 +64,9 @@ class GenerateOffspring(Task):
 
     iteration = IntParameter()
     crossover_probability = Parameter()
-    mutation_rate = Parameter() 
+    mutation_rate = Parameter()
     tournament_size = IntParameter()
-    n_crossovers = IntParameter()    
+    n_crossovers = IntParameter()
 
     def out_iterationdir(self):
         return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration')
@@ -84,7 +84,7 @@ class GenerateOffspring(Task):
         loader = numpy.load(populationfile)
         population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
-        # load fitness 
+        # load fitness
         fitnessfile = self.in_dir_latest_iter().path + '/population.fitness.txt'
         with open(fitnessfile,'r',encoding='utf-8') as infile:
             fitness = [float(value) for value in infile.read().split('\n')]
@@ -146,7 +146,7 @@ class ScoreFitnessSolution(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='documents', extension='.txt', inputparameter='documents') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
         solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, classifier_args=self.classifier_args)
         solution_fitness_assessor.in_fitness_exp = input_feeds['fitness_exp']
@@ -190,20 +190,20 @@ class ScoreFitnessSolutionTask(Task):
         # load train instances
         loader = numpy.load(self.in_trainvectors().path)
         vectorized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        
+
         # load test instances
         loader = numpy.load(self.in_testvectors().path)
         vectorized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        
+
         # load solution
         loader = numpy.load(self.in_population().path)
-        population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']) 
-        solution = population[self.solution_index,:].nonzero()[1]      
-        
+        population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        solution = population[self.solution_index,:].nonzero()[1]
+
         # transform train and test vectors according to solution
         transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,solution)
         transformed_testinstances = vectorizer.compress_vectors(vectorized_testinstances,solution)
-        
+
         # write vectors to solutiondir
         numpy.savez(self.out_solution_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
         numpy.savez(self.out_solution_testvectors().path, data=transformed_testinstances.data, indices=transformed_testinstances.indices, indptr=transformed_testinstances.indptr, shape=transformed_testinstances.shape)

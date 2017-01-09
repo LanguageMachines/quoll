@@ -27,10 +27,10 @@ class Vectorize_traininstances(Task):
     def out_labels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorlabels')
     def run(self):
-        
+
         weight_functions = {'frequency':[vectorizer.return_document_frequency, False], 'binary':[vectorizer.return_document_frequency, vectorizer.return_binary_vectors], 'tfidf':[vectorizer.return_idf, vectorizer.return_tfidf_vectors], 'infogain':[vectorizer.return_infogain, vectorizer.return_infogain_vectors]}
 
-        # load featurized instances 
+        # load featurized instances
         loader = numpy.load(self.in_train().path)
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
@@ -100,14 +100,14 @@ class Vectorize_testinstances(Task):
         # load featurized instances
         loader = numpy.load(self.in_test().path)
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-      
+
         # load top features
         with open(self.in_topfeatures().path,'r',encoding='utf-8') as infile:
             lines = infile.read().split('\n')
             topfeatures = [line.split('\t') for line in lines]
         topfeatures_vocabulary = [x[0] for x in topfeatures]
         feature_weights = dict([(i, float(feature[1])) for i, feature in enumerate(topfeatures)])
-           
+
         # align the test instances to the top features to get the right indices
         with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
                 sourcevocabulary = infile.read().split('\n')
@@ -122,15 +122,15 @@ class Vectorize_testinstances(Task):
 
 @registercomponent
 class Vectorize(WorkflowComponent):
- 
+
     trainfile = Parameter()
     trainlabels_file = Parameter()
     trainvocabulary = Parameter()
-   
+
     weight = Parameter()
     prune = IntParameter()
     balance = BoolParameter(default=False)
-    
+
     def accepts(self):
         return [ ( InputFormat(self, format_id='train', extension='.features.npz', inputparameter='trainfile'), InputFormat(self, format_id='trainlabels', extension='.labels',inputparameter='trainlabels_file'), InputFormat(self, format_id='vocabulary', extension='.txt',inputparameter='trainvocabulary') ) ]
 
@@ -144,7 +144,7 @@ class Vectorize(WorkflowComponent):
 
 @registercomponent
 class Vectorize_traintest(WorkflowComponent):
-    
+
     trainfile = Parameter()
     trainlabels_file = Parameter()
     testfile = Parameter()
@@ -156,7 +156,7 @@ class Vectorize_traintest(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self, format_id='train', extension='.features.npz',inputparameter='trainfile'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels_file'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfile'), InputFormat(self, format_id='vocabulary', extension='.txt',inputparameter='trainvocabulary'), InputFormat(self, format_id='sourcevocabulary', extension='.txt',inputparameter='testvocabulary')) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         train_vectors = workflow.new_task('vectorize_traininstances', Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
@@ -167,6 +167,6 @@ class Vectorize_traintest(WorkflowComponent):
         test_vectors = workflow.new_task('vectorize_testinstances', Vectorize_testinstances, autopass=True, weight=self.weight)
         test_vectors.in_test = input_feeds['test']
         test_vectors.in_sourcevocabulary = input_feeds['sourcevocabulary']
-        test_vectors.in_topfeatures = train_vectors.out_topfeatures        
+        test_vectors.in_topfeatures = train_vectors.out_topfeatures
 
         return test_vectors

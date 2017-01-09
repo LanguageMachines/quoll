@@ -8,7 +8,7 @@ import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_fu
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
-from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent 
+from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent
 from quoll.classification_pipeline.modules.report_performance import ReporterComponent
 
 class RunFold(Task):
@@ -17,7 +17,7 @@ class RunFold(Task):
     in_labels = InputSlot()
     in_vocabulary = InputSlot()
     in_bins = InputSlot()
-    
+
     i = IntParameter()
     weight = Parameter()
     prune = IntParameter()
@@ -25,10 +25,10 @@ class RunFold(Task):
     classifier = Parameter()
     classifier_args = Parameter()
     documents = Parameter()
-    
+
     def out_fold(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.fold' + str(self.i))    
-    
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.fold' + str(self.i))
+
     def run(self):
 
         # make fold directory
@@ -63,12 +63,12 @@ class RunFold(Task):
 
         # write experiment data to files in fold directory
         trf_out = self.out_fold().path + '/train.features.npz'
-        numpy.savez(trf_out, data=train_features.data, indices=train_features.indices, indptr=train_features.indptr, shape=train_features.shape)        
+        numpy.savez(trf_out, data=train_features.data, indices=train_features.indices, indptr=train_features.indptr, shape=train_features.shape)
         trl_out = self.out_fold().path + '/train.labels'
         with open(trl_out,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(train_labels))
         tef_out = self.out_fold().path + '/test.features.npz'
-        numpy.savez(tef_out, data=test_features.data, indices=test_features.indices, indptr=test_features.indptr, shape=test_features.shape)        
+        numpy.savez(tef_out, data=test_features.data, indices=test_features.indices, indptr=test_features.indptr, shape=test_features.shape)
         tel_out = self.out_fold().path + '/test.labels'
         with open(tel_out,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
@@ -78,8 +78,8 @@ class RunFold(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponent(trainfeatures=trf_out, trainlabels=trl_out, testfeatures=tef_out, testlabels=tel_out, vocabulary=self.in_vocabulary().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=docs_out) 
-    
+        yield ExperimentComponent(trainfeatures=trf_out, trainlabels=trl_out, testfeatures=tef_out, testlabels=tel_out, vocabulary=self.in_vocabulary().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=docs_out)
+
 
 class Fold(WorkflowComponent):
 
@@ -87,7 +87,7 @@ class Fold(WorkflowComponent):
     labels = Parameter()
     vocabulary = Parameter()
     bins = Parameter()
-    
+
     i = IntParameter()
     weight = Parameter()
     prune = IntParameter()
@@ -98,16 +98,16 @@ class Fold(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self, format_id='bins', extension='.bins.csv', inputparameter='bins') ) ]
-    
+
     def setup(self, workflow, input_feeds):
-        
-        fold = workflow.new_task('fold', RunFold, autopass=True, i = self.i, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)            
+
+        fold = workflow.new_task('fold', RunFold, autopass=True, i = self.i, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)
         fold.in_features = input_feeds['features']
         fold.in_labels = input_feeds['labels']
-        fold.in_vocabulary = input_feeds['vocabulary']        
+        fold.in_vocabulary = input_feeds['vocabulary']
         fold.in_bins = input_feeds['bins']
         return fold
-    
+
 class Run_nfold_cv(Task):
 
     in_features = InputSlot()
@@ -117,14 +117,14 @@ class Run_nfold_cv(Task):
     n = IntParameter()
     weight = Parameter()
     prune = IntParameter()
-    balance = BoolParameter()  
+    balance = BoolParameter()
     classifier = Parameter()
     classifier_args = Parameter()
     documents = Parameter()
 
     def out_folds(self):
         return self.outputfrominput(inputformat='features', stripextension='.features.npz', addextension='.' + str(self.n) + 'fold_cv.weight_' + self.weight + '.prune_' + str(self.prune) + '.balance_' + str(self.balance) + '.classifier.' + self.classifier)
-        
+
     def run(self):
 
         # make nfold_cv directory
@@ -136,22 +136,22 @@ class Run_nfold_cv(Task):
 
         # select rows per fold based on shape of the features
         num_instances = len(labels)
-        fold_indices = nfold_cv_functions.return_fold_indices(num_instances, self.n)        
-        
+        fold_indices = nfold_cv_functions.return_fold_indices(num_instances, self.n)
+
         # write indices of bins to file
         bins_out = self.out_folds().path + '/folds.bins.csv'
         lw = linewriter.Linewriter(fold_indices)
         lw.write_csv(bins_out)
-        
+
         # run folds
         performance_files = []
         docprediction_files = []
         for fold in range(self.n):
             yield Fold(features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=bins_out, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)
-            
+
             performance_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.performance.csv')
             docprediction_files.append(self.out_folds().path + '/folds.fold' + str(fold) + '/test.docpredictions.csv')
-            
+
         performance_out = self.out_folds().path + '/folds.performance.csv'
         docpredictions_out = self.out_folds().path + '/folds.docpredictions.csv'
 
@@ -161,7 +161,7 @@ class Run_nfold_cv(Task):
         all_performance = [performance_combined[0][0]] # headers
         label_performance = defaultdict(list)
         for p in performance_combined:
-            for i in range(1,len(p)): # labels 
+            for i in range(1,len(p)): # labels
                 performance = []
                 label = p[i][0] # name of label
                 for j in range(1,len(p[i])): # report values
@@ -193,7 +193,7 @@ class Run_nfold_cv(Task):
 
 @registercomponent
 class NFoldCV(WorkflowComponent):
-    
+
     features = Parameter()
     labels = Parameter()
     vocabulary = Parameter()
@@ -208,7 +208,7 @@ class NFoldCV(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary') ) ]
-    
+
     def setup(self, workflow, input_feeds):
 
         nfold_cv = workflow.new_task('nfold_cv', Run_nfold_cv, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, classifier_args=self.classifier_args, documents=self.documents)

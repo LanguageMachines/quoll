@@ -10,7 +10,7 @@ class ReportPerformance(Task):
 
     in_predictions = InputSlot()
     in_labels = InputSlot()
-    
+
     documents = Parameter()
 
     def out_performance(self):
@@ -85,7 +85,7 @@ class ReportDocpredictions(Task):
 
     in_predictions = InputSlot()
     in_documents = InputSlot()
-    
+
     def out_docpredictions(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.docpredictions.csv')
 
@@ -110,15 +110,15 @@ class ReportDocpredictions(Task):
         lw.write_csv(self.out_docpredictions().path)
 
 @registercomponent
-class ReporterComponent(WorkflowComponent):    
-   
+class ReporterComponent(WorkflowComponent):
+
     predictions = Parameter()
     labels = Parameter()
     documents = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.vectorlabels', inputparameter='labels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents)

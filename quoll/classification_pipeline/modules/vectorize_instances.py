@@ -16,11 +16,11 @@ class VectorizeTask(Task):
 
     def run(self):
 
-        # load instances 
+        # load instances
         loader = docreader.Docreader()
         instances = loader.parse_csv(self.in_csv().path)
         instances_float = [[0.0 if feature == 'NA' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
-        instances_sparse = sparse.csr_matrix(instances_float)     
+        instances_sparse = sparse.csr_matrix(instances_float)
 
         # normalize features
         if self.normalize:
@@ -31,11 +31,11 @@ class VectorizeTask(Task):
 
 @registercomponent
 class Vectorize(StandardWorkflowComponent):
- 
+
     instances = InputSlot()
-   
+
     normalize = BoolParameter()
-    
+
     def accepts(self):
         return InputFormat(self, format_id='csv', extension='.csv')
 

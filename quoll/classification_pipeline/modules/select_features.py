@@ -14,7 +14,7 @@ from quoll.classification_pipeline.functions import ga_functions, vectorizer, do
 
 @registercomponent
 class SelectFeatures(WorkflowComponent):
-    
+
     trainvectors = Parameter()
     trainlabels = Parameter()
     documents = Parameter()
@@ -23,7 +23,7 @@ class SelectFeatures(WorkflowComponent):
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
     crossover_probability = Parameter(default='0.9')
-    mutation_rate = Parameter(default='0.3') 
+    mutation_rate = Parameter(default='0.3')
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
@@ -32,7 +32,7 @@ class SelectFeatures(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
@@ -66,7 +66,7 @@ class RunFoldsGA(Task):
     num_iterations = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter()
-    mutation_rate = Parameter() 
+    mutation_rate = Parameter()
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     classifier = Parameter()
@@ -75,7 +75,7 @@ class RunFoldsGA(Task):
 
     def out_feature_selection(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.feature_selection')
-        
+
     def run(self):
 
         # make feature selection directory
@@ -103,7 +103,7 @@ class FoldGA(WorkflowComponent):
     num_iterations = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter()
-    mutation_rate = Parameter() 
+    mutation_rate = Parameter()
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     classifier = Parameter()
@@ -112,15 +112,15 @@ class FoldGA(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.feature_selection',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
-    
+
     def setup(self, workflow, input_feeds):
 
         fold = workflow.new_task('run_fold', FoldGATask, autopass=False, i=self.i, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
-        fold.in_documents = input_feeds['documents']     
-        fold.in_bins = input_feeds['bins']   
+        fold.in_documents = input_feeds['documents']
+        fold.in_bins = input_feeds['bins']
 
         return fold
 
@@ -131,20 +131,20 @@ class FoldGATask(Task):
     in_labels = InputSlot()
     in_documents = InputSlot()
     in_bins = InputSlot()
-    
+
     i = IntParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter()
-    mutation_rate = Parameter() 
+    mutation_rate = Parameter()
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     classifier = Parameter()
     classifier_args = Parameter()
     fitness_metric = Parameter()
-    
+
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i))
 
     def out_trainvectors(self):
         return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/train.vectors.npz')
@@ -221,11 +221,11 @@ class ReportFoldsGA(Task):
     in_trainvectors = InputSlot()
 
     def out_folds_report(self):
-        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.foldsreport.txt')    
+        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.foldsreport.txt')
 
     def out_best_trainvectors(self):
-        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_train.vectors.npz')    
- 
+        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_train.vectors.npz')
+
     def run(self):
 
         # gather fold reports
@@ -247,7 +247,7 @@ class ReportFoldsGA(Task):
         fold_iteration_index_best = reports_combined[fold_best][fold_iteration_best][3]
         final_report = [['Average fold best fitness:',str(avg)],['Median fold best fitness',str(median)],['Best fitness',str(best)],['Best fitness fold',str(fold_best)],['Best fitness iteration',str(fold_iteration_best)],['Best fitness index',str(fold_iteration_index_best)]]
         lw = linewriter.Linewriter(final_report)
-        lw.write_csv(self.out_folds_report().path)     
+        lw.write_csv(self.out_folds_report().path)
 
         # extract best solution and transform into best training vectors
         best_solution_file = fold_best_solutions[fold_best]

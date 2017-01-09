@@ -14,7 +14,7 @@ from quoll.classification_pipeline.functions import ga_functions
 
 @registercomponent
 class RunGA(WorkflowComponent):
-    
+
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
@@ -24,7 +24,7 @@ class RunGA(WorkflowComponent):
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
     crossover_probability = Parameter(default='0.9')
-    mutation_rate = Parameter(default='0.3') 
+    mutation_rate = Parameter(default='0.3')
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
@@ -33,7 +33,7 @@ class RunGA(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=True, population_size=self.population_size)
@@ -107,7 +107,7 @@ class ManageGAIterations(Task):
     num_iterations = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter(default='0.9')
-    mutation_rate = Parameter(default='0.3') 
+    mutation_rate = Parameter(default='0.3')
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
@@ -129,7 +129,7 @@ class ManageGAIterations(Task):
         self.setup_output_dir(self.out_pre_iteration().path)
         loader = numpy.load(self.in_random_population().path)
         random_population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        numpy.savez(self.out_pre_iteration().path + '/population.npz', data=random_population.data, indices=random_population.indices, indptr=random_population.indptr, shape=random_population.shape)        
+        numpy.savez(self.out_pre_iteration().path + '/population.npz', data=random_population.data, indices=random_population.indices, indptr=random_population.indptr, shape=random_population.shape)
         with open(self.in_population_fitness().path) as infile:
             fitness = infile.read().strip()
             with open(self.out_pre_iteration().path + '/population.fitness.txt','w') as outfile:

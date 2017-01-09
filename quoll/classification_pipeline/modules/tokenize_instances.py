@@ -17,7 +17,7 @@ class Tokenize_instances(Task):
     def run(self):
 
         print('Running Tokenizer...')
-        
+
         with open(self.in_txt().path, 'r', encoding = 'utf-8') as file_in:
             lines = file_in.readlines()
 
@@ -33,7 +33,7 @@ class Tokenize_instances(Task):
 
 @registercomponent
 class Tokenize(StandardWorkflowComponent):
-    
+
     tokconfig = Parameter()
     strip_punctuation = BoolParameter()
 
