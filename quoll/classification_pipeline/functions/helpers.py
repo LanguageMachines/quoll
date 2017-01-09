@@ -6,7 +6,7 @@ import ucto
 def tokenize_lines(lines, config, strip_punctuation = False, language = 'nl'):
 
     tokenizer = ucto.Tokenizer(config)
-    
+
     tokenized = []
     for line in lines:
         tokens = []

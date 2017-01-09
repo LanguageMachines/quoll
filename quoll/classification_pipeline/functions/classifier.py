@@ -11,10 +11,10 @@ class AbstractSKLearnClassifier:
 
     def __init__(self):
         self.label_encoder = preprocessing.LabelEncoder()
-        
+
     def set_label_encoder(self, labels):
         self.label_encoder.fit(labels)
-    
+
     def return_label_encoder(self):
         return self.label_encoder
 
@@ -49,17 +49,17 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def set_label_encoder(self, labels):
         AbstractSKLearnClassifier.set_label_encoder(self, labels)
-    
+
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels):
 #        paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
 #        paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
 #        best_alpha = paramsearch.best_estimator_.alpha
         self.model = naive_bayes.MultinomialNB()
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
-    
+
     def return_classifier(self):
         return self.model
 
@@ -78,7 +78,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels, c='grid', kernel='grid', gamma='grid', degree='grid', iterations=10):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
@@ -103,23 +103,23 @@ class SVMClassifier(AbstractSKLearnClassifier):
             model = svm.SVC(probability=True)
             if multi:
                 model = OutputCodeClassifier(model)
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4) 
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
         self.model = svm.SVC(
-           probability = True, 
+           probability = True,
            C = settings[parameters[0]],
            kernel = settings[parameters[1]],
            gamma = settings[parameters[2]],
            degree = settings[parameters[3]],
            cache_size = 1000,
            verbose = 2
-           )      
+           )
         if multi:
             self.model = OutputCodeClassifier(self.model)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
-    
+
     def return_classifier(self):
         return self.model
 
@@ -138,7 +138,7 @@ class OrdinalRidge(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels):
         self.model = mord.OrdinalRidge()
         self.model.fit(trainvectors,self.label_encoder.transform(labels))
@@ -161,7 +161,7 @@ class OrdinalLogisticAT(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels):
         self.model = mord.LogisticAT(alpha=1.,max_iter=50000)
         self.model.fit(trainvectors,self.label_encoder.transform(labels))
@@ -184,7 +184,7 @@ class OrdinalLogisticIT(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels):
         self.model = mord.LogisticIT(alpha=1.,max_iter=50000)
         self.model.fit(trainvectors,self.label_encoder.transform(labels))
@@ -207,7 +207,7 @@ class OrdinalLogisticSE(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
+
     def train_classifier(self, trainvectors, labels):
         self.model = mord.LogisticSE(alpha=1.,max_iter=50000)
         self.model.fit(trainvectors,self.label_encoder.transform(labels))

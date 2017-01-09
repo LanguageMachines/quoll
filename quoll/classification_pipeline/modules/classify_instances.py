@@ -11,9 +11,9 @@ class TrainClassifier(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
-    
+
     classifier = Parameter()
-    
+
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model.pkl')
 
@@ -26,7 +26,7 @@ class TrainClassifier(Task):
         classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
         clf = classifierdict[self.classifier]
 
-        # load vectorized instances 
+        # load vectorized instances
         loader = numpy.load(self.in_train().path)
         vectorized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
@@ -43,12 +43,12 @@ class TrainClassifier(Task):
 
         # save classifier
         with open(self.out_model().path, 'wb') as fid:
-            pickle.dump(model, fid) 
-        
+            pickle.dump(model, fid)
+
         # save label encoding
         label_encoding = clf.return_label_encoding(trainlabels)
         with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))  
+            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
 
 class ApplyClassifier(Task):
 
@@ -80,15 +80,15 @@ class ApplyClassifier(Task):
         clf.set_label_encoder(labels)
 
         # apply classifier
-        classifications = clf.apply_model(model,vectorized_instances) 
-        
+        classifications = clf.apply_model(model,vectorized_instances)
+
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
             cl_out.write('\n'.join(['\t'.join([str(field) for field in classification]) for classification in classifications]))
 
 @registercomponent
 class Train(WorkflowComponent):
-    
+
     trainvectors = Parameter()
     trainlabels = Parameter()
 
@@ -96,7 +96,7 @@ class Train(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
@@ -107,7 +107,7 @@ class Train(WorkflowComponent):
 
 @registercomponent
 class TrainApply(WorkflowComponent):
-    
+
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
@@ -116,7 +116,7 @@ class TrainApply(WorkflowComponent):
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
-                                
+
     def setup(self, workflow, input_feeds):
 
         trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
@@ -126,6 +126,6 @@ class TrainApply(WorkflowComponent):
         predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True)
         predictor.in_test = input_feeds['testvectors']
         predictor.in_labels = input_feeds['trainlabels']
-        predictor.in_model = trainer.out_model        
+        predictor.in_model = trainer.out_model
 
         return predictor

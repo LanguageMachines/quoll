@@ -1,4 +1,4 @@
-#!/usr/bin/env 
+#!/usr/bin/env
 
 import os
 import numpy as np
@@ -21,9 +21,9 @@ class Featurizer:
     Parameters
     -----
     instances : list
-        The instances come in an array where each entry represents a text instance 
+        The instances come in an array where each entry represents a text instance
             for token n-grams, lemma n-grams or pos-ngrams, make sure units are split by whitespace
-            for character ngrams, input the original text  
+            for character ngrams, input the original text
     features : dict
         Subset any of the entries in the following dictionary:
 
@@ -97,7 +97,7 @@ class Featurizer:
             List with the feature name per index
         """
         submatrices = [self.features[name] for name in helpernames]
-        instances = sparse.hstack(submatrices).tocsr()        
+        instances = sparse.hstack(submatrices).tocsr()
         vocabulary = np.hstack([self.vocabularies[name] for name in helpernames])
         return instances, vocabulary
 
@@ -121,7 +121,7 @@ class CocoNgrams:
     def __init__(self, ngrams, blackfeats):
         self.ngrams = ngrams
         self.blackfeats = set(blackfeats)
-        
+
     def fit(self, tmpdir, documents, mt = 1):
         self.documents = documents
         coco_file = tmpdir + 'instances.txt'
@@ -139,7 +139,7 @@ class CocoNgrams:
         classencoder.encodefile(coco_file, corpusfile)
 
         # Load class decoder
-        self.classdecoder = colibricore.ClassDecoder(classfile) 
+        self.classdecoder = colibricore.ClassDecoder(classfile)
 
         # Train model
         options = colibricore.PatternModelOptions(mintokens = mt, maxlength = max(self.ngrams), doreverseindex=True)
@@ -184,7 +184,7 @@ class CocoNgrams:
             vocabulary = list(np.array(vocabulary)[to_keep])
         return instances, vocabulary
 
-class TokenNgrams(CocoNgrams): 
+class TokenNgrams(CocoNgrams):
     """
     Token ngram extractor
     =====
@@ -217,15 +217,15 @@ class TokenNgrams(CocoNgrams):
         else:
             self.blackfeats = []
         CocoNgrams.__init__(self, self.n_list, self.blackfeats)
-        self.features = []        
-        
+        self.features = []
+
     def fit(self, documents):
         """
         Model fitter
         =====
         Function to make an overview of all the existing features
 
-        """        
+        """
         tmpdir = os.getcwd() + '/tmp/'
         if not os.path.isdir(tmpdir):
             os.mkdir(tmpdir)
@@ -235,7 +235,7 @@ class TokenNgrams(CocoNgrams):
         """
         Model transformer
         =====
-        Function to featurize instances based on the fitted features 
+        Function to featurize instances based on the fitted features
 
         """
         instances, features = CocoNgrams.transform(self)
@@ -256,7 +256,7 @@ class TokenNgrams(CocoNgrams):
             The featurized instances
         self.features : list
             The vocabulary
-        """  
+        """
         self.fit(documents)
         return self.transform()
 
@@ -309,7 +309,7 @@ class CharNgrams:
         -----
         features : dict
             dictionary of features and their count
-        """       
+        """
         features = {}
         for document in documents:
             document = list(document)
@@ -321,7 +321,7 @@ class CharNgrams:
         """
         Model transformer
         =====
-        Function to featurize instances based on the fitted features 
+        Function to featurize instances based on the fitted features
 
         Parameters
         -----
@@ -332,7 +332,7 @@ class CharNgrams:
         -----
         instances : list
             The documents represented as feature vectors
-        """       
+        """
         instances = []
         for document in documents:
             document = list(document)
@@ -359,7 +359,7 @@ class CharNgrams:
             The featurized instances
         self.features : list
             The vocabulary
-        """  
+        """
         self.fit(documents)
         return self.transform(documents), self.features
 

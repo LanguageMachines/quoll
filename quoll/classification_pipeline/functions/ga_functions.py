@@ -51,7 +51,7 @@ def generate_offspring(population,fitness,tournament_size=2,crossover_prob=0.9,n
     new_population = []
     while len(new_population) < population.shape[0]:
         # select
-        selections = tournament_selection(fitness) 
+        selections = tournament_selection(fitness)
         parents = population[selections,:]
         # generate and mutate
         offspring = []

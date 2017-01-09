@@ -90,7 +90,7 @@ def excel2lines(file_name,sheet_indexes,header = False,annotation=False,date=Fal
             if annotation:
                 for value in sheet.row_values(rownum):
                     if not type(value) == float:
-                        value = value.strip()                 
+                        value = value.strip()
                     try:
                         if float(value) in range(2):
                             values.append(float(value))
@@ -129,7 +129,7 @@ def excel2columns(file_name):
             if value == '':
                 break
             word_cat[value] = header
-    return word_cat    
+    return word_cat
 
 def read_lcs_files(partsfile,filesdir):
     #generate list of filenames

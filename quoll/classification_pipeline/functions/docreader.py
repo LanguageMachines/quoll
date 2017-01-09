@@ -18,13 +18,13 @@ class Docreader:
         form = doc[-4:]
         if form == '.txt':
             self.lines = self.parse_txt(doc, delimiter, header)
-        elif form == '.xls': 
+        elif form == '.xls':
             self.lines = self.parse_xls(doc, header, date, time)
         elif form == 'xlsx':
             self.lines = self.parse_xlsx(doc, sheet)
         elif form == 'json': # default twitter parse keys
-            parse_keys = [['id'], ['user', 'id'], ['user', 'screen_name'], ['user', 'followers_count'], 
-            ['user', 'location'], ['created_at'], ['in_reply_to_screen_name'], ['retweeted_status', 'user', 
+            parse_keys = [['id'], ['user', 'id'], ['user', 'screen_name'], ['user', 'followers_count'],
+            ['user', 'location'], ['created_at'], ['in_reply_to_screen_name'], ['retweeted_status', 'user',
             'screen_name'], ['text']]
             self.lines = self.parse_json(doc, parse_keys)
         elif form == '.csv':
@@ -76,16 +76,16 @@ class Docreader:
                    datefields = xlrd.xldate_as_tuple(wbsheet.cell_value(rownum, date), workbook.datemode)[:3]
                    values[date] = datetime.date(*datefields)
                except TypeError:
-                   values[date] = values[date]           
+                   values[date] = values[date]
             if time == 0 or time:
                try:
                    timefields = xlrd.xldate_as_tuple(wbsheet.cell_value(rownum, time), workbook.datemode)[3:]
                    values[time] = datetime.time(*timefields)
                except TypeError:
-                   values[time] = values[time]        
+                   values[time] = values[time]
             rows.append(values)
         return rows
-        
+
     def parse_xlsx(self, doc, sh=False):
         workbook = load_workbook(filename = doc)
         if sh:
@@ -114,7 +114,7 @@ class Docreader:
         Csv reader
         =====
         Function to read in a csv file
-        
+
         Parameters
         -----
         doc : str
@@ -135,7 +135,7 @@ class Docreader:
         except:
             lines = []
             csvfile = open(doc, 'r', encoding = 'utf-8')
-            csv_reader = csv.reader(line.replace('\0','') for line in csvfile.readlines())       
+            csv_reader = csv.reader(line.replace('\0','') for line in csvfile.readlines())
             for line in csv_reader:
                 lines.append(line)
         return lines
@@ -152,7 +152,7 @@ class Docreader:
             return self.parse_json_object(value, keys)
 
     def parse_json(self, doc, parse_keys):
-        lines = []       
+        lines = []
         with open(doc, encoding = 'utf-8') as fn:
             for obj in fn.readlines():
                 line = []
@@ -168,7 +168,7 @@ class Docreader:
         Columnformatter
         =====
         Function to set columns in the standard format
-        
+
         Parameters
         -----
         columndict : dict
@@ -188,7 +188,7 @@ class Docreader:
             The correctly formatted lines
 
         """
-        fields = ['label', 'doc_id', 'author_id', 'date', 'time', 'authorname', 'text', 'tagged'] 
+        fields = ['label', 'doc_id', 'author_id', 'date', 'time', 'authorname', 'text', 'tagged']
         defaultline = ["-"] * len(fields)
         other_header = []
         for key, value in sorted(columndict.items()):
