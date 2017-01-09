@@ -5,7 +5,7 @@ import os
 from luigi import Parameter, IntParameter
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, TargetInfo, InputSlot
 from luiginlp.util import replaceextension
-from featuredir2corpus import Featuredir2corpusComponent
+from quoll.lda_pipeline.modules.featuredir2corpus import Featuredir2corpusComponent
 import gensimLDA
 from gensim import corpora, models
 

@@ -1,7 +1,7 @@
 
 import glob
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter
-from lda_visualizer import LDAVisualizer
+from quoll.lda_pipeline.functions.lda_visualizer import LDAVisualizer
 
 class Task_Visualizedoctopics(Task):
  

@@ -2,7 +2,7 @@
 from luigi import Parameter, IntParameter, BoolParameter
 from luiginlp.engine import Task, StandardWorkflowComponent, registercomponent, InputSlot, InputComponent, InputFormat
 
-from functions.gensimLDA import GensimCorpus
+from quoll.lda_pipeline.functions.gensimLDA import GensimCorpus
 
 import glob
 

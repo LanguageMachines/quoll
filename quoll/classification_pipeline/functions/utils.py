@@ -1,4 +1,4 @@
-#!/usr/bin/env 
+#!/usr/bin/env
 
 import re
 import os
