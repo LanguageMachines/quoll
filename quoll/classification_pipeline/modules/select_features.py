@@ -5,8 +5,8 @@ import glob
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 
-from modules import run_ga, make_bins
-from functions import ga_functions, vectorizer, docreader, linewriter
+from quoll.classification_pipeline.modules import run_ga, make_bins
+from quoll.classification_pipeline.functions import ga_functions, vectorizer, docreader, linewriter
 
 ################################################################################
 ###Component to thread the tasks together

@@ -3,8 +3,8 @@ import numpy
 
 from luiginlp.engine import Task, InputSlot, IntParameter
 
-import functions.nfold_cv_functions as nfold_cv_functions
-import functions.linewriter as linewriter
+import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
+import quoll.classification_pipeline.functions.linewriter as linewriter
 
 ################################################################################
 ###Binner

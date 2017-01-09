@@ -5,8 +5,8 @@ from scipy import sparse
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from modules import run_experiment
-from functions import ga_functions, vectorizer, docreader
+from quoll.classification_pipeline.modules import run_experiment
+from quoll.classification_pipeline.functions import ga_functions, vectorizer, docreader
 
 ################################################################################
 ###Component to thread the tasks together

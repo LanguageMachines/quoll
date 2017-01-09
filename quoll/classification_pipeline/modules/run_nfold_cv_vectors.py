@@ -5,11 +5,11 @@ from scipy import sparse
 from collections import defaultdict
 import glob
 
-import functions.nfold_cv_functions as nfold_cv_functions
-import functions.linewriter as linewriter
-import functions.docreader as docreader
+import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
+import quoll.classification_pipeline.functions.linewriter as linewriter
+import quoll.classification_pipeline.functions.docreader as docreader
 
-from run_experiment import ExperimentComponentVector 
+from quoll.classification.pipeline.modules.run_experiment import ExperimentComponentVector 
 
 ################################################################################
 ###Component to thread the tasks together

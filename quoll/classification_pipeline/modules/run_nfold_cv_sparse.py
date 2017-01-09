@@ -8,8 +8,8 @@ import functions.nfold_cv_functions as nfold_cv_functions
 import functions.linewriter as linewriter
 import functions.docreader as docreader
 
-from modules.run_experiment import ExperimentComponent 
-from modules.report_performance import ReporterComponent
+from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent 
+from quoll.classification_pipeline.modules.report_performance import ReporterComponent
 
 class RunFold(Task):
 

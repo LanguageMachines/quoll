@@ -3,7 +3,7 @@ import numpy
 from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from functions import vectorizer
+from quoll.classification_pipeline.functions import vectorizer
 
 class Vectorize_traininstances(Task):
 

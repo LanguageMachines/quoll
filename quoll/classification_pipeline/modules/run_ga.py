@@ -5,8 +5,8 @@ import glob
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
 
-from modules import run_ga_iteration
-from functions import ga_functions
+from quoll.classification_pipeline.modules import run_ga_iteration
+from quoll.classification_pipeline.functions import ga_functions
 
 ################################################################################
 ###Component to thread the tasks together

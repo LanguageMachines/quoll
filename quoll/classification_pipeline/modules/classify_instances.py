@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from functions.classifier import *
+from quoll.classification_pipeline.functions.classifier import *
 
 class TrainClassifier(Task):
 

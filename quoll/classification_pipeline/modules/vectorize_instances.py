@@ -3,8 +3,7 @@ import numpy
 from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot, BoolParameter
 
-from functions import vectorizer
-from functions import docreader
+from quoll.classification_pipeline.functions import vectorizer, docreader
 
 class VectorizeTask(Task):
 

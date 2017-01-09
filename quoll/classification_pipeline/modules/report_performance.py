@@ -3,8 +3,8 @@ import numpy
 from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-import functions.reporter as reporter
-import functions.linewriter as linewriter
+import quoll.classification_pipeline.functions.reporter as reporter
+import quoll.classification_pipeline.functions.linewriter as linewriter
 
 class ReportPerformance(Task):
 

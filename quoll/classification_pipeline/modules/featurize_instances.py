@@ -2,8 +2,8 @@
 import numpy
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter
 
-from functions import featurizer
-from modules.tokenize_instances import Tokenize
+from quoll.classification_pipeline.functions import featurizer
+from quoll.classification_pipeline.modules.tokenize_instances import Tokenize
 
 class Featurize_tokens(Task):
 

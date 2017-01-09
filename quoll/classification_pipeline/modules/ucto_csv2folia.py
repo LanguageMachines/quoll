@@ -7,7 +7,8 @@ from pynlpl.formats import folia
 import luiginlp
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter
 from luiginlp.modules.ucto import Ucto
-import featurizer
+
+from quoll.classification_pipeline.functions import featurizer
 
 class Ucto_csv2folia(Task):
 
