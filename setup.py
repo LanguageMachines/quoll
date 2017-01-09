@@ -38,5 +38,5 @@ setup(
     #entry_points = {    'console_scripts': [
     #        'luiginlp = luiginlp.luiginlp:main',
     #]
-    }
+    #}
 )
