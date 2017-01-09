@@ -2,11 +2,11 @@
 Quoll
 ========
 
-Basic setup for development:
+Installation
+---------------
 
-1. Have an up-to-date LaMachine installation somewhere
-2. Clone and install `LuigiNLP <https://github.com/LanguageMachines/LuigiNLP>`_ 
-3. Write stuff for Quoll in this ``quoll`` repo
+1. Install our `LaMachine <https://proycon.github.io/LaMachine>`_ distribution,
+   which includes all necessary dependencies.
+2. Clone this repository and run ``python setup.py install``
 
-TODO..
 
