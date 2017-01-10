@@ -9,7 +9,7 @@ import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_fu
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
-from quoll.classification.pipeline.modules.run_experiment import ExperimentComponentVector 
+from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector 
 
 ################################################################################
 ###Component to thread the tasks together
