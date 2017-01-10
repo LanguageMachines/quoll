@@ -20,7 +20,7 @@ setup(
     license = "GPL",
     keywords = "nlp computational_linguistics",
     url = "https://github.com/LanguageMachines/quoll",
-    packages=['quoll','quoll.classification_pipeline', 'quoll.classification_pipeline.functions', 'quoll.classification_pipeline.modules', 'quoll.lda_pipeline', 'quoll.lda_pipeline.functions', 'quoll.lda_pipeline.modules'],
+    packages=['quoll','quoll.classification_pipeline', 'quoll.classification_pipeline.functions', 'quoll.classification_pipeline.modules', 'quoll.lda_pipeline', 'quoll.lda_pipeline.functions', 'quoll.lda_pipeline.modules', 'quoll.annotation_pipeline','quoll.annotation_pipeline.modules'],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 3 - Alpha",
