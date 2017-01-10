@@ -13,10 +13,7 @@ class TrainClassifier(Task):
     in_trainlabels = InputSlot()
 
     classifier = Parameter()
-<<<<<<< HEAD:classification_pipeline/modules/classify_instances.py
     classifier_args = Parameter()
-=======
->>>>>>> 8244645aa987e51ed2eb43d03acc2078b29bc2db:quoll/classification_pipeline/modules/classify_instances.py
 
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model.pkl')
