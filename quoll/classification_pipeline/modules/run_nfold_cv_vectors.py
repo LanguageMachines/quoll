@@ -9,7 +9,7 @@ import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_fu
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
-from quoll.classification.pipeline.modules.run_experiment import ExperimentComponentVector 
+from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector 
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 ################################################################################
@@ -25,7 +25,7 @@ class NFoldCV(WorkflowComponent):
 
     n = IntParameter(default=10)
     classifier = Parameter(default='naive_bayes')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]

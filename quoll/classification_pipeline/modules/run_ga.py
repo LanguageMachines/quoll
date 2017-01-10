@@ -28,7 +28,7 @@ class RunGA(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
@@ -36,21 +36,21 @@ class RunGA(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=True, population_size=self.population_size)
+        population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=False, population_size=self.population_size)
         population_generator.in_vectors = input_feeds['trainvectors']
 
-        fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=True, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
-        fitness_manager.in_population = population_generator.out_population
+        fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
+        fitness_manager.in_vectorpopulation = population_generator.out_population
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
         fitness_manager.in_trainlabels = input_feeds['trainlabels']
         fitness_manager.in_testvectors = input_feeds['testvectors']
         fitness_manager.in_testlabels = input_feeds['testlabels']
         fitness_manager.in_documents = input_feeds['documents']
 
-        fitness_reporter = workflow.new_task('report_fitness_population', run_ga_iteration.ReportFitnessPopulation, autopass=True, fitness_metric=self.fitness_metric)
+        fitness_reporter = workflow.new_task('report_fitness_population', run_ga_iteration.ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
 
-        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=True, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
         ga_iterator.in_random_population = population_generator.out_population
         ga_iterator.in_population_fitness = fitness_reporter.out_fitnessreport
         ga_iterator.in_trainvectors = input_feeds['trainvectors']
@@ -59,7 +59,7 @@ class RunGA(WorkflowComponent):
         ga_iterator.in_testlabels = input_feeds['testlabels']
         ga_iterator.in_documents = input_feeds['documents']
 
-        ga_reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=True)
+        ga_reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=False)
         ga_reporter.in_iterations_dir = ga_iterator.out_iterations
 
         return ga_reporter
@@ -111,7 +111,7 @@ class ManageGAIterations(Task):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
     fitness_metric = Parameter(default='microF1')
 
     def out_iterations(self):
