@@ -13,7 +13,8 @@ class TrainClassifier(Task):
     in_trainlabels = InputSlot()
     
     classifier = Parameter()
-    
+    classifier_args = Parameter()
+
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model.pkl')
 
@@ -38,7 +39,11 @@ class TrainClassifier(Task):
         clf.set_label_encoder(trainlabels)
 
         # train classifier
-        clf.train_classifier(vectorized_instances, trainlabels)
+        if self.classifier_args:
+            clf_arguments = self.classifier_args.split()
+            clf.train_classifier(vectorized_instances, trainlabels, *clf_arguments)
+        else:
+            clf.train_classifier(vectorized_instances, trainlabels)
         model = clf.return_classifier()
 
         # save classifier
@@ -93,13 +98,14 @@ class Train(WorkflowComponent):
     trainlabels = Parameter()
 
     classifier = Parameter()
+    classifier_args = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
         trainer.in_train = input_feeds['trainvectors']
         trainer.in_trainlabels = input_feeds['trainlabels']
 
@@ -113,13 +119,14 @@ class TrainApply(WorkflowComponent):
     testvectors = Parameter()
 
     classifier = Parameter()
+    classifier_args = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
                                 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
         trainer.in_train = input_feeds['trainvectors']
         trainer.in_trainlabels = input_feeds['trainlabels']
 

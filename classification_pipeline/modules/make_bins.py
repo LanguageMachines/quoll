@@ -16,16 +16,16 @@ class MakeBins(Task):
 
     n = IntParameter()
 
-    def out_folds(self):
-        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv')
+    # def out_folds(self):
+    #     return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv')
 
     def out_bins(self):
-        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv/folds.bins.csv')
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'folds.bins.csv')
         
     def run(self):
 
         # make nfold_cv directory
-        self.setup_output_dir(self.out_folds().path)
+        #self.setup_output_dir(self.out_folds().path)
 
         # open labels
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:

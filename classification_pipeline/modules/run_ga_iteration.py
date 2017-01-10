@@ -102,7 +102,8 @@ class GenerateOffspring(Task):
 
 class ScoreFitnessPopulation(Task):
 
-    in_population = InputSlot()
+    in_vectorpopulation = InputSlot()
+    in_parameterpopulation = InputSlot()
     in_trainvectors = InputSlot()
     in_trainlabels = InputSlot()
     in_testvectors = InputSlot()
@@ -111,10 +112,9 @@ class ScoreFitnessPopulation(Task):
 
     population_size = IntParameter()
     classifier = Parameter()
-    classifier_args = Parameter()
 
     def out_fitness_exp(self):
-        return self.outputfrominput(inputformat='population', stripextension='.npz', addextension='.fitness_exp')
+        return self.outputfrominput(inputformat='vectorpopulation', stripextension='.npz', addextension='.fitness_exp')
 
     def run(self):
 

@@ -3,8 +3,7 @@ from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
-#import mord
-#from mord.datasets.base import load_housing
+import mord
 import numpy
 
 class AbstractSKLearnClassifier:
@@ -53,11 +52,16 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels):
-#        paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
-#        paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
-#        best_alpha = paramsearch.best_estimator_.alpha
-        self.model = naive_bayes.MultinomialNB()
+    def train_classifier(self, trainvectors, labels, alpha='default', iterations=10):
+        if alpha == 'grid':
+            paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
+            paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
+            selected_alpha = paramsearch.best_estimator_.alpha
+        elif alpha == 'default':
+            selected_alpha = 1.0
+        else:
+            selected_alpha = alpha
+        self.model = naive_bayes.MultinomialNB(alpha=selected_alpha)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
     
     def return_classifier(self):
@@ -91,12 +95,12 @@ class SVMClassifier(AbstractSKLearnClassifier):
         gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'grid' else [float(gamma)]
         degree_values = [1, 2, 3, 4] if degree == 'grid' else [int(degree)]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
-        iterations=int(iterations)
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
             for i, parameter in enumerate(parameters):
                 settings[parameter] = grid_values[i][0]
         else:
+            iterations=int(iterations)
             param_grid = {}
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
