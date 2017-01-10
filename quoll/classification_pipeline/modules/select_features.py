@@ -27,7 +27,7 @@ class SelectFeatures(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):

@@ -21,7 +21,7 @@ class ExperimentComponent(WorkflowComponent):
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
@@ -64,7 +64,7 @@ class ExperimentComponentVector(WorkflowComponent):
     documents = Parameter()
 
     classifier = Parameter(default='naive_bayes')
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]

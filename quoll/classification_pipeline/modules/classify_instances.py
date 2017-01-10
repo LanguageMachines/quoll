@@ -38,12 +38,11 @@ class TrainClassifier(Task):
         # transform trainlabels
         clf.set_label_encoder(trainlabels)
 
+        # format classifier arguments        
+        clf_arguments = self.classifier_args.split()
+
         # train classifier
-        if self.classifier_args:
-            clf_arguments = self.classifier_args.split()
-            clf.train_classifier(vectorized_instances, trainlabels, *clf_arguments)
-        else:
-            clf.train_classifier(vectorized_instances, trainlabels)
+        clf.train_classifier(vectorized_instances, trainlabels, *clf_arguments)
         model = clf.return_classifier()
 
         # save classifier
@@ -119,7 +118,7 @@ class TrainApply(WorkflowComponent):
     testvectors = Parameter()
 
     classifier = Parameter()
-    classifier_args = Parameter(default=False)
+    classifier_args = Parameter(default='')
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
