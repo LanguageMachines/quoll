@@ -9,12 +9,8 @@ import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_fu
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
-<<<<<<< HEAD:classification_pipeline/modules/run_nfold_cv_vectors.py
-from run_experiment import ExperimentComponentVector 
-from make_bins import MakeBins
-=======
 from quoll.classification.pipeline.modules.run_experiment import ExperimentComponentVector 
->>>>>>> 8244645aa987e51ed2eb43d03acc2078b29bc2db:quoll/classification_pipeline/modules/run_nfold_cv_vectors.py
+from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 ################################################################################
 ###Component to thread the tasks together
