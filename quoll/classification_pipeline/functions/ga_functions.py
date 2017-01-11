@@ -51,21 +51,28 @@ def generate_offspring(population,fitness,tournament_size=2,crossover_prob=0.9,n
     new_population = []
     while len(new_population) < population.shape[0]:
         # select
-        selections = tournament_selection(fitness)
+        selections = tournament_selection(fitness,tournament_size)
         parents = population[selections,:]
         # generate and mutate
-        offspring = []
-        for generation in range(2):
-            child = offspring_crossover(parents,n_crossovers)
-            child_mutated = mutate(child,mutation_rate)
-            offspring.append(child_mutated)
+        if random.random() < crossover_prob:
+            offspring = []
+            for generation in range(2):
+                child = offspring_crossover(parents,n_crossovers)
+                child_mutated = mutate(child,mutation_rate)
+                offspring.append(child_mutated)
+        else:
+            offspring = parents
         # accept
         new_population.extend(offspring)
     return sparse.vstack(new_population)
 
-def random_population(vector_size,population_size=100):
-    population = sparse.csr_matrix([[random.choice([0,1]) for i in range(vector_size)] for j in range(population_size)])
-    return population
+def random_vectorpopulation(vector_size,population_size=100):
+    vectorpopulation = sparse.csr_matrix([[random.choice([0,1]) for i in range(vector_size)] for j in range(population_size)])
+    return vectorpopulation
+
+def random_parameterpopulation(parameter_options,population_size=100):
+    parameterpopulation = sparse.csr_matrix([[random.choice(parametervals) for parametervals in parameter_options] for i in range(population_size)])
+    return parameterpopulation
 
 def ga_test():
     firstpop=random_population(1000,100)

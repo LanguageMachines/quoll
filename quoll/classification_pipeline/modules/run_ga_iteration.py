@@ -19,7 +19,8 @@ class RunGAIteration(WorkflowComponent):
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
-    testlabels = Parameter()
+    testlabel = Parameter()
+    parameter_options = InputSlot()
     documents = Parameter()
 
     iteration = IntParameter()
@@ -29,11 +30,10 @@ class RunGAIteration(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default='')
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -41,11 +41,13 @@ class RunGAIteration(WorkflowComponent):
         offspring_generator.in_dir_latest_iter = input_feeds['dir_latest_iter']
 
         fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
-        fitness_manager.in_vectorpopulation = offspring_generator.out_offspring
+        fitness_manager.in_vectorpopulation = offspring_generator.out_vectoroffspring
+        fitness_manager.in_parameterpopulation = offspring_generator.out_parameteroffspring
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
         fitness_manager.in_trainlabels = input_feeds['trainlabels']
         fitness_manager.in_testvectors = input_feeds['testvectors']
         fitness_manager.in_testlabels = input_feeds['testlabels']
+        fitness_manager.in_parameter_options = input_feeds['parameter_options']
         fitness_manager.in_documents = input_feeds['documents']
 
         fitness_reporter = workflow.new_task('report_fitness_population', ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
@@ -71,30 +73,56 @@ class GenerateOffspring(Task):
     def out_iterationdir(self):
         return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration')
 
-    def out_offspring(self):
-        return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration/population.npz')
+    def out_vectoroffspring(self):
+        return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration/vectorpopulation.npz')
+
+    def out_parameteroffspring(self):
+        return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration/parameterpopulation.npz')
 
     def run(self):
 
         # create output directory
         self.setup_output_dir(self.out_iterationdir().path)
 
-        # load population
-        populationfile = self.in_dir_latest_iter().path + '/population.npz'
-        loader = numpy.load(populationfile)
-        population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        # load vectorpopulation
+        vectorpopulationfile = self.in_dir_latest_iter().path + '/vectorpopulation.npz'
+        loader = numpy.load(vectorpopulationfile)
+        vectorpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load parameterpopulation
+        parameterpopulationfile = self.in_dir_latest_iter().path + '/parameterpopulation.npz'
+        loader = numpy.load(parameterpopulationfile)
+        parameterpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # combine into population
+        population = sparse.hstack([vectorpopulation,parameterpopulation]).tocsr()
 
         # load fitness
-        fitnessfile = self.in_dir_latest_iter().path + '/population.fitness.txt'
+        fitnessfile = self.in_dir_latest_iter().path + '/vectorpopulation.fitness.txt'
         with open(fitnessfile,'r',encoding='utf-8') as infile:
             fitness = [float(value) for value in infile.read().split('\n')]
 
         # generate offspring
         offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate))
 
-        # output offspring
-        numpy.savez(self.out_offspring().path, data=offspring.data, indices=offspring.indices, indptr=offspring.indptr, shape=offspring.shape)
+        ### unwind offspring
 
+        # extract number of parameter values
+        vector_length = vectorpopulation.shape[1]
+        
+        # extract vectorpopulation of offspring
+        offspring_vectorpopulation = offspring[:,:vector_length]
+        
+        # extract parameterpopulation of offspring
+        offspring_parameterpopulation = offspring[:,vector_length:]
+
+        ### output offspring
+
+        # output vector offspring
+        numpy.savez(self.out_vectoroffspring().path, data=offspring_vectorpopulation.data, indices=offspring_vectorpopulation.indices, indptr=offspring_vectorpopulation.indptr, shape=offspring_vectorpopulation.shape)
+
+        # output parameter offspring
+        numpy.savez(self.out_parameteroffspring().path, data=offspring_parameterpopulation.data, indices=offspring_parameterpopulation.indices, indptr=offspring_parameterpopulation.indptr, shape=offspring_parameterpopulation.shape)
 
 ################################################################################
 ###Fitness manager
@@ -103,16 +131,16 @@ class GenerateOffspring(Task):
 class ScoreFitnessPopulation(Task):
 
     in_vectorpopulation = InputSlot()
-#    in_parameterpopulation = InputSlot()
+    in_parameterpopulation = InputSlot()
     in_trainvectors = InputSlot()
     in_trainlabels = InputSlot()
     in_testvectors = InputSlot()
     in_testlabels = InputSlot()
+    in_parameter_options = InputSlot()
     in_documents = InputSlot()
 
     population_size = IntParameter()
     classifier = Parameter()
-    classifier_args = Parameter()
 
     def out_fitness_exp(self):
         return self.outputfrominput(inputformat='vectorpopulation', stripextension='.npz', addextension='.fitness_exp')
@@ -123,7 +151,7 @@ class ScoreFitnessPopulation(Task):
         self.setup_output_dir(self.out_fitness_exp().path)
 
         # score fitness for each solution
-        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, population=self.in_vectorpopulation().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, solution_index=i, classifier=self.classifier, classifier_args=self.classifier_args) for i in range(self.population_size) ]
+        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, vectorpopulation=self.in_vectorpopulation().path, parameterpopulation=self.in_parameterpopulation().pathtrainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_parameter_options().path, solution_index=i, classifier=self.classifier) for i in range(self.population_size) ]
 
 
 ################################################################################
@@ -134,28 +162,31 @@ class ScoreFitnessPopulation(Task):
 class ScoreFitnessSolution(WorkflowComponent):
 
     fitness_exp = Parameter()
-    population = Parameter()
+    vectorpopulation = Parameter()
+    parameterpopulation = Parameter()
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
     testlabels = Parameter()
+    parameter_options = Parameter()
     documents = Parameter()
 
     solution_index = IntParameter()
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default='')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='population',extension='.npz',inputparameter='population'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='documents', extension='.txt', inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='vectorpopulation',extension='.npz',inputparameter='vectorpopulation'), InputFormat(self,format_id='parameterpopulation',extension='.npz',inputparameter='parameterpopulation'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='documents', extension='.txt', inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
-        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, classifier_args=self.classifier_args)
+        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier)
         solution_fitness_assessor.in_fitness_exp = input_feeds['fitness_exp']
-        solution_fitness_assessor.in_population = input_feeds['population']
+        solution_fitness_assessor.in_vectorpopulation = input_feeds['vectorpopulation']
+        solution_fitness_assessor.in_parameterpopulation = input_feeds['parameterpopulation']
         solution_fitness_assessor.in_trainvectors = input_feeds['trainvectors']
         solution_fitness_assessor.in_trainlabels = input_feeds['trainlabels']
         solution_fitness_assessor.in_testvectors = input_feeds['testvectors']
         solution_fitness_assessor.in_testlabels = input_feeds['testlabels']
+        solution_fitness_assessor.in_parameter_options = input_feeds['parameter_options']
         solution_fitness_assessor.in_documents = input_feeds['documents']
 
         return solution_fitness_assessor
@@ -163,16 +194,17 @@ class ScoreFitnessSolution(WorkflowComponent):
 class ScoreFitnessSolutionTask(Task):
 
     in_fitness_exp = InputSlot()
-    in_population = InputSlot()
+    in_vectorpopulation = InputSlot()
+    in_parameterpopulation = InputSlot()
     in_trainvectors = InputSlot()
     in_trainlabels = InputSlot()
     in_testvectors = InputSlot()
     in_testlabels = InputSlot()
+    in_parameter_options = InputSlot()
     in_documents = InputSlot()
 
     solution_index = IntParameter()
     classifier = Parameter()
-    classifier_args = Parameter()
 
     def out_solutiondir(self):
         return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index))
@@ -188,6 +220,8 @@ class ScoreFitnessSolutionTask(Task):
         # generate outputdir
         self.setup_output_dir(self.out_solutiondir().path)
 
+        ### load solution vectors
+
         # load train instances
         loader = numpy.load(self.in_trainvectors().path)
         vectorized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
@@ -196,10 +230,10 @@ class ScoreFitnessSolutionTask(Task):
         loader = numpy.load(self.in_testvectors().path)
         vectorized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
-        # load solution
-        loader = numpy.load(self.in_population().path)
-        population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        solution = population[self.solution_index,:].nonzero()[1]
+        # load vectorsolution
+        loader = numpy.load(self.in_vectorpopulation().path)
+        vectorpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        vectorsolution = vectorpopulation[self.solution_index,:].nonzero()[1]
 
         # transform train and test vectors according to solution
         transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,solution)
@@ -209,8 +243,24 @@ class ScoreFitnessSolutionTask(Task):
         numpy.savez(self.out_solution_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
         numpy.savez(self.out_solution_testvectors().path, data=transformed_testinstances.data, indices=transformed_testinstances.indices, indptr=transformed_testinstances.indptr, shape=transformed_testinstances.shape)
 
-        # perform classification and report outcomes
-        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=self.classifier_args)
+        ### load solution parameters
+
+        # load parameter options
+        with open(self.in_parameter_options().path) as infile:
+            lines = infile.read().strip().split('\n')
+            parameter_options = [line.split() for line in lines]
+
+        # load parameter solution
+        loader = numpy.load(self.in_parameterpopulation().path)
+        parameterpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        parametersolution = parameterpopulation[self.solution_index,:].toarray().tolist()[0]
+
+        # extract solution classifier arguments
+        classifier_args = [parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)] 
+
+        ### perform classification and report outcomes
+        print('running experiment with classifier args', classifier_args)
+        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=classifier_args)
 
 
 ################################################################################

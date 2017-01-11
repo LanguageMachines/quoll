@@ -20,6 +20,7 @@ class RunGA(WorkflowComponent):
     testvectors = Parameter()
     testlabels = Parameter()
     documents = Parameter()
+    parameter_options = Parameter()
 
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
@@ -32,19 +33,22 @@ class RunGA(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='parameter_options',extension='.txt',inputparameter='parameter_options') ) ]
 
     def setup(self, workflow, input_feeds):
 
         population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=False, population_size=self.population_size)
         population_generator.in_vectors = input_feeds['trainvectors']
+        population_generator.in_vectors = input_feeds['parameter_options']
 
         fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
-        fitness_manager.in_vectorpopulation = population_generator.out_population
+        fitness_manager.in_vectorpopulation = population_generator.out_vectorpopulation
+        fitness_manager.in_parameterpopulation = population_generator.out_parameterpopulation
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
         fitness_manager.in_trainlabels = input_feeds['trainlabels']
         fitness_manager.in_testvectors = input_feeds['testvectors']
         fitness_manager.in_testlabels = input_feeds['testlabels']
+        fitness_manager.in_parameter_options = input_feeds['parameter_options']
         fitness_manager.in_documents = input_feeds['documents']
 
         fitness_reporter = workflow.new_task('report_fitness_population', run_ga_iteration.ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
@@ -72,11 +76,15 @@ class RunGA(WorkflowComponent):
 class GenerateRandomPopulation(Task):
 
     in_vectors = InputSlot()
+    in_parameter_options = InputSlot()
 
     population_size = IntParameter()
 
-    def out_population(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.ga.population.npz')
+    def out_vectorpopulation(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.ga.vectorpopulation.npz')
+
+    def out_parameterpopulation(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.ga.parameterpopulation.npz')
 
     def run(self):
 
@@ -85,9 +93,19 @@ class GenerateRandomPopulation(Task):
         instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
         num_dimensions = instances.shape[1]
 
-        # generate population
-        random_population = ga_functions.random_population(num_dimensions, self.population_size)
-        numpy.savez(self.out_population().path, data=random_population.data, indices=random_population.indices, indptr=random_population.indptr, shape=random_population.shape)
+        # generate vectorpopulation
+        random_vectorpopulation = ga_functions.random_vectorpopulation(num_dimensions, self.population_size)
+        numpy.savez(self.out_vectorpopulation().path, data=random_vectorpopulation.data, indices=random_vectorpopulation.indices, indptr=random_vectorpopulation.indptr, shape=random_vectorpopulation.shape)
+
+        # read in parameter options
+        with open(self.in_parameter_options().path) as infile:
+            lines = infile.read().strip().split('\n')
+            parameter_options = [range(len(line.split())) for line in lines]
+
+        # generate parameterpopulation
+        random_parameterpopulation = ga_functions.random_parameterpopulation(parameter_options, self.population_size)
+        numpy.savez(self.out_parameterpopulation().path, data=random_parameterpopulation.data, indices=random_parameterpopulation.indices, indptr=random_parameterpopulation.indptr, shape=random_parameterpopulation.shape)
+
 
 
 ################################################################################
