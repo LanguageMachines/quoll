@@ -41,7 +41,7 @@ class RunGAIteration(WorkflowComponent):
         offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers)
         offspring_generator.in_dir_latest_iter = input_feeds['dir_latest_iter']
 
-        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, ordinal=self.ordinal)
+        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
         fitness_manager.in_vectorpopulation = offspring_generator.out_vectoroffspring
         fitness_manager.in_parameterpopulation = offspring_generator.out_parameteroffspring
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
@@ -70,6 +70,7 @@ class GenerateOffspring(Task):
     mutation_rate = Parameter()
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
+    fitness_metric = Parameter()
 
     def out_iterationdir(self):
         return self.outputfrominput(inputformat='dir_latest_iter', stripextension='.' + str(self.iteration-1) + '.iteration', addextension='.' + str(self.iteration) + '.iteration')
@@ -103,8 +104,10 @@ class GenerateOffspring(Task):
         with open(fitnessfile,'r',encoding='utf-8') as infile:
             fitness = [float(value) for value in infile.read().split('\n')]
 
+        # decide win_condition based on fitness metric
+        win_condition = 'highest' if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else 'lowest'
         # generate offspring
-        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate))
+        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate),win_condition=win_condition)
 
         ### unwind offspring
 

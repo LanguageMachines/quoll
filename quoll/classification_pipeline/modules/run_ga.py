@@ -65,7 +65,7 @@ class RunGA(WorkflowComponent):
         ga_iterator.in_parameter_options = input_feeds['parameter_options']
         ga_iterator.in_documents = input_feeds['documents']
 
-        ga_reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=False)
+        ga_reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=False, fitness_metric=self.fitness_metric)
         ga_reporter.in_iterations_dir = ga_iterator.out_iterations
 
         return ga_reporter
@@ -187,6 +187,8 @@ class ReportGAIterations(Task):
 
     in_iterations_dir = InputSlot()
 
+    fitness_metric = Parameter()
+
     def out_report(self):
         return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.report.txt')
 
@@ -204,6 +206,7 @@ class ReportGAIterations(Task):
 
         # summarize fitness files
         report = [['Average fitness','Median fitness','Best fitness','Best fitness index']]
+        highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
         best_fitness_iterations = 0
         index_best_fitness_iterations = []
         for i,ff in enumerate(fitness_files):
@@ -211,7 +214,7 @@ class ReportGAIterations(Task):
                 fitness_scores = [float(score) for score in infile.read().strip().split('\n')]
                 avg_fitness = numpy.mean(fitness_scores)
                 median_fitness = numpy.median(fitness_scores)
-                best_fitness = max(fitness_scores)
+                best_fitness = max(fitness_scores) if highest else min(fitness_scores)
                 best_fitness_index = fitness_scores.index(best_fitness)
                 if best_fitness > best_fitness_iterations:
                     best_fitness_iterations = best_fitness
