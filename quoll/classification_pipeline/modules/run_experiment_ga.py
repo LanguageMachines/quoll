@@ -46,7 +46,7 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
 
         foldreporter = workflow.new_task('report_folds', select_features.ReportFoldsGA, autopass=True)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
-        foldreporter.in_trainvectors = input_feeds['trainvectors']
+        foldreporter.in_trainvectors = input_feeds['train']
         foldreporter.in_parameter_options = input_feeds['parameter_options']
         foldreporter.in_feature_names = input_feeds['feature_names']
 

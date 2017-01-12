@@ -59,7 +59,7 @@ class TransformVectorsTask(Task):
         instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # load selection
-        with open(in_selection().path) as infile:
+        with open(self.in_selection().path) as infile:
             selection = [int(x) for x in infile.read().strip().split()]
 
         # transform vectors

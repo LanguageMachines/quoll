@@ -279,7 +279,7 @@ class ReportFoldsGA(Task):
         best_solution_features = [int(x) for x in best_solution]
 
         # write best solution
-        with open(self.out_best_vectorsolution().path) as outfile:
+        with open(self.out_best_vectorsolution().path,'w',encoding='utf-8') as outfile:
             outfile.write(' '.join(best_solution))
 
         # extract training vectors

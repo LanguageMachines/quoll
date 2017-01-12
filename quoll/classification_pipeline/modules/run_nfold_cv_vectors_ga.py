@@ -131,7 +131,7 @@ class FoldVectorsGA(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldVectorsGATask, autopass=False, i=self.i, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold = workflow.new_task('run_fold', FoldVectorsGATask, autopass=False, i=self.i, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -227,4 +227,4 @@ class FoldVectorsGATask(Task):
             outfile.write('\n'.join(test_documents))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentVectorFeatureSelection(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.out_testdocuments().path, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric) 
+        yield ExperimentComponentVectorFeatureSelection(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.out_testdocuments().path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric) 

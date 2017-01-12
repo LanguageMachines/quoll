@@ -235,7 +235,11 @@ class ReportFolds(Task):
                 label_performance[label].append(performance)
 
         # compute mean and sum per label
-        labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
+        if 'micro' in label_performance.keys():
+            labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
+        else:
+            labels_order = sorted(label_performance.keys())
+
         for label in labels_order:
             average_performance = [label]
             for j in range(0,len(label_performance[label][0])-3):

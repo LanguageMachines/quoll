@@ -39,7 +39,7 @@ class TrainClassifier(Task):
         clf.set_label_encoder(trainlabels)
 
         # load classifier arguments        
-        with open(self.in_classifier_args,'r',encoding='utf-8') as infile:
+        with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
             classifier_args = infile.read().strip().split('\n')
 
         # train classifier
