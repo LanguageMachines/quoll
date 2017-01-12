@@ -30,6 +30,7 @@ class RunGAIteration(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
+    ordinal = BoolParameter(default=False)
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
@@ -40,7 +41,7 @@ class RunGAIteration(WorkflowComponent):
         offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers)
         offspring_generator.in_dir_latest_iter = input_feeds['dir_latest_iter']
 
-        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier)
+        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, ordinal=self.ordinal)
         fitness_manager.in_vectorpopulation = offspring_generator.out_vectoroffspring
         fitness_manager.in_parameterpopulation = offspring_generator.out_parameteroffspring
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
@@ -141,6 +142,7 @@ class ScoreFitnessPopulation(Task):
 
     population_size = IntParameter()
     classifier = Parameter()
+    ordinal = BoolParameter()
 
     def out_fitness_exp(self):
         return self.outputfrominput(inputformat='vectorpopulation', stripextension='.npz', addextension='.fitness_exp')
@@ -151,7 +153,7 @@ class ScoreFitnessPopulation(Task):
         self.setup_output_dir(self.out_fitness_exp().path)
 
         # score fitness for each solution
-        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, vectorpopulation=self.in_vectorpopulation().path, parameterpopulation=self.in_parameterpopulation().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, solution_index=i, classifier=self.classifier) for i in range(self.population_size) ]
+        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, vectorpopulation=self.in_vectorpopulation().path, parameterpopulation=self.in_parameterpopulation().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, solution_index=i, classifier=self.classifier, ordinal=self.ordinal) for i in range(self.population_size) ]
 
 
 ################################################################################
@@ -173,12 +175,13 @@ class ScoreFitnessSolution(WorkflowComponent):
 
     solution_index = IntParameter()
     classifier = Parameter(default='svm')
+    ordinal = BoolParameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='fitness_exp',extension='.fitness_exp',inputparameter='fitness_exp'), InputFormat(self,format_id='vectorpopulation',extension='.npz',inputparameter='vectorpopulation'), InputFormat(self,format_id='parameterpopulation',extension='.npz',inputparameter='parameterpopulation'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='documents', extension='.txt', inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
-        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier)
+        solution_fitness_assessor = workflow.new_task('score_fitness_solution_task', ScoreFitnessSolutionTask, autopass=False, solution_index=self.solution_index, classifier=self.classifier, ordinal=self.ordinal)
         solution_fitness_assessor.in_fitness_exp = input_feeds['fitness_exp']
         solution_fitness_assessor.in_vectorpopulation = input_feeds['vectorpopulation']
         solution_fitness_assessor.in_parameterpopulation = input_feeds['parameterpopulation']
@@ -205,6 +208,7 @@ class ScoreFitnessSolutionTask(Task):
 
     solution_index = IntParameter()
     classifier = Parameter()
+    ordinal = BoolParameter()
 
     def out_solutiondir(self):
         return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index))
@@ -260,7 +264,7 @@ class ScoreFitnessSolutionTask(Task):
 
         ### perform classification and report outcomes
         print('running experiment with classifier args', classifier_args)
-        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=classifier_args)
+        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=classifier_args, ordinal=self.ordinal)
 
 
 ################################################################################

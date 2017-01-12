@@ -12,6 +12,7 @@ class ReportPerformance(Task):
     in_labels = InputSlot()
 
     documents = Parameter()
+    ordinal = BoolParameter()
 
     def out_performance(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.performance.csv')
@@ -48,10 +49,13 @@ class ReportPerformance(Task):
             documents = False
 
         # initiate reporter
-        rp = reporter.Reporter(predictions, probabilities, labels, documents)
+        rp = reporter.Reporter(predictions, probabilities, labels, self.ordinal, documents)
 
         # report performance
-        performance = rp.assess_performance()
+        if self.ordinal:
+            performance = rp.assess_ordinal_performance()
+        else:
+            performance = rp.assess_performance()
         lw = linewriter.Linewriter(performance)
         lw.write_csv(self.out_performance().path)
 
@@ -115,13 +119,14 @@ class ReporterComponent(WorkflowComponent):
     predictions = Parameter()
     labels = Parameter()
     documents = Parameter(default=False)
+    ordinal = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.vectorlabels', inputparameter='labels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents)
+        reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents, ordinal=self.ordinal)
         reporter.in_predictions = input_feeds['predictions']
         reporter.in_labels = input_feeds['labels']
 

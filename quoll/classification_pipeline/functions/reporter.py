@@ -5,7 +5,7 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, probabilities, labels = False, documents=False):
+    def __init__(self, predictions, probabilities, labels=False, ordinal=False, documents=False):
         self.predictions = predictions
         if len(predictions) != len(probabilities):
             print('The number of probabilities (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -16,12 +16,18 @@ class Reporter:
             if len(predictions) != len(labels):
                 print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
                 quit()
-            self.ce = self.save_classifier_output(labels, predictions)
-            self.labels = labels
-            self.unique_labels = list(set(labels))
+            if ordinal:
+                self.ce = evaluation.OrdinalEvaluation()
+                self.labels = [int(label) for label in labels]
+                self.predictions = [int(prediction) for prediction in predictions]
+            else:
+                self.ce = evaluation.ClassEvaluation()
+                self.labels = labels
+            self.save_classifier_output(self.labels, self.predictions)
+            self.unique_labels = list(set(self.labels))
         else:
             self.labels = ['-'] * len(self.predictions)
-            self.unique_labels=['-']
+            self.unique_labels = ['-']
         if documents:
             if len(predictions) != len(documents):
                 print('The number of documents (', len(documents), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -32,10 +38,25 @@ class Reporter:
             self.documents = ['-'] * len(labels)
 
     def save_classifier_output(self, labels, predictions):
-        ce = evaluation.ClassEvaluation()
         for i, instance in enumerate(labels):
-            ce.append(labels[i], predictions[i])
-        return ce
+            self.ce.append(labels[i], predictions[i])
+
+    def assess_ordinal_label_performance(self, label):
+        ordinal_label_performance = [self.ce.precision(cls=label), self.ce.recall(cls=label), self.ce.fscore(cls=label),self.ce.tp_rate(cls=label), self.ce.fp_rate(cls=label), auc([0, self.ce.fp_rate(cls=label), 1], [0, self.ce.tp_rate(cls=label), 1]), self.ce.mae(cls=label), self.ce.rmse(cls=label), self.ce.accuracy(cls=label), self.ce.tp[label] + self.ce.fn[label], self.ce.tp[label] + self.ce.fp[label], self.ce.tp[label]]
+        ordinal_label_performance = [label] + [round(x,2) for x in label_performance]
+        return ordinal_label_performance       
+
+    def assess_overall_ordinal_performance(self):
+        overall_performance = [self.ce.precision(), self.ce.recall(), self.ce.fscore(), self.ce.tp_rate(), self.ce.fp_rate(), auc([0, self.ce.fp_rate(), 1], [0, self.ce.tp_rate(), 1]), self.ce.mae(), self.ce.rmse(), self.ce.accuracy(), len(self.ce.observations), len(self.ce.observations), sum([self.ce.tp[label] for label in list(set(self.labels))])]
+        overall_performance = ['overall'] + [round(x,2) for x in overall_performance]
+
+    def assess_ordinal_performance(self):
+        performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]
+        performance = [performance_headers]
+        for label in self.unique_labels:
+            performance.append(self.assess_ordinal_label_performance(label))
+        performance.append(self.assess_overall_ordinal_performance())
+        return performance
 
     def assess_label_performance(self, label):
         label_performance = [self.ce.precision(cls=label), self.ce.recall(cls=label), self.ce.fscore(cls=label),self.ce.tp_rate(cls=label), self.ce.fp_rate(cls=label), auc([0, self.ce.fp_rate(cls=label), 1], [0, self.ce.tp_rate(cls=label), 1]), self.ce.tp[label] + self.ce.fn[label], self.ce.tp[label] + self.ce.fp[label], self.ce.tp[label]]

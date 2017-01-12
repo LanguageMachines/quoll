@@ -29,7 +29,7 @@ class RunGA(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default='')
+    ordinal = BoolParameter(default=False)
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
@@ -41,7 +41,7 @@ class RunGA(WorkflowComponent):
         population_generator.in_vectors = input_feeds['trainvectors']
         population_generator.in_parameter_options = input_feeds['parameter_options']
 
-        fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
+        fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, ordinal=self.ordinal)
         fitness_manager.in_vectorpopulation = population_generator.out_vectorpopulation
         fitness_manager.in_parameterpopulation = population_generator.out_parameterpopulation
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
@@ -54,7 +54,7 @@ class RunGA(WorkflowComponent):
         fitness_reporter = workflow.new_task('report_fitness_population', run_ga_iteration.ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
 
-        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
         ga_iterator.in_random_vectorpopulation = population_generator.out_vectorpopulation
         ga_iterator.in_random_parameterpopulation = population_generator.out_parameterpopulation
         ga_iterator.in_population_fitness = fitness_reporter.out_fitnessreport
@@ -133,7 +133,7 @@ class ManageGAIterations(Task):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
-    classifier_args = Parameter(default='')
+    ordinal = BoolParameter(default=False)
     fitness_metric = Parameter(default='microF1')
 
     def out_iterations(self):
@@ -175,7 +175,7 @@ class ManageGAIterations(Task):
         # run iterations
         iterdir = self.out_pre_iteration().path
         for i in range(1,self.num_iterations+1):
-            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, fitness_metric=self.fitness_metric))
+            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
             iterdir = iterdir[:-11] + str(i) + '.iteration'
 
 

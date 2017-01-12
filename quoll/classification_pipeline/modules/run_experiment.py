@@ -22,6 +22,7 @@ class ExperimentComponent(WorkflowComponent):
     balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default='')
+    ordinal = BoolParameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
@@ -65,6 +66,7 @@ class ExperimentComponentVector(WorkflowComponent):
 
     classifier = Parameter(default='naive_bayes')
     classifier_args = Parameter(default='')
+    ordinal = BoolParameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
@@ -80,7 +82,7 @@ class ExperimentComponentVector(WorkflowComponent):
         predictor.in_labels = input_feeds['trainlabels']
         predictor.in_model = trainer.out_model
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True)
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
         reporter.in_predictions = predictor.out_classifications
         reporter.in_labels = input_feeds['testlabels']
         reporter.in_documents = input_feeds['documents']
