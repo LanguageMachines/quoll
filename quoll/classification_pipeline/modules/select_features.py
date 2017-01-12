@@ -18,6 +18,7 @@ class SelectFeatures(WorkflowComponent):
     trainvectors = Parameter()
     trainlabels = Parameter()
     parameter_options = Parameter()
+    feature_names = Parameter()
     documents = Parameter()
 
     training_split = IntParameter(default=10)
@@ -31,7 +32,7 @@ class SelectFeatures(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -48,6 +49,8 @@ class SelectFeatures(WorkflowComponent):
         foldreporter = workflow.new_task('report_folds', ReportFoldsGA, autopass=False)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
         foldreporter.in_trainvectors = input_feeds['trainvectors']
+        foldreporter.in_parameter_options = input_feeds['parameter_options']
+        foldreporter.in_feature_names = input_feeds['feature_names']
 
         return foldreporter
 
@@ -84,7 +87,7 @@ class RunFoldsGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldGA(directory=self.out_feature_selection().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, i=fold, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+            yield FoldGA(directory=self.out_feature_selection().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, i=fold, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, fitness_metric=self.fitness_metric)
 
 
 ################################################################################
@@ -109,7 +112,6 @@ class FoldGA(WorkflowComponent):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     classifier = Parameter()
-    classifier_args = Parameter()
     fitness_metric = Parameter()
 
     def accepts(self):
@@ -117,7 +119,7 @@ class FoldGA(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldGATask, autopass=False, i=self.i, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        fold = workflow.new_task('run_fold', FoldGATask, autopass=False, i=self.i, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, fitness_metric=self.fitness_metric)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -144,7 +146,6 @@ class FoldGATask(Task):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     classifier = Parameter()
-    classifier_args = Parameter()
     fitness_metric = Parameter()
 
     def out_fold(self):
@@ -212,7 +213,7 @@ class FoldGATask(Task):
 
         print('Running feature selection for fold',self.i)
 
-        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.out_testdocuments().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
+        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.out_testdocuments().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, fitness_metric=self.fitness_metric)
 
 
 ################################################################################
@@ -223,6 +224,8 @@ class ReportFoldsGA(Task):
 
     in_feature_selection_directory = InputSlot()
     in_trainvectors = InputSlot()
+    in_parameter_options = InputSlot()
+    in_feature_names = InputSlot()
 
     def out_folds_report(self):
         return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.foldsreport.txt')
@@ -230,12 +233,19 @@ class ReportFoldsGA(Task):
     def out_best_trainvectors(self):
         return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_train.vectors.npz')
 
+    def out_best_features(self):
+        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_featurecombi.txt')
+
+    def out_best_parameters(self):
+        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_classifier_parameters.txt')
+
     def run(self):
 
         # gather fold reports
         print('gathering fold reports')
         fold_reports = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.report.txt') ]
-        fold_best_solutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_solution.txt') ]
+        fold_best_vectorsolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_vectorsolution.txt') ]
+        fold_best_parametersolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_parametersolution.txt') ]
 
         # summarize reports
         dr = docreader.Docreader()
@@ -253,11 +263,51 @@ class ReportFoldsGA(Task):
         lw = linewriter.Linewriter(final_report)
         lw.write_csv(self.out_folds_report().path)
 
-        # extract best solution and transform into best training vectors
-        best_solution_file = fold_best_solutions[fold_best]
-        with open(best_solution_file) as infile:
+        ### manage output best training vectors
+
+        # extract best solution 
+        best_vectorsolution_file = fold_best_vectorsolutions[fold_best]
+        with open(best_vectorsolution_file) as infile:
             best_solution_features = [int(x) for x in infile.read().strip().split()]
+
+        # extract training vectors
         loader = numpy.load(self.in_trainvectors().path)
         train_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # transform training vectors based on best solution
         transformed_traininstances = vectorizer.compress_vectors(train_instances,best_solution_features)
+
+        # write to file
         numpy.savez(self.out_best_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
+
+        ### manage output best feature combination
+        
+        # extract feature names
+        with open(self.in_feature_names().path,'r',encoding='utf-8') as infile:
+            feature_names = numpy.array(infile.read().strip().split('\n'))
+
+        # select feature names of best solution
+        best_feature_combi = list(feature_names[best_solution_features])
+
+        # write to file
+        with open(self.out_best_features().path,'w',encoding='utf-8') as outfile:
+            outfile.write('\n'.join(feature_names))
+
+        ### manage output best parameters
+        
+        # extract indices best parameter solution
+        best_parametersolution_file = fold_best_parametersolutions[fold_best]
+        with open(best_parametersolution_file) as infile:
+            best_solution_parameters = [int(x) for x in infile.read().strip().split()]
+
+        # load parameter values
+        with open(self.in_parameter_options().path) as infile:
+            lines = infile.read().strip().split('\n')
+            parameter_options = [line.split() for line in lines]
+
+        # extract best parameters
+        best_parameter_combi = [variable[best_solution_parameters[i]] for i,variable in enumerate(parameter_options)]
+        
+        # write to file
+        with open(self.out_best_parameters().path,'w',encoding='utf-8') as outfile:
+            outfile.write(' '.join(best_parameter_combi))

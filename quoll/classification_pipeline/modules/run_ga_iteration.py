@@ -19,8 +19,8 @@ class RunGAIteration(WorkflowComponent):
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
-    testlabel = Parameter()
-    parameter_options = InputSlot()
+    testlabels = Parameter()
+    parameter_options = Parameter()
     documents = Parameter()
 
     iteration = IntParameter()
@@ -40,7 +40,7 @@ class RunGAIteration(WorkflowComponent):
         offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers)
         offspring_generator.in_dir_latest_iter = input_feeds['dir_latest_iter']
 
-        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
+        fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier)
         fitness_manager.in_vectorpopulation = offspring_generator.out_vectoroffspring
         fitness_manager.in_parameterpopulation = offspring_generator.out_parameteroffspring
         fitness_manager.in_trainvectors = input_feeds['trainvectors']
@@ -151,7 +151,7 @@ class ScoreFitnessPopulation(Task):
         self.setup_output_dir(self.out_fitness_exp().path)
 
         # score fitness for each solution
-        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, vectorpopulation=self.in_vectorpopulation().path, parameterpopulation=self.in_parameterpopulation().pathtrainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_parameter_options().path, solution_index=i, classifier=self.classifier) for i in range(self.population_size) ]
+        yield [ ScoreFitnessSolution(fitness_exp=self.out_fitness_exp().path, vectorpopulation=self.in_vectorpopulation().path, parameterpopulation=self.in_parameterpopulation().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, solution_index=i, classifier=self.classifier) for i in range(self.population_size) ]
 
 
 ################################################################################
@@ -236,8 +236,8 @@ class ScoreFitnessSolutionTask(Task):
         vectorsolution = vectorpopulation[self.solution_index,:].nonzero()[1]
 
         # transform train and test vectors according to solution
-        transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,solution)
-        transformed_testinstances = vectorizer.compress_vectors(vectorized_testinstances,solution)
+        transformed_traininstances = vectorizer.compress_vectors(vectorized_traininstances,vectorsolution)
+        transformed_testinstances = vectorizer.compress_vectors(vectorized_testinstances,vectorsolution)
 
         # write vectors to solutiondir
         numpy.savez(self.out_solution_trainvectors().path, data=transformed_traininstances.data, indices=transformed_traininstances.indices, indptr=transformed_traininstances.indptr, shape=transformed_traininstances.shape)
@@ -256,7 +256,7 @@ class ScoreFitnessSolutionTask(Task):
         parametersolution = parameterpopulation[self.solution_index,:].toarray().tolist()[0]
 
         # extract solution classifier arguments
-        classifier_args = [parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)] 
+        classifier_args = ' '.join([parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)]) 
 
         ### perform classification and report outcomes
         print('running experiment with classifier args', classifier_args)

@@ -34,7 +34,7 @@ setup(
     zip_safe=False,
     #include_package_data=True,
     #package_data = {'': ['*.wsgi','*.js','*.xsl','*.gif','*.png','*.xml','*.html','*.jpg','*.svg','*.rng'] },
-    install_requires=['LuigiNLP','pynlpl','gensim','scikit-learn','numpy','scipy','colibricore'],
+    install_requires=['LuigiNLP','pynlpl','gensim','scikit-learn','numpy','scipy','colibricore','mord'],
     #entry_points = {    'console_scripts': [
     #        'luiginlp = luiginlp.luiginlp:main',
     #]

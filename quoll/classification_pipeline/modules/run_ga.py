@@ -39,7 +39,7 @@ class RunGA(WorkflowComponent):
 
         population_generator = workflow.new_task('generate_random_population', GenerateRandomPopulation, autopass=False, population_size=self.population_size)
         population_generator.in_vectors = input_feeds['trainvectors']
-        population_generator.in_vectors = input_feeds['parameter_options']
+        population_generator.in_parameter_options = input_feeds['parameter_options']
 
         fitness_manager = workflow.new_task('score_fitness_population', run_ga_iteration.ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, classifier_args=self.classifier_args)
         fitness_manager.in_vectorpopulation = population_generator.out_vectorpopulation
@@ -55,12 +55,14 @@ class RunGA(WorkflowComponent):
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
 
         ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric)
-        ga_iterator.in_random_population = population_generator.out_population
+        ga_iterator.in_random_vectorpopulation = population_generator.out_vectorpopulation
+        ga_iterator.in_random_parameterpopulation = population_generator.out_parameterpopulation
         ga_iterator.in_population_fitness = fitness_reporter.out_fitnessreport
         ga_iterator.in_trainvectors = input_feeds['trainvectors']
         ga_iterator.in_trainlabels = input_feeds['trainlabels']
         ga_iterator.in_testvectors = input_feeds['testvectors']
         ga_iterator.in_testlabels = input_feeds['testlabels']
+        ga_iterator.in_parameter_options = input_feeds['parameter_options']
         ga_iterator.in_documents = input_feeds['documents']
 
         ga_reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=False)
@@ -114,12 +116,14 @@ class GenerateRandomPopulation(Task):
 
 class ManageGAIterations(Task):
 
-    in_random_population = InputSlot()
+    in_random_vectorpopulation = InputSlot()
+    in_random_parameterpopulation = InputSlot()
     in_population_fitness = InputSlot()
     in_trainvectors = InputSlot()
     in_trainlabels = InputSlot()
     in_testvectors = InputSlot()
     in_testlabels = InputSlot()
+    in_parameter_options = InputSlot()
     in_documents = InputSlot()
 
     num_iterations = IntParameter()
@@ -133,30 +137,45 @@ class ManageGAIterations(Task):
     fitness_metric = Parameter(default='microF1')
 
     def out_iterations(self):
-        return self.outputfrominput(inputformat='random_population', stripextension='.population.npz', addextension='.iterations')
+        return self.outputfrominput(inputformat='random_vectorpopulation', stripextension='.vectorpopulation.npz', addextension='.iterations')
 
     def out_pre_iteration(self):
-        return self.outputfrominput(inputformat='random_population', stripextension='.population.npz', addextension='.iterations/ga.0.iteration')
+        return self.outputfrominput(inputformat='random_vectorpopulation', stripextension='.vectorpopulation.npz', addextension='.iterations/ga.0.iteration')
 
     def run(self):
 
         # create output directory
         self.setup_output_dir(self.out_iterations().path)
 
-        # generate pre iteration directory
+        ### generate pre iteration directory
+
+        # create directory
         self.setup_output_dir(self.out_pre_iteration().path)
-        loader = numpy.load(self.in_random_population().path)
-        random_population = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        numpy.savez(self.out_pre_iteration().path + '/population.npz', data=random_population.data, indices=random_population.indices, indptr=random_population.indptr, shape=random_population.shape)
+
+        # load random vectorpopulation
+        loader = numpy.load(self.in_random_vectorpopulation().path)
+        random_vectorpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # write random vectorpopulation
+        numpy.savez(self.out_pre_iteration().path + '/vectorpopulation.npz', data=random_vectorpopulation.data, indices=random_vectorpopulation.indices, indptr=random_vectorpopulation.indptr, shape=random_vectorpopulation.shape)
+
+        # load random parameterpopulation
+        loader = numpy.load(self.in_random_parameterpopulation().path)
+        random_parameterpopulation = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # write random parameterpopulation
+        numpy.savez(self.out_pre_iteration().path + '/parameterpopulation.npz', data=random_parameterpopulation.data, indices=random_parameterpopulation.indices, indptr=random_parameterpopulation.indptr, shape=random_parameterpopulation.shape)
+
+        # write population fitness
         with open(self.in_population_fitness().path) as infile:
             fitness = infile.read().strip()
-            with open(self.out_pre_iteration().path + '/population.fitness.txt','w') as outfile:
+            with open(self.out_pre_iteration().path + '/vectorpopulation.fitness.txt','w') as outfile:
                 outfile.write(fitness)
 
         # run iterations
         iterdir = self.out_pre_iteration().path
         for i in range(1,self.num_iterations+1):
-            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, classifier_args=self.classifier_args, fitness_metric=self.fitness_metric))
+            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, fitness_metric=self.fitness_metric))
             iterdir = iterdir[:-11] + str(i) + '.iteration'
 
 
@@ -171,14 +190,17 @@ class ReportGAIterations(Task):
     def out_report(self):
         return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.report.txt')
 
-    def out_best_solution(self):
-        return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.best_solution.txt')
+    def out_best_vectorsolution(self):
+        return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.best_vectorsolution.txt')
+
+    def out_best_parametersolution(self):
+        return self.outputfrominput(inputformat='iterations_dir', stripextension='.iterations', addextension='.best_parametersolution.txt')
 
     def run(self):
 
         # gather reports by iteration
         print('gathering fitness reports by iteration')
-        fitness_files = sorted([ filename for filename in glob.glob(self.in_iterations_dir().path + '/ga.*.iteration/population.fitness.txt') ])
+        fitness_files = sorted([ filename for filename in glob.glob(self.in_iterations_dir().path + '/ga.*.iteration/vectorpopulation.fitness.txt') ])
 
         # summarize fitness files
         report = [['Average fitness','Median fitness','Best fitness','Best fitness index']]
@@ -200,9 +222,16 @@ class ReportGAIterations(Task):
         with open(self.out_report().path,'w') as outfile:
             outfile.write('\n'.join(['\t'.join(line) for line in report]))
 
-        # extract best solution and write to output
-        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/population.npz')
-        population_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_solution = list(population_best_iteration[index_best_fitness_iterations[1],:].nonzero()[1])
-        with open(self.out_best_solution().path,'w') as outfile:
-            outfile.write(' '.join([str(i) for i in best_solution]))
+        # extract best vectorsolution and write to output
+        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/vectorpopulation.npz')
+        vectorpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        best_vectorsolution = sorted(list(vectorpopulation_best_iteration[index_best_fitness_iterations[1],:].nonzero()[1]))
+        with open(self.out_best_vectorsolution().path,'w') as outfile:
+            outfile.write(' '.join([str(i) for i in best_vectorsolution]))
+
+        # extract best parametersolution and write to output
+        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/parameterpopulation.npz')
+        parameterpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        best_parametersolution = parameterpopulation_best_iteration[index_best_fitness_iterations[1],:].toarray().tolist()[0]
+        with open(self.out_best_parametersolution().path,'w') as outfile:
+            outfile.write(' '.join([str(i) for i in best_parametersolution]))
