@@ -286,7 +286,7 @@ class ReportFitnessPopulation(Task):
         performance_files = sorted([ filename for filename in glob.glob(self.in_fitness_exp().path + '/solution_fitness*/test.performance.csv') ])
 
         # extract fitness score from reports
-        metric_position = {'microF1':[-1,3]}
+        metric_position = {'microPrecision':[-1,1],'microRecall':[-1,2],'microF1':[-1,3],'FPR':[-1,5],'AUC':[-1,6],'MAE':[-1,7],'RMSE':[-1,8],'ACC':[-1,9]}
         coordinates = metric_position[self.fitness_metric]
         dr = docreader.Docreader()
         performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
