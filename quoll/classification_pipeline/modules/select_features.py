@@ -237,6 +237,9 @@ class ReportFoldsGA(Task):
     def out_best_trainvectors(self):
         return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_train.vectors.npz')
 
+    def out_best_vectorsolution(self):
+        return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_vectorsolution.txt')
+
     def out_best_features(self):
         return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.best_featurecombi.txt')
 
@@ -272,7 +275,12 @@ class ReportFoldsGA(Task):
         # extract best solution 
         best_vectorsolution_file = fold_best_vectorsolutions[fold_best]
         with open(best_vectorsolution_file) as infile:
-            best_solution_features = [int(x) for x in infile.read().strip().split()]
+            best_solution = infile.read().strip().split()
+        best_solution_features = [int(x) for x in best_solution]
+
+        # write best solution
+        with open(self.out_best_vectorsolution().path) as outfile:
+            outfile.write(' '.join(best_solution))
 
         # extract training vectors
         loader = numpy.load(self.in_trainvectors().path)
@@ -314,4 +322,4 @@ class ReportFoldsGA(Task):
         
         # write to file
         with open(self.out_best_parameters().path,'w',encoding='utf-8') as outfile:
-            outfile.write(' '.join(best_parameter_combi))
+            outfile.write('\n'.join(best_parameter_combi))

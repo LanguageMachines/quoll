@@ -219,6 +219,9 @@ class ScoreFitnessSolutionTask(Task):
     def out_solution_testvectors(self):
         return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index) + '/test.vectors.npz')
 
+    def out_solution_classifier_args(self):
+        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness_exp/solution_fitness' + str(self.solution_index) + '/classifier_args.txt')
+
     def run(self):
 
         # generate outputdir
@@ -260,11 +263,14 @@ class ScoreFitnessSolutionTask(Task):
         parametersolution = parameterpopulation[self.solution_index,:].toarray().tolist()[0]
 
         # extract solution classifier arguments
-        classifier_args = ' '.join([parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)]) 
+        classifier_args = [parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)]
+
+        # write classifier arguments to solutiondir
+        with open(self.out_solution_classifier_args().path,'w',encoding='utf-8') as outfile:
+            outfile.write('\n'.join(classifier_args))
 
         ### perform classification and report outcomes
-        print('running experiment with classifier args', classifier_args)
-        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, classifier=self.classifier, classifier_args=classifier_args, ordinal=self.ordinal)
+        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, classifier_args=self.out_solution_classifier_args().path, documents=self.in_documents().path, classifier=self.classifier, ordinal=self.ordinal)
 
 
 ################################################################################

@@ -29,6 +29,8 @@ class VectorizeTask(Task):
         # write instances to file
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
 
+
+
 @registercomponent
 class Vectorize(StandardWorkflowComponent):
 
@@ -41,3 +43,27 @@ class Vectorize(StandardWorkflowComponent):
 
     def autosetup(self):
         return VectorizeTask
+
+class TransformVectorsTask(Task):
+
+    in_vectors = InputSlot()
+    in_selection = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.transformed.vectors.npz')
+
+    def run(self):
+
+        # load vectors
+        loader = numpy.load(self.in_vectors().path)
+        instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load selection
+        with open(in_selection().path) as infile:
+            selection = [int(x) for x in infile.read().strip().split()]
+
+        # transform vectors
+        transformed_vectors = vectorizer.compress_vectors(instances,selection)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=transformed_vectors.data, indices=transformed_vectors.indices, indptr=transformed_vectors.indptr, shape=transformed_vectors.shape)
