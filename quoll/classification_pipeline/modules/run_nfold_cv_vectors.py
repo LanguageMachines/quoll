@@ -48,7 +48,7 @@ class NFoldCV(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args, , ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, clasifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -99,7 +99,7 @@ class RunFoldsVectors(Task):
         performance_files = []
         docprediction_files = []
         for fold in range(self.n):
-            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
 
 
 ################################################################################
@@ -137,7 +137,7 @@ class FoldVectors(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -214,15 +214,12 @@ class FoldVectorsTask(Task):
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
             documents = numpy.array(infile.read().split('\n'))
 
-        # set training and test data
+        # set training data
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
         train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
-        test_vectors = instances[bins[self.i]]
-        test_labels = labels[bins[self.i]]
-        test_documents = documents[bins[self.i]]
 
-        # write experiment data to files in fold directory
+        # write training data to files in fold directory
         numpy.savez(self.out_trainvectors().path, data=train_vectors.data, indices=train_vectors.indices, indptr=train_vectors.indptr, shape=train_vectors.shape)
         numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
@@ -234,15 +231,23 @@ class FoldVectorsTask(Task):
         with open(self.out_testdocuments().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
-        trainvectors = self.out_trainvectors().path
-        classifier_args = self.classifier_args
+        # select best features
         if self.ga:
             print('Running feature selection for fold',self.i)
             yield SelectFeatures(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, parameter_options=self.parameter_options, feature_names=self.feature_names, documents=self.out_traindocuments().path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
-            trainvectors = self.out_fold().path + '/train.' + self.training_split + 'folds.' self.classifier + '.best_train.vectors.npz'
-            best_classifier_args = self.out_fold().path + '/train.' + self.training_split + 'folds.' self.classifier + '.best_classifier_parameters.txt'
+        trainvectors = self.out_trainvectors().path
+        classifier_args = self.classifier_args
+        
+            trainvectors = self.out_fold().path + '/train.' + str(self.training_split) + 'folds.' + self.classifier + '.best_train.vectors.npz'
+            best_classifier_args = self.out_fold().path + '/train.' + str(self.training_split) + 'folds.' + self.classifier + '.best_classifier_parameters.txt'
             with open(best_classifier_args) as infile:
                 classifier_args = infile.read().strip()
+
+
+        test_vectors = instances[bins[self.i]]
+        test_labels = labels[bins[self.i]]
+        test_documents = documents[bins[self.i]]
+
 
         print('Running experiment for fold',self.i)
         yield ExperimentComponentVector(train=trainvectors, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, classifier=self.classifier, classifier_args=classifier_args, ordinal=self.ordinal) 
