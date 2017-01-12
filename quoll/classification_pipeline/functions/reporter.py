@@ -42,13 +42,17 @@ class Reporter:
             self.ce.append(labels[i], predictions[i])
 
     def assess_ordinal_label_performance(self, label):
-        ordinal_label_performance = [self.ce.precision(cls=label), self.ce.recall(cls=label), self.ce.fscore(cls=label),self.ce.tp_rate(cls=label), self.ce.fp_rate(cls=label), auc([0, self.ce.fp_rate(cls=label), 1], [0, self.ce.tp_rate(cls=label), 1]), self.ce.mae(cls=label), self.ce.rmse(cls=label), self.ce.accuracy(cls=label), self.ce.tp[label] + self.ce.fn[label], self.ce.tp[label] + self.ce.fp[label], self.ce.tp[label]]
-        ordinal_label_performance = [label] + [round(x,2) for x in label_performance]
+        self.ce.compute()
+        mae = self.ce.mae(label) if len(self.ce.error[label]) > 0 else 0.0
+        rmse = self.ce.rmse(label) if len(self.ce.error[label]) > 0 else 0.0
+        ordinal_label_performance = [self.ce.precision(cls=label), self.ce.recall(cls=label), self.ce.fscore(cls=label),self.ce.tp_rate(cls=label), self.ce.fp_rate(cls=label), auc([0, self.ce.fp_rate(cls=label), 1], [0, self.ce.tp_rate(cls=label),1]), mae, rmse, self.ce.accuracy(cls=label), self.ce.tp[label] + self.ce.fn[label], self.ce.tp[label] + self.ce.fp[label], self.ce.tp[label]]
+        ordinal_label_performance = [label] + [round(x,2) for x in ordinal_label_performance]
         return ordinal_label_performance       
 
     def assess_overall_ordinal_performance(self):
         overall_performance = [self.ce.precision(), self.ce.recall(), self.ce.fscore(), self.ce.tp_rate(), self.ce.fp_rate(), auc([0, self.ce.fp_rate(), 1], [0, self.ce.tp_rate(), 1]), self.ce.mae(), self.ce.rmse(), self.ce.accuracy(), len(self.ce.observations), len(self.ce.observations), sum([self.ce.tp[label] for label in list(set(self.labels))])]
         overall_performance = ['overall'] + [round(x,2) for x in overall_performance]
+        return overall_performance
 
     def assess_ordinal_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]

@@ -3,7 +3,7 @@ import numpy
 from scipy import sparse
 import glob
 
-from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter
+from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
 from quoll.classification_pipeline.modules import run_ga, make_bins
 from quoll.classification_pipeline.functions import ga_functions, vectorizer, docreader, linewriter

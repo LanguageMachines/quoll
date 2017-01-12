@@ -65,7 +65,10 @@ class ReportPerformance(Task):
         lw.write_csv(self.out_docpredictions().path)
 
         # report confusion matrix
-        confusion_matrix = rp.return_confusion_matrix()
+        if not self.ordinal:
+            confusion_matrix = rp.return_confusion_matrix()
+        else:
+            confusion_matrix = '-'
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)
 
