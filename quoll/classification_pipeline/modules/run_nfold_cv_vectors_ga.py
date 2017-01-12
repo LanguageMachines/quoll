@@ -10,7 +10,7 @@ import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
-from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVectorFeatureSelection 
+from quoll.classification_pipeline.modules.run_experiment_ga import ExperimentComponentVectorFeatureSelection 
 from quoll.classification_pipeline.modules.make_bins import MakeBins
 from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFolds  
 
