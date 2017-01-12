@@ -19,7 +19,7 @@ from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFol
 ################################################################################
 
 @registercomponent
-class NFoldCV(WorkflowComponent):
+class NFoldCVGA(WorkflowComponent):
     
     vectors = Parameter()
     labels = Parameter()
@@ -96,7 +96,7 @@ class RunFoldsVectorsGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldVectorsGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, classifier_args=self.classifier_args, ga=self.ga, parameter_options=self.parameter_options, feature_names=self.feature_names, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+            yield FoldVectorsGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
 
 
 ################################################################################
