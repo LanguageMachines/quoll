@@ -67,3 +67,18 @@ class TransformVectorsTask(Task):
 
         # write vectors
         numpy.savez(self.out_vectors().path, data=transformed_vectors.data, indices=transformed_vectors.indices, indptr=transformed_vectors.indptr, shape=transformed_vectors.shape)
+
+@registercomponent
+class TransformVectors(WorkflowComponent):
+
+    vectors = Parameter()
+    selection = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='selection',extension='.txt',inputparameter='selection') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        transformer = workflow.new_task('transform_vectors', TransformVectorsTask, autopass=True)
+        transformer.in_vectors = input_feeds['vectors']
+        transformer.in_selection = input_feeds['selection']
