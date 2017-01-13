@@ -176,7 +176,7 @@ class ManageGAIterations(Task):
         iterdir = self.out_pre_iteration().path
         for i in range(1,self.num_iterations+1):
             yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
-            iterdir = iterdir[:-11] + str(i) + '.iteration'
+            iterdir = self.out_pre_iteration().path[:-11] + str(i) + '.iteration'
 
 
 ################################################################################
@@ -216,7 +216,7 @@ class ReportGAIterations(Task):
                 median_fitness = numpy.median(fitness_scores)
                 best_fitness = max(fitness_scores) if highest else min(fitness_scores)
                 best_fitness_index = fitness_scores.index(best_fitness)
-                if best_fitness > best_fitness_iterations:
+                if (highest and best_fitness > best_fitness_iterations) or (not highest and best_fitness < best_fitness_iterations) or (not highest and i == 0):
                     best_fitness_iterations = best_fitness
                     index_best_fitness_iterations = [i,best_fitness_index]
                 report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,best_fitness_index]])

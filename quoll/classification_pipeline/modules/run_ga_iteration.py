@@ -1,4 +1,5 @@
 
+import os
 import glob
 import numpy
 from scipy import sparse
@@ -303,3 +304,6 @@ class ReportFitnessPopulation(Task):
         with open(self.out_fitnessreport().path,'w') as outfile:
             outfile.write('\n'.join(all_fitness))
 
+        # remove fitness experiment
+        print('removing experiment directory')
+        os.system('rm -r ' + self.in_fitness_exp().path)

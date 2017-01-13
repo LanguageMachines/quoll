@@ -47,7 +47,7 @@ class SelectFeatures(WorkflowComponent):
         foldrunner.in_parameter_options = input_feeds['parameter_options']
         foldrunner.in_documents = input_feeds['documents']
 
-        foldreporter = workflow.new_task('report_folds', ReportFoldsGA, autopass=False)
+        foldreporter = workflow.new_task('report_folds', ReportFoldsGA, autopass=False, fitness_metric=self.fitness_metric)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
         foldreporter.in_trainvectors = input_feeds['trainvectors']
         foldreporter.in_parameter_options = input_feeds['parameter_options']
@@ -232,6 +232,8 @@ class ReportFoldsGA(Task):
     in_parameter_options = InputSlot()
     in_feature_names = InputSlot()
 
+    fitness_metric = Parameter()
+
     def out_folds_report(self):
         return self.outputfrominput(inputformat='feature_selection_directory', stripextension='.feature_selection', addextension='.foldsreport.txt')
 
@@ -256,14 +258,18 @@ class ReportFoldsGA(Task):
         fold_best_parametersolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_parametersolution.txt') ]
 
         # summarize reports
+        highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
         dr = docreader.Docreader()
         reports_combined = [dr.parse_txt(report_file,delimiter='\t',header=True) for report_file in fold_reports]
         fold_best_fitness = []
         for report in reports_combined:
-            fold_best_fitness.append(max([float(x[2]) for x in report]))
+            if highest:
+                fold_best_fitness.append(max([float(x[2]) for x in report]))
+            else:
+                fold_best_fitness.append(min([float(x[2]) for x in report]))
         avg = numpy.mean(fold_best_fitness)
         median = numpy.median(fold_best_fitness)
-        best = max(fold_best_fitness)
+        best = max(fold_best_fitness) if highest else min(fold_best_fitness)
         fold_best = fold_best_fitness.index(best)
         fold_iteration_best = [float(x[2]) for x in reports_combined[fold_best]].index(best)
         fold_iteration_index_best = reports_combined[fold_best][fold_iteration_best][3]
