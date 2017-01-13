@@ -38,7 +38,7 @@ class RunGAIteration(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers)
+        offspring_generator = workflow.new_task('generate_offspring', GenerateOffspring, autopass=False, iteration=self.iteration, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, fitness_metric=self.fitness_metric)
         offspring_generator.in_dir_latest_iter = input_feeds['dir_latest_iter']
 
         fitness_manager = workflow.new_task('score_fitness_population', ScoreFitnessPopulation, autopass=False, population_size=self.population_size, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)

@@ -195,6 +195,7 @@ class FoldGATask(Task):
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
             documents = numpy.array(infile.read().split('\n'))
 
+
         # set training and test data
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])

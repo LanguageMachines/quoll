@@ -14,7 +14,7 @@ def tournament_selection(population_fitness,tournament_size=2,win_condition='hig
             contestant=random.choice(candidate_keys)
             contestants.append((contestant,population_fitness[contestant]))
         sorted_contestants = sorted(contestants,key = lambda k : k[1],reverse=True)
-        if win_condition='highest':
+        if win_condition=='highest':
             winner = sorted_contestants[0][0]
         else:
             winner = sorted_contestants[-1][0]

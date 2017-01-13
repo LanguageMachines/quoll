@@ -10,8 +10,8 @@ class ReportPerformance(Task):
 
     in_predictions = InputSlot()
     in_labels = InputSlot()
+    in_documents = InputSlot()
 
-    documents = Parameter()
     ordinal = BoolParameter()
 
     def out_performance(self):
@@ -42,11 +42,8 @@ class ReportPerformance(Task):
             labels = infile.read().split('\n')
 
         # load documents
-        if self.documents:
-            with open(self.documents,'r',encoding='utf-8') as infile:
-                documents = infile.read().split('\n')
-        else:
-            documents = False
+        with open(self.in_documents().path,'r',encoding='utf-8') as infile:
+            documents = infile.read().strip().split('\n')
 
         # initiate reporter
         rp = reporter.Reporter(predictions, probabilities, labels, self.ordinal, documents)

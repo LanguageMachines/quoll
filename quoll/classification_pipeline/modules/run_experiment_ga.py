@@ -16,7 +16,8 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
     test = Parameter()
     testlabels = Parameter()
     feature_names = Parameter()
-    documents = Parameter()
+    traindocuments = Parameter()
+    testdocuments = Parameter()
 
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
@@ -30,7 +31,7 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='traindocuments',extension='.txt',inputparameter='traindocuments'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -42,7 +43,7 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
         foldrunner.in_vectors = input_feeds['train']
         foldrunner.in_labels = input_feeds['trainlabels']
         foldrunner.in_parameter_options = input_feeds['parameter_options']
-        foldrunner.in_documents = input_feeds['documents']
+        foldrunner.in_documents = input_feeds['traindocuments']
 
         foldreporter = workflow.new_task('report_folds', select_features.ReportFoldsGA, autopass=True)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
@@ -67,6 +68,6 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
         reporter.in_predictions = predictor.out_classifications
         reporter.in_labels = input_feeds['testlabels']
-        reporter.in_documents = input_feeds['documents']
+        reporter.in_documents = input_feeds['testdocuments']
 
         return reporter
