@@ -1,7 +1,7 @@
 
 import numpy
 from scipy import sparse
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot, BoolParameter
+from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter
 
 from quoll.classification_pipeline.functions import vectorizer, docreader
 
@@ -82,3 +82,5 @@ class TransformVectors(WorkflowComponent):
         transformer = workflow.new_task('transform_vectors', TransformVectorsTask, autopass=True)
         transformer.in_vectors = input_feeds['vectors']
         transformer.in_selection = input_feeds['selection']
+
+        return transformer
