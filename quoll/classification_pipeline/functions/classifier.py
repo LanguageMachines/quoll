@@ -83,17 +83,17 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='grid', kernel='grid', gamma='grid', degree='grid', iterations=10):
+    def train_classifier(self, trainvectors, labels, c='', kernel='', gamma='', degree='', iterations=10):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
         else: # only two classes to distinguish
             parameters = ['C', 'kernel', 'gamma', 'degree']
             multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'grid' else [float(c)]
-        kernel_values = ['linear', 'rbf', 'poly'] if kernel == 'grid' else [kernel]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'grid' else [float(gamma)]
-        degree_values = [1, 2, 3, 4] if degree == 'grid' else [int(degree)]
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(c)]
+        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [kernel]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(gamma)]
+        degree_values = [1, 2, 3, 4] if degree == '' else [int(degree)]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}

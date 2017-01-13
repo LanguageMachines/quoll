@@ -193,11 +193,11 @@ class FoldVectorsTask(Task):
             outfile.write('\n'.join(train_documents))
         with open(self.out_testdocuments().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
-        with open(self.out_classifier_args().path,'w',encoding='utf-8') as out_classifier_args:
+        with open(self.out_classifier_args().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(classifier_args))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentVector(train=trainvectors, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
+        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
 
 
 ################################################################################
