@@ -31,6 +31,7 @@ class RunGA(WorkflowComponent):
     classifier = Parameter(default='svm')
     ordinal = BoolParameter(default=False)
     fitness_metric = Parameter(default='microF1')
+    stop_condition = IntParameter(default=5)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='parameter_options',extension='.txt',inputparameter='parameter_options') ) ]
@@ -134,6 +135,8 @@ class ManageGAIterations(Task):
     n_crossovers = IntParameter(default=1)
     classifier = Parameter(default='svm')
     ordinal = BoolParameter(default=False)
+    stop_condition = IntParameter(default=5)
+
     fitness_metric = Parameter(default='microF1')
 
     def out_iterations(self):
@@ -141,6 +144,9 @@ class ManageGAIterations(Task):
 
     def out_pre_iteration(self):
         return self.outputfrominput(inputformat='random_vectorpopulation', stripextension='.vectorpopulation.npz', addextension='.iterations/ga.0.iteration')
+
+    def out_iteration_cursor(self):
+        return self.outputfrominput(inputformat='random_vectorpopulation', stripextension='.vectorpopulation.npz', addextension='.iterations/ga.0.iteration/vectorpopulation.cursor.txt')
 
     def run(self):
 
@@ -174,10 +180,20 @@ class ManageGAIterations(Task):
 
         # run iterations
         iterdir = self.out_pre_iteration().path
+        last_best = 0 if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else 1000
+        last_best_since = 1
+        with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
+            outfile.write(' '.join([str(last_best),str(last_best_since),'0']))
+        cursorfile = self.out_iteration_cursor().path
         for i in range(1,self.num_iterations+1):
-            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
+            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, iteration_cursor=self.out_iteration_cursor().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, last_best=last_best, last_best_since=last_best_since))
+            # check if stop condition is met
+            with open(iterdir + '/vectorpopulation.cursor.txt') as infile:
+                last_best_since = int(infile.read().strip().split()[1])
+            if last_best_since == self.stop_condition:
+                break
             iterdir = self.out_pre_iteration().path[:-11] + str(i) + '.iteration'
-
+            cursorfile = iterdir + '/vectorpopulation.cursor.txt'
 
 ################################################################################
 ###GA Reporter

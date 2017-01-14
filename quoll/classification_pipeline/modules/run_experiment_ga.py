@@ -29,6 +29,7 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     fitness_metric = Parameter(default='microF1')
+    stop_condition = IntParameter(default=5)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='traindocuments',extension='.txt',inputparameter='traindocuments'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments') ) ]
@@ -38,7 +39,7 @@ class ExperimentComponentVectorFeatureSelection(WorkflowComponent):
         binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
-        foldrunner = workflow.new_task('run_folds', select_features.RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        foldrunner = workflow.new_task('run_folds', select_features.RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         foldrunner.in_bins = binner.out_bins
         foldrunner.in_vectors = input_feeds['train']
         foldrunner.in_labels = input_feeds['trainlabels']

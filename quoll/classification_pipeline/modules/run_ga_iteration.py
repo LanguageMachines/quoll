@@ -17,6 +17,7 @@ from quoll.classification_pipeline.functions import ga_functions, vectorizer, do
 class RunGAIteration(WorkflowComponent):
 
     dir_latest_iter = Parameter()
+    iteration_cursor = Parameter()
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
@@ -35,7 +36,7 @@ class RunGAIteration(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='dir_latest_iter',extension='.iteration',inputparameter='dir_latest_iter'), InputFormat(self,format_id='iteration_cursor',extension='.txt',inputparameter='iteration_cursor'), InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -54,6 +55,7 @@ class RunGAIteration(WorkflowComponent):
 
         fitness_reporter = workflow.new_task('report_fitness_population', ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
+        fitness_reporter.in_iteration_cursor = input_feeds['iteration_cursor']
 
         return fitness_reporter
 
@@ -283,11 +285,15 @@ class ScoreFitnessSolutionTask(Task):
 class ReportFitnessPopulation(Task):
 
     in_fitness_exp = InputSlot()
+    in_iteration_cursor = InputSlot()
 
     fitness_metric = Parameter()
 
     def out_fitnessreport(self):
         return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness.txt')
+
+    def out_iteration_cursor(self):
+        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.cursor.txt')
 
     def run(self):
 
@@ -304,6 +310,22 @@ class ReportFitnessPopulation(Task):
         with open(self.out_fitnessreport().path,'w') as outfile:
             outfile.write('\n'.join(all_fitness))
 
+        ### update cursor
+        
+        # load cursor of last iteration
+        with open(self.in_iteration_cursor().path) as infile:
+            last_best, last_best_since = [float(x) for x in infile.read().strip().split()]
+        highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
+        best_fitness = max(all_fitness) if highest else min(all_fitness)
+        if (best_fitness < last_best and not highest) or (best_fitness > last_best and highest):
+            last_best = best_fitness
+            last_best_since = 1
+        else:
+            last_best_since += 1
+        with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
+            outfile.write(' '.join([str(last_best),str(last_best_since)]))
+
         # remove fitness experiment
         print('removing experiment directory')
         os.system('rm -r ' + self.in_fitness_exp().path)
+

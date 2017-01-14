@@ -38,6 +38,7 @@ class NFoldCVGA(WorkflowComponent):
     tournament_size = IntParameter(default=2)
     n_crossovers = IntParameter(default=1)
     fitness_metric = Parameter(default='microF1')
+    stop_condition = IntParameter(default=5)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
@@ -47,7 +48,7 @@ class NFoldCVGA(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_vectors_ga', RunFoldsVectorsGA, autopass=True, n=self.n, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold_runner = workflow.new_task('run_folds_vectors_ga', RunFoldsVectorsGA, autopass=True, n=self.n, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -85,6 +86,7 @@ class RunFoldsVectorsGA(Task):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
     def out_exp(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.exp')
@@ -96,7 +98,7 @@ class RunFoldsVectorsGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldVectorsGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+            yield FoldVectorsGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, documents=self.in_documents().path, i=fold, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 
 ################################################################################
@@ -125,13 +127,14 @@ class FoldVectorsGA(WorkflowComponent):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldVectorsGATask, autopass=False, i=self.i, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold = workflow.new_task('run_fold', FoldVectorsGATask, autopass=False, i=self.i, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -163,6 +166,7 @@ class FoldVectorsGATask(Task):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
 
     def out_fold(self):
@@ -227,4 +231,4 @@ class FoldVectorsGATask(Task):
             outfile.write('\n'.join(test_documents))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentVectorFeatureSelection(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, traindocuments=self.out_traindocuments().path, testdocuments=self.out_testdocuments().path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric) 
+        yield ExperimentComponentVectorFeatureSelection(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, feature_names=self.in_feature_names().path, traindocuments=self.out_traindocuments().path, testdocuments=self.out_testdocuments().path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition) 

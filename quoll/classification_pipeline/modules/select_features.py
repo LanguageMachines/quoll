@@ -31,6 +31,7 @@ class SelectFeatures(WorkflowComponent):
     classifier = Parameter(default='svm')
     ordinal = BoolParameter(default=False)
     fitness_metric = Parameter(default='microF1')
+    stop_condition = IntParameter(default=5)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
@@ -40,7 +41,7 @@ class SelectFeatures(WorkflowComponent):
         binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
         binner.in_labels = input_feeds['trainlabels']
 
-        foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         foldrunner.in_bins = binner.out_bins
         foldrunner.in_vectors = input_feeds['trainvectors']
         foldrunner.in_labels = input_feeds['trainlabels']
@@ -78,6 +79,7 @@ class RunFoldsGA(Task):
     classifier = Parameter()
     ordinal = BoolParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
     def out_feature_selection(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.feature_selection')
@@ -89,7 +91,7 @@ class RunFoldsGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldGA(directory=self.out_feature_selection().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, i=fold, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+            yield FoldGA(directory=self.out_feature_selection().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, i=fold, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 
 ################################################################################
@@ -116,13 +118,14 @@ class FoldGA(WorkflowComponent):
     classifier = Parameter()
     ordinal = BoolParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.feature_selection',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldGATask, autopass=False, i=self.i, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        fold = workflow.new_task('run_fold', FoldGATask, autopass=False, i=self.i, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -151,6 +154,7 @@ class FoldGATask(Task):
     classifier = Parameter()
     ordinal = BoolParameter()
     fitness_metric = Parameter()
+    stop_condition = IntParameter()
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i))
@@ -218,7 +222,7 @@ class FoldGATask(Task):
 
         print('Running feature selection for fold',self.i)
 
-        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.out_testdocuments().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        yield run_ga.RunGA(trainvectors=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, testvectors=self.out_testvectors().path, testlabels=self.out_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.out_testdocuments().path, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 
 ################################################################################
