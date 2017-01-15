@@ -55,9 +55,13 @@ class RunGAIteration(WorkflowComponent):
 
         fitness_reporter = workflow.new_task('report_fitness_population', ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
-        fitness_reporter.in_iteration_cursor = input_feeds['iteration_cursor']
 
-        return fitness_reporter
+        iteration_monitor = workflow.new_task('monitor_iteration', MonitorIteration, autopass=False, fitness_metric=self.fitness_metric)
+        iteration_monitor.in_iteration_cursor = input_feeds['iteration_cursor']
+        iteration_monitor.in_current_iterdir = offspring_generator.out_iterationdir
+        iteration_monitor.in_fitnessreport = fitness_reporter.out_fitnessreport 
+
+        return iteration_monitor
 
 
 ################################################################################
@@ -285,15 +289,11 @@ class ScoreFitnessSolutionTask(Task):
 class ReportFitnessPopulation(Task):
 
     in_fitness_exp = InputSlot()
-    in_iteration_cursor = InputSlot()
 
     fitness_metric = Parameter()
 
     def out_fitnessreport(self):
         return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.fitness.txt')
-
-    def out_iteration_cursor(self):
-        return self.outputfrominput(inputformat='fitness_exp', stripextension='.fitness_exp', addextension='.cursor.txt')
 
     def run(self):
 
@@ -310,22 +310,44 @@ class ReportFitnessPopulation(Task):
         with open(self.out_fitnessreport().path,'w') as outfile:
             outfile.write('\n'.join(all_fitness))
 
-        ### update cursor
-        
+        # remove fitness experiment
+        print('removing experiment directory')
+        os.system('rm -r ' + self.in_fitness_exp().path)
+
+
+################################################################################
+###Iteration monitor
+################################################################################
+class MonitorIteration(Task):
+
+    in_iteration_cursor = InputSlot()
+    in_current_iterdir = InputSlot()
+    in_fitnessreport = InputSlot()
+
+    fitness_metric = Parameter()
+
+    def out_iteration_cursor(self):
+        return self.outputfrominput(inputformat='current_iterdir', stripextension='.iteration', addextension='.iteration/cursor.txt')
+
+    def run(self):
+
         # load cursor of last iteration
         with open(self.in_iteration_cursor().path) as infile:
             last_best, last_best_since = [float(x) for x in infile.read().strip().split()]
+
+        # load fitness report and extract highest score
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
-        best_fitness = max(all_fitness) if highest else min(all_fitness)
+        with open(self.in_fitnessreport().path) as infile:
+            fitness_scores = [float(score) for score in infile.read().strip().split('\n')]
+
+        # compare score to score of last cursor
+        best_fitness = max(fitness_scores) if highest else min(fitness_scores)
         if (best_fitness < last_best and not highest) or (best_fitness > last_best and highest):
             last_best = best_fitness
             last_best_since = 1
         else:
             last_best_since += 1
+
+        # write new stats
         with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
             outfile.write(' '.join([str(last_best),str(last_best_since)]))
-
-        # remove fitness experiment
-        print('removing experiment directory')
-        os.system('rm -r ' + self.in_fitness_exp().path)
-
