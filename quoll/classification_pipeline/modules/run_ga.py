@@ -186,7 +186,7 @@ class ManageGAIterations(Task):
             outfile.write(' '.join([str(last_best),str(last_best_since)]))
         cursorfile = self.out_iteration_cursor().path
         for i in range(1,self.num_iterations+1):
-            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, iteration_cursor=self.out_iteration_cursor().path, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
+            yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, iteration_cursor=cursorfile, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
             # check if stop condition is met
             with open(iterdir + '/cursor.txt') as infile:
                 last_best_since = int(infile.read().strip().split()[1])

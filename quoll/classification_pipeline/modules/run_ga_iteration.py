@@ -350,4 +350,4 @@ class MonitorIteration(Task):
 
         # write new stats
         with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
-            outfile.write(' '.join([str(last_best),str(last_best_since)]))
+            outfile.write(' '.join([str(last_best),str(last_best_since)]) + '\n')
