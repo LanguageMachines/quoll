@@ -189,7 +189,7 @@ class ManageGAIterations(Task):
             yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, iteration_cursor=cursorfile, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
             # check if stop condition is met
             with open(iterdir + '/cursor.txt') as infile:
-                last_best_since = int(infile.read().strip().split()[1])
+                last_best_since = int(float(infile.read().strip().split()[1]))
             if last_best_since == self.stop_condition:
                 break
             iterdir = self.out_pre_iteration().path[:-11] + str(i) + '.iteration'
