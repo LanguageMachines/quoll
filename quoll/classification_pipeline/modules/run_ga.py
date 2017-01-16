@@ -2,6 +2,7 @@
 import numpy
 from scipy import sparse
 import glob
+import random
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
@@ -224,33 +225,42 @@ class ReportGAIterations(Task):
         report = [['Average fitness','Median fitness','Best fitness','Best fitness index']]
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
         best_fitness_iterations = 0
-        index_best_fitness_iterations = []
+        indices_best_fitness_iterations = []
         for i,ff in enumerate(fitness_files):
             with open(ff) as infile:
                 fitness_scores = [float(score) for score in infile.read().strip().split('\n')]
                 avg_fitness = numpy.mean(fitness_scores)
                 median_fitness = numpy.median(fitness_scores)
                 best_fitness = max(fitness_scores) if highest else min(fitness_scores)
-                best_fitness_index = fitness_scores.index(best_fitness)
+                best_fitness_indices = [str(j) for j, fitness_score in enumerate(fitness_scores) if fitness_score == best_fitness]
                 if (highest and best_fitness > best_fitness_iterations) or (not highest and best_fitness < best_fitness_iterations) or (not highest and i == 0):
                     best_fitness_iterations = best_fitness
-                    index_best_fitness_iterations = [i,best_fitness_index]
-                report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,best_fitness_index]])
+                    indices_best_fitness_iterations = [[str(i)],[best_fitness_indices]]
+                elif best_fitness == best_fitness_iterations:
+                    indices_best_fitness_iterations[0].append(i)
+                    indices_best_fitness_iterations[1].append(best_fitness_indices)
+                report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,','.join(best_fitness_indices)]])
+
+        # choose randomly from all solutions with the best outcome
+        iteration_index = int(random.choice(range(len(indices_best_fitness_iterations[0]))))
+        iteration_choice = int(indices_best_fitness_iterations[0][iteration_index])
+        solution_choice = int(random.choice(indices_best_fitness_iterations[1][iteration_index]))
 
         # write fitness report to file
         with open(self.out_report().path,'w') as outfile:
-            outfile.write('\n'.join(['\t'.join(line) for line in report]))
+            outfile.write('\n'.join(['\t'.join(line) for line in report]) + '\n\nchosen iteration: ' + str(iteration_choice) + ', chosen solution: ' + str(solution_choice))
+            
 
         # extract best vectorsolution and write to output
-        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/vectorpopulation.npz')
+        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(iteration_choice) + '.iteration/vectorpopulation.npz')
         vectorpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_vectorsolution = sorted(list(vectorpopulation_best_iteration[index_best_fitness_iterations[1],:].nonzero()[1]))
+        best_vectorsolution = sorted(list(vectorpopulation_best_iteration[solution_choice,:].nonzero()[1]))
         with open(self.out_best_vectorsolution().path,'w') as outfile:
             outfile.write(' '.join([str(i) for i in best_vectorsolution]))
 
         # extract best parametersolution and write to output
-        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(index_best_fitness_iterations[0]) + '.iteration/parameterpopulation.npz')
+        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(iteration_choice) + '.iteration/parameterpopulation.npz')
         parameterpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_parametersolution = parameterpopulation_best_iteration[index_best_fitness_iterations[1],:].toarray().tolist()[0]
+        best_parametersolution = parameterpopulation_best_iteration[solution_choice,:].toarray().tolist()[0]
         with open(self.out_best_parametersolution().path,'w') as outfile:
             outfile.write(' '.join([str(i) for i in best_parametersolution]))
