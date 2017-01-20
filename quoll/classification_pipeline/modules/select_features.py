@@ -2,6 +2,7 @@
 import numpy
 from scipy import sparse
 import glob
+import random
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
@@ -264,19 +265,28 @@ class ReportFoldsGA(Task):
         # summarize reports
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
         dr = docreader.Docreader()
-        reports_combined = [dr.parse_txt(report_file,delimiter='\t',header=True) for report_file in fold_reports]
+        best_fitness = 0 if highest else 1000
+        candidate_iterations_solutions = []
         fold_best_fitness = []
-        for report in reports_combined:
-            if highest:
-                fold_best_fitness.append(max([float(x[2]) for x in report]))
-            else:
-                fold_best_fitness.append(min([float(x[2]) for x in report]))
+        for i,report in enumerate(fold_reports):
+            parsed = dr.parse_txt(report,delimiter='\t',header=True)
+            iteration, solution = parsed[-1][0].split(',')
+            iteration_index = int(iteration.split()[2])
+            solution_index = int(solution.split()[2])
+            best_fitness_iteration = float(parsed[iteration_index][2])
+            fold_best_fitness.append(best_fitness_iteration)
+            if (highest and best_fitness_iteration > best_fitness) or (not highest and best_fitness_iteration < best_fitness):
+                best_fitness = best_fitness_iteration
+                candidate_iterations_solutions = [[i,iteration_index,solution_index]]
+            elif best_fitness_iteration == best_fitness:
+                candidate_iterations_solutions.append([i,iteration_index,solution_index])
         avg = numpy.mean(fold_best_fitness)
         median = numpy.median(fold_best_fitness)
         best = max(fold_best_fitness) if highest else min(fold_best_fitness)
-        fold_best = fold_best_fitness.index(best)
-        fold_iteration_best = [float(x[2]) for x in reports_combined[fold_best]].index(best)
-        fold_iteration_index_best = reports_combined[fold_best][fold_iteration_best][3]
+        selection_best = random.choice(candidate_iterations_solutions)
+        fold_best = selection_best[0]
+        fold_iteration_best = selection_best[1]
+        fold_iteration_index_best = selection_best[2]
         final_report = [['Average fold best fitness:',str(avg)],['Median fold best fitness',str(median)],['Best fitness',str(best)],['Best fitness fold',str(fold_best)],['Best fitness iteration',str(fold_iteration_best)],['Best fitness index',str(fold_iteration_index_best)]]
         lw = linewriter.Linewriter(final_report)
         lw.write_csv(self.out_folds_report().path)
