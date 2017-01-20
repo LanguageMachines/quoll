@@ -224,7 +224,7 @@ class ReportGAIterations(Task):
         # summarize fitness files
         report = [['Average fitness','Median fitness','Best fitness','Best fitness index']]
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
-        best_fitness_iterations = 0
+        best_fitness_iterations = 0 if highest else 1000
         indices_best_fitness_iterations = []
         for i,ff in enumerate(fitness_files):
             with open(ff) as infile:
