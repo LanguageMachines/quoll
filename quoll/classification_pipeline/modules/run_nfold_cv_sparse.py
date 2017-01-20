@@ -19,7 +19,7 @@ from quoll.classification_pipeline.modules.make_bins import MakeBins
 ################################################################################
 
 @registercomponent
-class NFoldCV(WorkflowComponent):
+class NFoldCVSparse(WorkflowComponent):
 
     features = Parameter()
     labels = Parameter()
