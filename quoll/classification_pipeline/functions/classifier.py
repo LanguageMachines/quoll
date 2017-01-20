@@ -53,7 +53,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
     def train_classifier(self, trainvectors, labels, alpha='default', iterations=10):
-        if alpha == 'grid':
+        if alpha == '':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
             paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
             selected_alpha = paramsearch.best_estimator_.alpha

@@ -8,12 +8,12 @@ import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_fu
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
-from quoll.classification_pipeline.modules.tokenize_instances import Tokenize
+from quoll.classification_pipeline.modules.tokenize_instances import Tokenize_instances
 from quoll.classification_pipeline.modules.featurize_instances import Featurize_tokens
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
+from quoll.classification_pipeline.modules.run_nfold_cv_sparse import RunFolds
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent
 from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFolds
-
 
 @registercomponent
 class SparsePipeline(WorkflowComponent):
@@ -40,7 +40,7 @@ class SparsePipeline(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        tokenizer = workflow.new_task('tokenize_instances', Tokenize, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
+        tokenizer = workflow.new_task('tokenize_instances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
         tokenizer.in_txt = input_feeds['instances']
 
         featurizer = workflow.new_task('featurize_instances', Featurize_tokens, autopass=True, token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase)
