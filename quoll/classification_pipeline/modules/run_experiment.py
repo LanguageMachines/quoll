@@ -16,16 +16,16 @@ class ExperimentComponent(WorkflowComponent):
     testlabels = Parameter()
     vocabulary = Parameter()
     documents = Parameter()
+    classifier_args = Parameter()
 
     weight = Parameter(default='frequency')
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
-    classifier_args = Parameter(default='')
     ordinal = BoolParameter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -39,16 +39,17 @@ class ExperimentComponent(WorkflowComponent):
         test_vectors.in_sourcevocabulary = input_feeds['vocabulary']
         test_vectors.in_topfeatures = train_vectors.out_topfeatures
 
-        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
+        trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
         trainer.in_train = train_vectors.out_train
         trainer.in_trainlabels = train_vectors.out_labels
+        trainer.in_classifier_args = input_feeds['classifier_args']
 
         predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True)
         predictor.in_test = test_vectors.out_test
         predictor.in_labels = train_vectors.out_labels
         predictor.in_model = trainer.out_model
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True)
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
         reporter.in_predictions = predictor.out_classifications
         reporter.in_labels = input_feeds['testlabels']
         reporter.in_documents = input_feeds['documents']
