@@ -10,7 +10,6 @@ import quoll.classification_pipeline.functions.docreader as docreader
 
 from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFolds
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponent
-from quoll.classification_pipeline.modules.report_performance import ReporterComponent
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 
