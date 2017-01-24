@@ -242,9 +242,15 @@ class ReportGAIterations(Task):
                 report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,','.join(best_fitness_indices)]])
 
         # choose randomly from all solutions with the best outcome
-        iteration_index = int(random.choice(range(len(indices_best_fitness_iterations[0]))))
-        iteration_choice = int(indices_best_fitness_iterations[0][iteration_index])
-        solution_choice = int(random.choice(indices_best_fitness_iterations[1][iteration_index]))
+        try:
+            iteration_index = int(random.choice(range(len(indices_best_fitness_iterations[0]))))
+            iteration_choice = int(indices_best_fitness_iterations[0][iteration_index])
+            solution_choice = int(random.choice(indices_best_fitness_iterations[1][iteration_index]))
+        except:
+            print('Could not make selection from list',indices_best_fitness_iterations[1][iteration_index],'setting to 0 0')
+            iteration_index = 0
+            iteration_choice = 0
+            solution_choice = 0
 
         # write fitness report to file
         with open(self.out_report().path,'w') as outfile:

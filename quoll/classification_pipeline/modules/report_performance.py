@@ -129,6 +129,7 @@ class ReporterComponent(WorkflowComponent):
         reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents, ordinal=self.ordinal)
         reporter.in_predictions = input_feeds['predictions']
         reporter.in_labels = input_feeds['labels']
+        reporter.in_documents = input_feeds['documents']
 
         return reporter
 
