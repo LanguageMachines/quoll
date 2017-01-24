@@ -67,6 +67,9 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_classifier(self):
         return self.model
 
+    def return_feature_log_prob(self):
+        return self.model.feature_log_prob_
+
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
         return classifications
