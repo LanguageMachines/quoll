@@ -33,13 +33,13 @@ class ReportPerformance(Task):
 
         # load predictions and probabilities
         with open(self.in_predictions().path) as infile:
-            predictions_probabilities = [line.split('\t') for line in infile.read().split('\n')]
+            predictions_probabilities = [line.split('\t') for line in infile.read().strip().split('\n')]
         predictions = [x[0] for x in predictions_probabilities]
         probabilities = [x[1] for x in predictions_probabilities]
 
         # load labels
         with open(self.in_labels().path) as infile:
-            labels = infile.read().split('\n')
+            labels = infile.read().strip().split('\n')
 
         # load documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
