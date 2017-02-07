@@ -33,13 +33,13 @@ class ReportPerformance(Task):
 
         # load predictions and probabilities
         with open(self.in_predictions().path) as infile:
-            predictions_probabilities = [line.split('\t') for line in infile.read().split('\n')]
+            predictions_probabilities = [line.split('\t') for line in infile.read().strip().split('\n')]
         predictions = [x[0] for x in predictions_probabilities]
         probabilities = [x[1] for x in predictions_probabilities]
 
         # load labels
         with open(self.in_labels().path) as infile:
-            labels = infile.read().split('\n')
+            labels = infile.read().strip().split('\n')
 
         # load documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
@@ -129,6 +129,7 @@ class ReporterComponent(WorkflowComponent):
         reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents, ordinal=self.ordinal)
         reporter.in_predictions = input_feeds['predictions']
         reporter.in_labels = input_feeds['labels']
+        reporter.in_documents = input_feeds['documents']
 
         return reporter
 

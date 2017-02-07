@@ -48,6 +48,13 @@ class TrainClassifier(Task):
         # train classifier
         clf.train_classifier(vectorized_instances, trainlabels, *classifier_args)
         model = clf.return_classifier()
+        if self.classifier == 'naive_bayes':
+            feature_log_prob = clf.return_feature_log_prob()
+            feature_log_prob_list = feature_log_prob.T.tolist()
+            feature_log_prob_outfile = '.'.join(self.in_train().path.split('.')[:-2]) + '.feature_logprob.txt'
+            #print(feature_log_prob_list)
+            with open(feature_log_prob_outfile,'w') as file_out:
+                file_out.write('\n'.join(['\t'.join([str(x) for x in feature]) for feature in feature_log_prob_list]))
 
         # save classifier
         with open(self.out_model().path, 'wb') as fid:
