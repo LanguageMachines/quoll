@@ -199,7 +199,7 @@ class FoldTask(Task):
 
         # open classifier args
         with open(self.in_classifier_args().path) as infile:
-            classifier_args = infile.read().strip().split('\n')
+            classifier_args = infile.read().rstrip().split('\n')
 
         # set training and test data
         train_features = sparse.vstack([featurized_instances[indices,:] for j,indices in enumerate(bins) if j != self.i])

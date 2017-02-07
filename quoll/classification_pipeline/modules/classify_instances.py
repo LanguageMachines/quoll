@@ -36,14 +36,12 @@ class TrainClassifier(Task):
             trainlabels = infile.read().strip().split('\n')
 
         # transform trainlabels
-        if self.classifier != 'perceptron':
-            clf.set_label_encoder(trainlabels)
-        else:
-            trainlabels = [float(label) for label in trainlabels]
+        clf.set_label_encoder(trainlabels)
 
         # load classifier arguments        
         with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
-            classifier_args = infile.read().strip().split('\n')
+            classifier_args_str = infile.read().rstrip()
+            classifier_args = classifier_args_str.split('\n')
 
         # train classifier
         clf.train_classifier(vectorized_instances, trainlabels, *classifier_args)
@@ -52,7 +50,6 @@ class TrainClassifier(Task):
             feature_log_prob = clf.return_feature_log_prob()
             feature_log_prob_list = feature_log_prob.T.tolist()
             feature_log_prob_outfile = '.'.join(self.in_train().path.split('.')[:-2]) + '.feature_logprob.txt'
-            #print(feature_log_prob_list)
             with open(feature_log_prob_outfile,'w') as file_out:
                 file_out.write('\n'.join(['\t'.join([str(x) for x in feature]) for feature in feature_log_prob_list]))
 
@@ -61,10 +58,9 @@ class TrainClassifier(Task):
             pickle.dump(model, fid)
 
         # save label encoding
-        if self.classifier != 'perceptron':
-            label_encoding = clf.return_label_encoding(trainlabels)
-            with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-                le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
+        label_encoding = clf.return_label_encoding(trainlabels)
+        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
 
 class ApplyClassifier(Task):
 

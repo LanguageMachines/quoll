@@ -174,7 +174,7 @@ class FoldVectorsTask(Task):
 
         # open classifier args
         with open(self.in_classifier_args().path) as infile:
-            classifier_args = infile.read().strip().split('\n')
+            classifier_args = infile.read().rstrip().split('\n')
 
         # write data to files in fold directory
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])

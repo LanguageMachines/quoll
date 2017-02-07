@@ -19,9 +19,8 @@ class AbstractSKLearnClassifier:
         return self.label_encoder
 
     def return_label_encoding(self, labels):
-        label_encoding = []
-        for label in list(set(labels)):
-            label_encoding.append((label, str(self.label_encoder.transform(label))))
+        encoding = [str(x) for x in self.label_encoder.transform(list(set(labels)))]
+        label_encoding = list(zip(labels,encoding))
         return label_encoding
 
     def apply_model(self, clf, testvectors):
@@ -141,21 +140,26 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         AbstractSKLearnClassifier.__init__(self)
         self.model = False
 
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
     def return_label_encoding(self, labels):
-        return []
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, alpha='', iterations=50, jobs=10):
+        iterations = int(iterations)
+        jobs = int(jobs)
         if alpha == '':
-            paramsearch = GridSearchCV(estimator=Perceptron(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=jobs)
-            paramsearch.fit(trainvectors,labels)
+            paramsearch = GridSearchCV(estimator=Perceptron(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:],n_iter=[iterations]), n_jobs=jobs)
+            paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
             selected_alpha = paramsearch.best_estimator_.alpha
         elif alpha == 'default':
             selected_alpha = 1.0
         else:
             selected_alpha = alpha
         # train a perceptron with the settings that led to the best performance
-        self.model = Perceptron(alpha=selected_alpha)
-        self.model.fit(trainvectors, labels)
+        self.model = Perceptron(alpha=selected_alpha,n_iter=iterations,n_jobs=jobs)
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):
         return self.model
