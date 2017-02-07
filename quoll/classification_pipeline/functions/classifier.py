@@ -1,6 +1,7 @@
 
 from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
+from sklearn.linear_model import Perceptron
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
 import mord
@@ -68,7 +69,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
 class SVMClassifier(AbstractSKLearnClassifier):
@@ -128,7 +129,36 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
+
+class PerceptronLClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def return_label_encoding(self, labels):
+        return []
+
+    def train_classifier(self, trainvectors, labels, alpha='', iterations=50, jobs=10):
+        if alpha == '':
+            paramsearch = GridSearchCV(estimator=Perceptron(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=jobs)
+            paramsearch.fit(trainvectors,labels)
+            selected_alpha = paramsearch.best_estimator_.alpha
+        elif alpha == 'default':
+            selected_alpha = 1.0
+        else:
+            selected_alpha = alpha
+        # train a perceptron with the settings that led to the best performance
+        self.model = Perceptron(alpha=selected_alpha)
+        self.model.fit(trainvectors, labels)
+
+    def return_classifier(self):
+        return self.model
+
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
 class OrdinalRidge(AbstractSKLearnClassifier):
@@ -151,7 +181,7 @@ class OrdinalRidge(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
 class OrdinalLogisticAT(AbstractSKLearnClassifier):
@@ -174,7 +204,7 @@ class OrdinalLogisticAT(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
 class OrdinalLogisticIT(AbstractSKLearnClassifier):
@@ -197,7 +227,7 @@ class OrdinalLogisticIT(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
 class OrdinalLogisticSE(AbstractSKLearnClassifier):
@@ -220,5 +250,5 @@ class OrdinalLogisticSE(AbstractSKLearnClassifier):
         return self.model
 
     def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.clf, testvectors)
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications

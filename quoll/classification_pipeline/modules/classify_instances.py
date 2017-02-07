@@ -24,7 +24,7 @@ class TrainClassifier(Task):
     def run(self):
 
         # initiate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'perceptron':PerceptronLClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
@@ -36,7 +36,10 @@ class TrainClassifier(Task):
             trainlabels = infile.read().strip().split('\n')
 
         # transform trainlabels
-        clf.set_label_encoder(trainlabels)
+        if self.classifier != 'perceptron':
+            clf.set_label_encoder(trainlabels)
+        else:
+            trainlabels = [float(label) for label in trainlabels]
 
         # load classifier arguments        
         with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
@@ -51,9 +54,10 @@ class TrainClassifier(Task):
             pickle.dump(model, fid)
 
         # save label encoding
-        label_encoding = clf.return_label_encoding(trainlabels)
-        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
+        if self.classifier != 'perceptron':
+            label_encoding = clf.return_label_encoding(trainlabels)
+            with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+                le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
 
 class ApplyClassifier(Task):
 
