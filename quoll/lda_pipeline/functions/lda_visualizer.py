@@ -4,7 +4,6 @@ from matplotlib import pyplot
 import numpy
 from scipy.spatial import distance
 from collections import defaultdict
-#import networkx
 import string
 from matplotlib import rcParams
 
@@ -31,8 +30,6 @@ class LDAVisualizer:
         self.fig = pyplot.figure(figsize=(10, 7), dpi=280)
 
     def set_topic_labels(self,indices=False):
-#        if topic_labels:
-#            if topic_labels == 'words': # take first two words of each topic as labels
         self.topic_labels = []
         if indices:
             ts = indices
@@ -42,10 +39,6 @@ class LDAVisualizer:
             words_topic = ' - '.join([self.dict[word[0]] for word in self.lda.get_topic_terms(t, topn=2)])
             topic_label = '#{}'.format(t) + ' ' + words_topic
             self.topic_labels.append(topic_label)
-    #        else:
-     #           self.topic_labels = topic_labels
-   #     else:
-        #self.topic_labels = ['Topic #{}'.format(column+1) for column in range(self.columns)]
 
     def set_groups(self, document_group_dict):
         self.document_group_dict = document_group_dict
@@ -133,17 +126,11 @@ class LDAVisualizer:
         self.document_names = new_document_names
 
     def visualize_document_topics_heatmap(self, outfile, set_topics=False):
- #       if self.rows > self.columns:
         self.sort_doctopics_groups()
         doctopics_raw_hm = numpy.rot90(self.document_topics_raw)
         rows, columns = doctopics_raw_hm.shape
         rownames = self.topic_labels
         columnnames = self.document_names
-     #   else:
-#        doctopics_raw_hm = self.document_topics_raw
-#        rows, columns = doctopics_raw_hm.shape
-#        rownames = self.document_names
-#        columnnames = self.topic_labels
         pyplot.pcolor(doctopics_raw_hm, norm=None, cmap='Blues')
         pyplot.gca().invert_yaxis()
         if self.group_names:
@@ -161,7 +148,6 @@ class LDAVisualizer:
                     start=i
                 ticks_groups.append('')
             ticks_groups[start+int((i-start)/2)] = current_group
-      #      if self.rows > self.columns:
             pyplot.xticks(numpy.arange(columns)+0.5,ticks_groups, fontsize=11)
             if set_topics:
                 for index in set_topics:
@@ -170,21 +156,9 @@ class LDAVisualizer:
                 pyplot.yticks(set_topics,topic_names,fontsize=8)
             else:
                 pyplot.yticks(numpy.arange(rows)+0.5, rownames, fontsize=8)
-            #pyplot.tight_layout()
             for bound in bounds:
                 pyplot.axvline(x=bound)
-       #     else:
-            #pyplot.xticks(numpy.arange(columns)+0.5, columnnames)
-                #pyplot.xticks(rotation=90)
-            #pyplot.yticks(numpy.arange(rows)+0.5,ticks_groups)
-            #for bound in bounds:
-            #    pyplot.axhline(y=bound)
-        #else:
-        #    pyplot.xticks(numpy.arange(columns)+0.5, columnnames)
-        #    pyplot.yticks(numpy.arange(rows)+0.5, rownames)
-        #pyplot.xticks()
         pyplot.colorbar(cmap='Blues')
-        #self.fig.tight_layout()
         pyplot.savefig(outfile)
         pyplot.clf()
 
@@ -248,44 +222,25 @@ class LDAVisualizer:
 
     def visualize_network_graph(self,outfile):
         self.generate_group_distance_matrix()
-        #print(self.distance_matrix)
         graph = networkx.from_numpy_matrix(self.distance_matrix)
-#        graph = networkx.relabel_nodes(graph, dict(zip(range(len(graph.nodes())),string.ascii_uppercase)))
         pos1 = networkx.spring_layout(graph,k=0.1)
         pos2 = networkx.circular_layout(graph)
         for i,pos in enumerate([pos1,pos2]):
             out = outfile + '_' + str(i) + '.png'
             for key in pos.keys():
                 position = pos[key]
-         #   print('Position',position)
-         #   print('Size',700*position[0])
-         #   print('Color',(position[1]/10.0, 0, 1 - position[1]/10.0))
-         #   print('Marker', r'$ {} $'.format(self.groups[key]))
                 pyplot.scatter(position[0], position[1], marker=r'$ {} $'.format(self.group_names[key]), s=700, c=(position[1]/10.0, 0, 1 - position[1]/10.0), edgecolor='None')
             pyplot.tight_layout()
             pyplot.axis('equal')
             pyplot.savefig(out)
             pyplot.clf()
 
-#        graph = networkx.to_agraph(graph)
-#        graph.node_attr.update(color='red', style='filled')
-#        graph.edge_attr.update(color='blue', width='2.0')
-#        graph.draw(outfile, format='png', prog='neato')
-
     def topics2wordle_input(self,std_outfile,num_words=100):
-        #topics = self.lda.show_topics(num_topics=self.columns,num_words=num_words)
         word_topic = []
         probs = []
         for t in range(self.columns):
             word_topic = self.lda.get_topic_terms(t, topn=num_words)
-            #print('TOPIC',t,word_topic)
-            #print(self.dict[1007], self.dict[1303],self.dict[5])
-            #word_topic_str = topics[t][1]
-            #prob_word = word_topic_str.split(' + ')
-            #word_prob = [':'.join([x.split('*')[1],str(int(float(x.split('*')[0])*1000))]) for x in prob_word]
-
             word_probs = [':'.join([self.dict[wordprob[0]],str(10000*wordprob[1])]) for wordprob in word_topic]
-            #list(reversed(x.split('*')))) for x in prob_word]
             topic_outfile = std_outfile + '_topic' + str(t) + '.txt'
             with open(topic_outfile,'w',encoding='utf-8') as wc_out:
                 wc_out.write('\n'.join(word_probs))

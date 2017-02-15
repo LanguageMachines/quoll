@@ -222,8 +222,8 @@ class ReportGAIterations(Task):
         fitness_files = sorted([ filename for filename in glob.glob(self.in_iterations_dir().path + '/ga.*.iteration/vectorpopulation.fitness.txt') ])
 
         # summarize fitness files
-        report = [['Average fitness','Median fitness','Best fitness','Best fitness index']]
-        highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else False
+        report = [['Average fitness','Median fitness','Worst fitness','Best fitness','Best fitness indices']]
+        highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','ACC'] else False
         best_fitness_iterations = 0 if highest else 1000
         indices_best_fitness_iterations = []
         for i,ff in enumerate(fitness_files):
@@ -231,42 +231,34 @@ class ReportGAIterations(Task):
                 fitness_scores = [float(score) for score in infile.read().strip().split('\n')]
                 avg_fitness = numpy.mean(fitness_scores)
                 median_fitness = numpy.median(fitness_scores)
+                worst_fitness = min(fitness_scores) if highest else max(fitness_scores)
                 best_fitness = max(fitness_scores) if highest else min(fitness_scores)
                 best_fitness_indices = [str(j) for j, fitness_score in enumerate(fitness_scores) if fitness_score == best_fitness]
                 if (highest and best_fitness > best_fitness_iterations) or (not highest and best_fitness < best_fitness_iterations) or (not highest and i == 0):
                     best_fitness_iterations = best_fitness
-                    indices_best_fitness_iterations = [[str(i)],[best_fitness_indices]]
+                    indices_best_fitness_iterations = [[i,bfi] for bfi in best_fitness_indices]
                 elif best_fitness == best_fitness_iterations:
-                    indices_best_fitness_iterations[0].append(i)
-                    indices_best_fitness_iterations[1].append(best_fitness_indices)
+                    indices_best_fitness_iterations.extend([[i,bfi] for bfi in best_fitness_indices])
                 report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,','.join(best_fitness_indices)]])
-
-        # choose randomly from all solutions with the best outcome
-        try:
-            iteration_index = int(random.choice(range(len(indices_best_fitness_iterations[0]))))
-            iteration_choice = int(indices_best_fitness_iterations[0][iteration_index])
-            solution_choice = int(random.choice(indices_best_fitness_iterations[1][iteration_index]))
-        except:
-            print('Could not make selection from list',indices_best_fitness_iterations[1][iteration_index],'setting to 0 0')
-            iteration_index = 0
-            iteration_choice = 0
-            solution_choice = 0
 
         # write fitness report to file
         with open(self.out_report().path,'w') as outfile:
-            outfile.write('\n'.join(['\t'.join(line) for line in report]) + '\n\nchosen iteration: ' + str(iteration_choice) + ', chosen solution: ' + str(solution_choice))
+            outfile.write('\n'.join(['\t'.join(line) for line in report]) + ', '.join(['-'.join([str(x) for x in ibfi]) for ibfi in indices_best_fitness_iterations]) + '\n')
             
-
-        # extract best vectorsolution and write to output
-        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(iteration_choice) + '.iteration/vectorpopulation.npz')
-        vectorpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_vectorsolution = sorted(list(vectorpopulation_best_iteration[solution_choice,:].nonzero()[1]))
+        # extract best vectorsolutions and write to output
+        best_vectorsolutions = []
+        for i,bfi in indices_best_fitness_iterations:
+            loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(bfi[0]) + '.iteration/vectorpopulation.npz')
+            vectorpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+            best_vectorsolutions.append(sorted(list(vectorpopulation_best_iteration[bfi[1],:].nonzero()[1])))
         with open(self.out_best_vectorsolution().path,'w') as outfile:
-            outfile.write(' '.join([str(i) for i in best_vectorsolution]))
+            outfile.write('\n'.join([' '.join([str(i) for i in best_vectorsolution]) for best_vectorsolution in best_vectorsolutions]))
 
         # extract best parametersolution and write to output
-        loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(iteration_choice) + '.iteration/parameterpopulation.npz')
-        parameterpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        best_parametersolution = parameterpopulation_best_iteration[solution_choice,:].toarray().tolist()[0]
+        best_parametersolutions = []
+        for i,bfi in indices_best_fitness_iterations:
+            loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(bfi[0]) + '.iteration/parameterpopulation.npz')
+            parameterpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+            best_parametersolutions.append(parameterpopulation_best_iteration[bfi[1],:].toarray().tolist()[0])
         with open(self.out_best_parametersolution().path,'w') as outfile:
-            outfile.write(' '.join([str(i) for i in best_parametersolution]))
+            outfile.write('\n'.join([' '.join([str(i) for i in best_parametersolution]) for best_parametersolution in best_parametersolutions]))
