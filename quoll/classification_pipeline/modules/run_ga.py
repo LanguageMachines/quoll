@@ -56,7 +56,7 @@ class RunGA(WorkflowComponent):
         fitness_reporter = workflow.new_task('report_fitness_population', run_ga_iteration.ReportFitnessPopulation, autopass=False, fitness_metric=self.fitness_metric)
         fitness_reporter.in_fitness_exp = fitness_manager.out_fitness_exp
 
-        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric)
+        ga_iterator = workflow.new_task('manage_ga_iterations', ManageGAIterations, autopass=False, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         ga_iterator.in_random_vectorpopulation = population_generator.out_vectorpopulation
         ga_iterator.in_random_parameterpopulation = population_generator.out_parameterpopulation
         ga_iterator.in_population_fitness = fitness_reporter.out_fitnessreport
@@ -103,8 +103,8 @@ class GenerateRandomPopulation(Task):
 
         # read in parameter options
         with open(self.in_parameter_options().path) as infile:
-            lines = infile.read().strip().split('\n')
-            parameter_options = [range(len(line.split())) for line in lines]
+            lines = infile.read().rstrip().split('\n')
+            parameter_options = [[i for i in range(len(line.split()))] for line in lines]
 
         # generate parameterpopulation
         random_parameterpopulation = ga_functions.random_parameterpopulation(parameter_options, self.population_size)
@@ -186,7 +186,7 @@ class ManageGAIterations(Task):
         with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
             outfile.write(' '.join([str(last_best),str(last_best_since)]))
         cursorfile = self.out_iteration_cursor().path
-        for i in range(1,self.num_iterations+1):
+        for i in range(1,self.num_iterations):
             yield(run_ga_iteration.RunGAIteration(dir_latest_iter=iterdir, iteration_cursor=cursorfile, trainvectors=self.in_trainvectors().path, trainlabels=self.in_trainlabels().path, testvectors=self.in_testvectors().path, testlabels=self.in_testlabels().path, parameter_options=self.in_parameter_options().path, documents=self.in_documents().path, iteration=i, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric))
             # check if stop condition is met
             with open(iterdir + '/cursor.txt') as infile:
@@ -239,15 +239,15 @@ class ReportGAIterations(Task):
                     indices_best_fitness_iterations = [[i,bfi] for bfi in best_fitness_indices]
                 elif best_fitness == best_fitness_iterations:
                     indices_best_fitness_iterations.extend([[i,bfi] for bfi in best_fitness_indices])
-                report.append([str(x) for x in [avg_fitness,median_fitness,best_fitness,','.join(best_fitness_indices)]])
+                report.append([str(x) for x in [avg_fitness,median_fitness,worst_fitness,best_fitness,','.join(best_fitness_indices)]])
 
         # write fitness report to file
         with open(self.out_report().path,'w') as outfile:
-            outfile.write('\n'.join(['\t'.join(line) for line in report]) + ', '.join(['-'.join([str(x) for x in ibfi]) for ibfi in indices_best_fitness_iterations]) + '\n')
+            outfile.write('\n'.join(['\t'.join(line) for line in report]) + '\n' + ', '.join(['-'.join([str(x) for x in ibfi]) for ibfi in indices_best_fitness_iterations]) + '\n')
             
         # extract best vectorsolutions and write to output
         best_vectorsolutions = []
-        for i,bfi in indices_best_fitness_iterations:
+        for bfi in indices_best_fitness_iterations:
             loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(bfi[0]) + '.iteration/vectorpopulation.npz')
             vectorpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
             best_vectorsolutions.append(sorted(list(vectorpopulation_best_iteration[bfi[1],:].nonzero()[1])))
@@ -256,7 +256,7 @@ class ReportGAIterations(Task):
 
         # extract best parametersolution and write to output
         best_parametersolutions = []
-        for i,bfi in indices_best_fitness_iterations:
+        for bfi in indices_best_fitness_iterations:
             loader = numpy.load(self.in_iterations_dir().path + '/ga.' + str(bfi[0]) + '.iteration/parameterpopulation.npz')
             parameterpopulation_best_iteration = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
             best_parametersolutions.append(parameterpopulation_best_iteration[bfi[1],:].toarray().tolist()[0])
