@@ -161,22 +161,22 @@ class FoldGATask(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i))
 
     def out_trainvectors(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/train.vectors.npz')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/tr.vectors.npz')
 
     def out_testvectors(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/test.vectors.npz')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/te.vectors.npz')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/tr.labels')
 
     def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/test.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/te.labels')
 
     def out_traindocuments(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/train.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/tr.docs.txt')
 
     def out_testdocuments(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.feature_selection', addextension='.feature_selection/fold' + str(self.i) + '/te.docs.txt')
 
     def run(self):
 

@@ -118,11 +118,11 @@ class ReporterComponent(WorkflowComponent):
 
     predictions = Parameter()
     labels = Parameter()
-    documents = Parameter(default=False)
-    ordinal = Parameter(default=False)
+    documents = Parameter()
+    ordinal = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.vectorlabels', inputparameter='labels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 

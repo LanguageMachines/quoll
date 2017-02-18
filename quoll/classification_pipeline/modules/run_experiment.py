@@ -107,12 +107,12 @@ class ExperimentComponentSvorimVector(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=True, svorim_path=self.svorim_path)
+        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=False, svorim_path=self.svorim_path)
         classifier.in_train = input_feeds['train']
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['test']
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
         reporter.in_predictions = classifier.out_classifications
         reporter.in_labels = input_feeds['testlabels']
         reporter.in_documents = input_feeds['documents']

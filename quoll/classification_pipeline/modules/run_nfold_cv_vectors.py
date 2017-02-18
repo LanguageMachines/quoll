@@ -1,5 +1,5 @@
 
-from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
+from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 import numpy
 from scipy import sparse
 from collections import defaultdict
@@ -203,6 +203,15 @@ class FoldVectorsTask(Task):
 ################################################################################
 ###Reporter
 ################################################################################
+
+@registercomponent
+class ReportFoldsComponent(StandardWorkflowComponent):
+
+    def accepts(self):
+        return InputFormat(self, format_id='expdirectory', extension='.exp')
+                    
+    def autosetup(self):
+        return ReportFolds
 
 class ReportFolds(Task):
 
