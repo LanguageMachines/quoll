@@ -161,13 +161,13 @@ class TrainApplySvorim(WorkflowComponent):
     svorim_path = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
 
     def setup(self, workflow, input_feeds):
 
         classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True, svorim_path=self.svorim_path)
         classifier.in_train = input_feeds['trainvectors']
-        classifier.in_trainlabels = input_feeds['trainlabels']
+        classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['testvectors']
 
         return classifier
@@ -179,12 +179,6 @@ class SvorimClassifier(Task):
     in_test = InputSlot()
 
     svorim_path = Parameter()
-
-    def out_train_labels(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.svorim_train.0')
-
-    def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.svorim_test.0')
 
     def out_classifications(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.classifications.txt')
@@ -198,7 +192,7 @@ class SvorimClassifier(Task):
         list_train_instances = array_train_instances.tolist()
 
         # open labels
-        with open(self.in_labels().path,'r',encoding='utf-8') as infile:
+        with open(self.in_labels().path) as infile:
             labels = infile.read().strip().split('\n')
 
         # open test
@@ -211,17 +205,21 @@ class SvorimClassifier(Task):
         train_instances_labels = []
         for i,instance in enumerate(list_train_instances):
             train_instances_labels.append(instance + [labels[i]])
-        with open(self.out_train_labels().path,'w',encoding='utf-8') as out:
+        expdir = '/'.join(self.in_train().path.split('/')[:-1]) + '/'
+        print('EXPDIR',expdir)
+        with open(expdir+'svorim_train.0','w',encoding='utf-8') as out:
             out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in train_instances_labels]))
-        with open(self.out_test().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in list_test_instances]))
+        with open(expdir+'svorim_test.0','w',encoding='utf-8') as out:
+            out.write('\n'.join([' '.join([str(x) for x in instance]) + ' ' for instance in list_test_instances]))
+        #with open(self.ou,'w',encoding='utf-8') as out:
+        #    out.write('\n'.join(['1' for instance in list_test_instances]))
 
         # perform classification
-        os.system(self.svorim_path + ' ' + self.out_train_labels().path)
+        os.system(self.svorim_path + ' ' + expdir+'svorim_train.0')
 
         # read in predictions and probabilities
-        predictionfile = self.out_test().path[:-6] + 'cguess.0'
-        probfile = self.out_test().path[:-6] + 'cguess.0.svm.conf'
+        predictionfile = expdir + 'svorim_cguess.0'
+        probfile = expdir + 'svorim_cguess.0.svm.conf'
         with open(predictionfile) as infile:
             predictions = infile.read().strip().split('\n')
         with open(probfile) as infile:
