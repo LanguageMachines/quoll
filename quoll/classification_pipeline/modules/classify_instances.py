@@ -1,4 +1,5 @@
 
+import os
 import numpy
 from scipy import sparse
 import pickle
@@ -145,3 +146,86 @@ class TrainApply(WorkflowComponent):
         predictor.in_model = trainer.out_model
 
         return predictor
+
+#################################################
+######## Svorim classification (command line tool)
+#################################################
+
+@registercomponent
+class TrainApplySvorim(WorkflowComponent):
+
+    trainvectors = Parameter()
+    trainlabels = Parameter()
+    testvectors = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True)
+        classifier.in_train = input_feeds['trainvectors']
+        classifier.in_trainlabels = input_feeds['trainlabels']
+        classifier.in_test = input_feeds['testvectors']
+
+        return classifier
+
+
+class SvorimClassifier(Task):
+
+    in_train = InputSlot()
+    in_labels = InputSlot()
+    in_test = InputSlot()
+
+    svorim_path = Parameter()
+
+    def out_train_labels(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.svorim_train.0')
+
+    def out_test(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.svorim_test.0')
+
+    def out_classifications(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.classifications.txt')
+
+    def run(self):
+
+        # open train
+        loader = numpy.load(self.in_train().path)
+        sparse_train_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        array_train_instances = sparse_train_instances.toarray()
+        list_train_instances = array_train_instances.tolist()
+
+        # open labels
+        with open(self.in_labels().path,'r',encoding='utf-8') as infile:
+            labels = infile.read().strip().split('\n')
+
+        # open test
+        loader = numpy.load(self.in_test().path)
+        sparse_test_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        array_test_instances = sparse_test_instances.toarray()
+        list_test_instances = array_test_instances.tolist()
+
+        # set files
+        train_instances_labels = []
+        for i,instance in enumerate(list_train_instances):
+            train_instances_labels.append(instance + [labels[i]])
+        with open(self.out_train_labels().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in train_instances_labels]))
+        with open(self.out_test().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in list_test_instances]))
+
+        # perform classification
+        os.system(self.svorim_path + ' ' + self.out_train_labels().path)
+
+        # read in predictions and probabilities
+        predictionfile = self.out_test().path[:-6] + 'cguess.0'
+        probfile = self.out_test().path[:-6] + 'cguess.0.svm.conf'
+        with open(predictionfile) as infile:
+            predictions = infile.read().strip().split('\n')
+        with open(probfile) as infile:
+            probs = infile.read().strip().split('\n')
+
+        # write classifications to file
+        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
+            cl_out.write('\n'.join(['\t'.join([prediction,probs[i]]) for i,prediction in enumerate(predictions)])) 
