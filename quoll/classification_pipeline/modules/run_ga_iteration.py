@@ -114,7 +114,8 @@ class GenerateOffspring(Task):
         # decide win_condition based on fitness metric
         win_condition = 'highest' if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else 'lowest'
         # generate offspring
-        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate),win_condition=win_condition)
+        nm = [i for i in range((population.shape[1]-parameterpopulation.shape[1]),population.shape[1])]
+        offspring = ga_functions.generate_offspring(population,fitness,tournament_size=self.tournament_size,crossover_prob=float(self.crossover_probability),n_crossovers=self.n_crossovers,mutation_rate=float(self.mutation_rate),win_condition=win_condition,no_mutation=nm)
 
         ### unwind offspring
 
@@ -273,7 +274,17 @@ class ScoreFitnessSolutionTask(Task):
         parametersolution = parameterpopulation[self.solution_index,:].toarray().tolist()[0]
 
         # extract solution classifier arguments
-        classifier_args = [parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)]
+#        print('PARAMOPTS',parameter_options)
+#        print('PARAMSOLUTION',parametersolution)
+        classifier_args = []
+        for i,paramindex in enumerate(parametersolution):
+            try:
+                classifier_args.append(parameter_options[i][paramindex])
+            except:
+                print('List out of range','opts=',parameter_options,'sol=',parametersolution,'i=',i,'pi=',paramindex)
+                continue
+
+#classifier_args = [parameter_options[i][paramindex] for i,paramindex in enumerate(parametersolution)]
 
         # write classifier arguments to solutiondir
         with open(self.out_solution_classifier_args().path,'w',encoding='utf-8') as outfile:

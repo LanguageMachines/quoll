@@ -274,12 +274,18 @@ class ReportFoldsGA(Task):
         best_fitness = 0 if highest else 1000
         candidate_iterations_solutions = []
         fold_best_fitness = []
+        print('FOLD REPORTS',fold_reports)
         for i,report in enumerate(fold_reports):
+            print('I',i,'Report',report)
             parsed = dr.parse_txt(report,delimiter='\t',header=True)
-            fold_iterations_solutions = [[i] + [j] for j,iteration_solution in enumerate(parsed[-1][0].split(', '))]
-            iteration_index = int(fold_iterations_solutions[0][1])
-            solution_index = int(fold_iterations_solutions[0][2])
-            best_fitness_iteration = float(parsed[iteration_index][2])
+            fold_iterations_solutions = [[i] + [j] + [int(n) for n in iteration_solution.split('-')] for j,iteration_solution in enumerate(parsed[-1][0].split(', '))]
+            print('PARSED',parsed)
+            print('FOLD ITERATIONS SOLUTIONS',fold_iterations_solutions)
+            iteration_index = int(fold_iterations_solutions[0][2])
+            solution_index = int(fold_iterations_solutions[0][3])
+            print('ITERATION INDEX',iteration_index)
+            print('SOLUTION INDEX',solution_index)
+            best_fitness_iteration = float(parsed[iteration_index][3])
             fold_best_fitness.append(best_fitness_iteration)
             if (highest and best_fitness_iteration > best_fitness) or (not highest and best_fitness_iteration < best_fitness):
                 best_fitness = best_fitness_iteration
@@ -297,13 +303,15 @@ class ReportFoldsGA(Task):
         lw = linewriter.Linewriter(final_report)
         lw.write_csv(self.out_folds_report().path)
 
-
         ### manage output best training vectors
 
         # extract best solution 
         best_vectorsolution_file = fold_best_vectorsolutions[fold_best]
         with open(best_vectorsolution_file) as infile:
             solutions = infile.read().strip().split('\n')
+        print('SOLUTIONS',solutions)
+        print('SELECTION BEST',selection_best)
+        print('FOLD SOLUTION BEST',fold_solution_best)
         best_solution = solutions[fold_solution_best].split()
         best_solution_features = [int(x) for x in best_solution]
 
@@ -326,12 +334,12 @@ class ReportFoldsGA(Task):
         # extract indices best parameter solution
         best_parametersolution_file = fold_best_parametersolutions[fold_best]
         with open(best_parametersolution_file) as infile:
-            best_solutions_parameters = infile.read().strip().split('\n')
+            best_solutions_parameters = infile.read().rstrip().split('\n')
         best_solution_parameters = [int(x) for x in best_solutions_parameters[fold_solution_best].split()]
 
         # load parameter values
         with open(self.in_parameter_options().path) as infile:
-            lines = infile.read().strip().split('\n')
+            lines = infile.read().rstrip().split('\n')
             parameter_options = [line.split() for line in lines]
 
         # extract best parameters
@@ -352,7 +360,7 @@ class ReportFoldsGA(Task):
         for cis in candidate_iterations_solutions:
             f = fold_best_vectorsolutions[cis[0]]
             with open(f) as infile:
-                solutions = infile.read().strip().split('\n')
+                solutions = infile.read().rstrip().split('\n')
             solution = solutions[cis[1]].split()
             solution_features = [int(x) for x in solution]
             best_features.append([str(x) for x in solution_features])
@@ -373,12 +381,11 @@ class ReportFoldsGA(Task):
         for cis in candidate_iterations_solutions:
             f = fold_best_parametersolutions[cis[0]]
             with open(f) as infile:
-                parameters = infile.read().strip().split('\n')
+                parameters = infile.read().rstrip().split('\n')
             solution = parameters[cis[1]].split()
             solution_parameters = [int(x) for x in solution]
-            best_parameternames.append([variable[solution_parameters[i]] for i,variable in enumerate(parameter_options)])
+            best_parameter_names.append([variable[solution_parameters[i]] for i,variable in enumerate(parameter_options)])
         
         # write to file
         with open(self.out_best_parameters_all().path,'w',encoding='utf-8') as outfile:
-            outfile.write('\n'.join([', '.join(parameter_names) for parameter_names in best_parameternames]))
-            
+            outfile.write('\n'.join([', '.join(parameter_names) for parameter_names in best_parameter_names]))

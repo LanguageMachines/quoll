@@ -185,7 +185,7 @@ def return_infogain(instances, labels):
         inverse_frequency = len_instances - feature_frequency[feature]
         negative_probability = inverse_frequency / len_instances
         negative_label_probabilities = [((label_frequency[label] - label_feature_frequency[label][feature]) / inverse_frequency) for label in labels]
-        negative_entropy = -sum([prob * math.log(prob, 2) for prob in negative_label_probabilities if prob != 0])
+        negative_entropy = -sum([prob * math.log(prob, 2) for prob in negative_label_probabilities if not prob <= 0])
         # based on positive and negative entropy, calculate final entropy
         final_entropy = positive_entropy - negative_entropy
         infogain[feature] = initial_entropy - final_entropy
@@ -205,10 +205,14 @@ def return_tfidf_vectors(instances, idfs):
 
 def return_infogain_vectors(instances, infogain):
 
-    infogain_ordered = sparse.csr_matrix([infogain[feature] for feature in sorted(infogain.keys())])
-    instances_binary = return_binary_vectors(instances)
-    infogain_vectors = instances_binary.multiply(infogain_ordered)
-    return infogain_vectors
+    try:
+        infogain_ordered = sparse.csr_matrix([infogain[feature] for feature in sorted(infogain.keys())])
+        instances_binary = return_binary_vectors(instances)
+        infogain_vectors = instances_binary.multiply(infogain_ordered)
+        return infogain_vectors
+    except:
+        return instances
+
 
 def return_top_features(feature_weights, prune):
 

@@ -39,19 +39,22 @@ def offspring_crossover(parents,npoints=1):
     offspring = sparse.hstack(segments).tocsr()
     return offspring
 
-def mutate(child,mutation_rate):
+def mutate(child,mutation_rate,no_mutation=[]):
     mutated_child = []
     for cell in range(child.shape[1]):
         cellval = child[0,cell]
-        if random.random() < mutation_rate:
-            newval = 1 if cellval == 0 else 0
-            mutated_child.append(newval)
-        else:
+        if cell in no_mutation:
             mutated_child.append(cellval)
+        else:
+            if random.random() < mutation_rate:
+                newval = 1 if cellval == 0 else 0
+                mutated_child.append(newval)
+            else:
+                mutated_child.append(cellval)
     mutated_child_sparse = sparse.csr_matrix(mutated_child)
     return mutated_child_sparse
 
-def generate_offspring(population,fitness,tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest'):
+def generate_offspring(population,fitness,tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest',no_mutation=[]):
     new_population = []
     while len(new_population) < population.shape[0]:
         # select
@@ -62,7 +65,7 @@ def generate_offspring(population,fitness,tournament_size=2,crossover_prob=0.9,n
             offspring = []
             for generation in range(2):
                 child = offspring_crossover(parents,n_crossovers)
-                child_mutated = mutate(child,mutation_rate)
+                child_mutated = mutate(child,mutation_rate,no_mutation)
                 offspring.append(child_mutated)
         else:
             offspring = parents
