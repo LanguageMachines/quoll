@@ -91,3 +91,30 @@ class ExperimentComponentVector(WorkflowComponent):
 
         return reporter
 
+@registercomponent
+class ExperimentComponentSvorimVector(WorkflowComponent):
+
+    train = Parameter()
+    trainlabels = Parameter()
+    test = Parameter()
+    testlabels = Parameter()
+    documents = Parameter()
+
+    svorim_path = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=True, svorim_path=self.svorim_path)
+        classifier.in_train = input_feeds['train']
+        classifier.in_labels = input_feeds['trainlabels']
+        classifier.in_test = input_feeds['test']
+
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
+        reporter.in_predictions = classifier.out_classifications
+        reporter.in_labels = input_feeds['testlabels']
+        reporter.in_documents = input_feeds['documents']
+
+        return reporter

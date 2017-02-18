@@ -206,7 +206,6 @@ class SvorimClassifier(Task):
         for i,instance in enumerate(list_train_instances):
             train_instances_labels.append(instance + [labels[i]])
         expdir = '/'.join(self.in_train().path.split('/')[:-1]) + '/'
-        print('EXPDIR',expdir)
         with open(expdir+'svorim_train.0','w',encoding='utf-8') as out:
             out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in train_instances_labels]))
         with open(expdir+'svorim_test.0','w',encoding='utf-8') as out:

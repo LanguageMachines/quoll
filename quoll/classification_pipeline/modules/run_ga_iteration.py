@@ -291,7 +291,11 @@ class ScoreFitnessSolutionTask(Task):
             outfile.write('\n'.join(classifier_args))
 
         ### perform classification and report outcomes
-        yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, classifier_args=self.out_solution_classifier_args().path, documents=self.in_documents().path, classifier=self.classifier, ordinal=self.ordinal)
+        if self.classifier == 'svorim':
+            svorim_path = classifier_args[0]
+            yield run_experiment.ExperimentComponentSvorimVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, documents=self.in_documents().path, svorim_path=svorim_path)
+        else:
+            yield run_experiment.ExperimentComponentVector(train=self.out_solution_trainvectors().path, trainlabels=self.in_trainlabels().path, test=self.out_solution_testvectors().path, testlabels=self.in_testlabels().path, classifier_args=self.out_solution_classifier_args().path, documents=self.in_documents().path, classifier=self.classifier, ordinal=self.ordinal)
 
 
 ################################################################################
