@@ -158,18 +158,19 @@ class TrainApplySvorim(WorkflowComponent):
     trainlabels = Parameter()
     testvectors = Parameter()
 
+    svorim_path = Parameter()
+
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True)
+        classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True, svorim_path=self.svorim_path)
         classifier.in_train = input_feeds['trainvectors']
         classifier.in_trainlabels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['testvectors']
 
         return classifier
-
 
 class SvorimClassifier(Task):
 
