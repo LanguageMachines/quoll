@@ -2,6 +2,7 @@
 import numpy
 from scipy import sparse
 import glob
+import re
 import random
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
@@ -181,7 +182,7 @@ class ManageGAIterations(Task):
 
         # run iterations
         iterdir = self.out_pre_iteration().path
-        last_best = 0 if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','AAC'] else 1000
+        last_best = 0 if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','ACC'] else 1000
         last_best_since = 1
         with open(self.out_iteration_cursor().path,'w',encoding='utf-8') as outfile:
             outfile.write(' '.join([str(last_best),str(last_best_since)]))
@@ -199,6 +200,24 @@ class ManageGAIterations(Task):
 ################################################################################
 ###GA Reporter
 ################################################################################
+
+@registercomponent
+class ReportGI(WorkflowComponent):
+
+    iterationsdir = Parameter()
+
+    fitness_metric = Parameter(default='microF1')
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='iterationsdir',extension='.iterations',inputparameter='iterationdir') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        reporter = workflow.new_task('report_ga_iterations', ReportGAIterations, autopass=False, fitness_metric=self.fitness_metric)
+        reporter.in_iterations_dir = input_feeds['iterationsdir']
+
+        return reporter
+
 
 class ReportGAIterations(Task):
 
@@ -219,14 +238,15 @@ class ReportGAIterations(Task):
 
         # gather reports by iteration
         print('gathering fitness reports by iteration')
-        fitness_files = sorted([ filename for filename in glob.glob(self.in_iterations_dir().path + '/ga.*.iteration/vectorpopulation.fitness.txt') ])
+        fitness_files = [ filename for filename in glob.glob(self.in_iterations_dir().path + '/ga.*.iteration/vectorpopulation.fitness.txt') ]
 
         # summarize fitness files
         report = [['Average fitness','Median fitness','Worst fitness','Best fitness','Best fitness indices']]
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','ACC'] else False
         best_fitness_iterations = 0 if highest else 1000
         indices_best_fitness_iterations = []
-        for i,ff in enumerate(fitness_files):
+        for i in range(len(fitness_files)):
+            ff = [fitness_file for fitness_file in fitness_files if re.search(r'ga\.' + str(i) + r'\.iteration',fitness_file)][0]
             with open(ff) as infile:
                 fitness_scores = [float(score) for score in infile.read().strip().split('\n')]
                 avg_fitness = numpy.mean(fitness_scores)

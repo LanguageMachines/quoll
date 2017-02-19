@@ -5,7 +5,7 @@ from collections import Counter
 import math
 import random
 import numpy
-from scipy import sparse
+from scipy import sparse, stats
 from sklearn.preprocessing import normalize
 
 class Counts:
@@ -191,6 +191,15 @@ def return_infogain(instances, labels):
         infogain[feature] = initial_entropy - final_entropy
     return infogain
 
+def return_correlations(instances, labels):
+    feature_correlation = {}
+    nplabels = numpy.array(labels)
+    for i in range(instances.shape[1]):
+        feature_vals = instances[:,i].toarray()
+        corr,p = stats.pearsonr(feature_vals,nplabels)
+        feature_correlation[i] = [corr,p]
+    return feature_correlation[i]
+
 def return_binary_vectors(instances, feature_weights):
 
     binary_values = numpy.array([1 for cell in instances.data])
@@ -212,7 +221,6 @@ def return_infogain_vectors(instances, infogain):
         return infogain_vectors
     except:
         return instances
-
 
 def return_top_features(feature_weights, prune):
 
