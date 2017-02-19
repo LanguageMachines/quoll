@@ -93,10 +93,10 @@ class SVMClassifier(AbstractSKLearnClassifier):
         else: # only two classes to distinguish
             parameters = ['C', 'kernel', 'gamma', 'degree']
             multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(c)]
-        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [kernel]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(gamma)]
-        degree_values = [1, 2, 3, 4] if degree == '' else [int(degree)]
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(x) for x in c.split()]
+        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [k for  k in kernel.split()]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(x) for x in gamma.split()]
+        degree_values = [1, 2, 3, 4] if degree == '' else [int(x) for x in degree.split()]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
