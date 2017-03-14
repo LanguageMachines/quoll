@@ -67,8 +67,8 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_classifier(self):
         return self.model
 
-    def return_feature_log_prob(self):
-        return self.model.feature_log_prob_
+    def return_model_insights(self):
+        return [['feature_log_prob.txt',self.model.feature_log_prob_.T.tolist()]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
@@ -129,6 +129,35 @@ class SVMClassifier(AbstractSKLearnClassifier):
 
     def return_classifier(self):
         return self.model
+
+    def return_model_insights(self):
+        return ['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
+
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
+
+class TreeClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+    
+    def train_classifier(self, trainvectors, labels, class_weight=None):
+        self.model = tree.DecisionTreeClassifier(class_weight=class_weight)
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+
+    def return_classifier(self):
+        return self.model
+
+    def return_model_insights(self):
+        model_insights = [['feature_importances_gini.txt','\n'.join(self.model.feature_importances_.T.tolist())],['tree.txt',self.tree_]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
