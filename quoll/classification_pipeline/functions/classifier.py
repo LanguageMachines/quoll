@@ -131,7 +131,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        return ['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
+        return [['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
@@ -157,7 +157,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        model_insights = [['feature_importances_gini.txt','\n'.join(self.model.feature_importances_.T.tolist())],['tree.txt',self.tree_]]
+        return [['feature_importances_gini.txt','\n'.join([str(x) for x in self.model.feature_importances_.T.tolist()])],['tree.txt',self.model.tree_.__str__()]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
