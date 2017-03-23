@@ -16,12 +16,17 @@ class RankFeaturesOrdinal(WorkflowComponent):
     labels = Parameter()
     featurenames = Parameter()
 
+    cutoff = IntParameter(default=0)
+
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
         feature_ranker = workflow.new_task('rank_features',RankFeaturesOrdinalTask,autopass=True)
+        feature_ranker.in_vectors = input_feeds['vectors']
+        feature_ranker.in_labels = input_feeds['labels']
+        feature_ranker.in_featurenames = input_feeds['featurenames']
 
         return feature_ranker
 
@@ -36,8 +41,10 @@ class RankFeaturesOrdinalTask(Task):
     in_labels = InputSlot()
     in_featurenames = InputSlot()
 
+    cutoff = IntParameter()
+
     def out_ranked_features(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.ranked_features.txt')
+        return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.ranked.txt')
         
     def run(self):
 
@@ -48,13 +55,18 @@ class RankFeaturesOrdinalTask(Task):
         # open labels
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
             labels = numpy.array(infile.read().strip().split('\n'))
+        labels_np = numpy.array([float(label) for label in labels])
 
         # load feature names
         with open(self.in_featurenames().path,'r',encoding='utf-8') as infile:
             fn = infile.read().strip().split('\n')
 
         # calculate feature correlations
-        sorted_feature_correlations = vectorizer.calculate_ordinal_correlation_feature_labels(instances,labels)
+        sorted_feature_correlation = vectorizer.calculate_ordinal_correlation_feature_labels(instances,labels_np)
+
+        # select top n
+        if self.cutoff > 0:
+            sorted_feature_correlation = sorted_feature_correlation[:cutoff]
 
         # write to file
         with open(self.out_ranked_features().path,'w',encoding='utf-8') as out:

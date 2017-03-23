@@ -258,8 +258,11 @@ def calculate_ordinal_correlation_feature_labels(instances,labels):
     feature_correlation = []
     for i in range(instances.shape[1]):
         feature_vals = instances[:,i].transpose().toarray()[0]
-        corr,p = stats.pearsonr(feature_vals,labels_np)
-        if math.isnan(corr):
+        try:
+            corr,p = stats.pearsonr(feature_vals,labels)
+            if math.isnan(corr):
+                corr = 0
+        except:
             corr = 0
         feature_correlation.append([i,abs(corr),corr,p])
     sorted_feature_correlation = sorted(feature_correlation,key=lambda k : k[1],reverse=True)
@@ -268,21 +271,25 @@ def calculate_ordinal_correlation_feature_labels(instances,labels):
 def filter_features_correlation(featureranks,featurecorr,featuresub):
     selected_features = []
     featurecorrs = set(featurecorr.keys()) 
-    featuresubs = set(featuresubs.keys())
+    featuresubs = set(featuresub.keys())
     # for each feature
     i = 0
-    while != len(featureranks):
+    while i != len(featureranks):
         feature = featureranks[i] 
         # add to selected features
         selected_features.append(feature)
         # strip correlating features
+        print(feature)
         if set([feature]) & featurecorrs:
             for corrfeat in featurecorr[feature]:
-                print('removing',corrfeat)
-                featureranks.remove(corrfeat)
+                if set([corrfeat]) & set(featureranks):
+                    print('removing',corrfeat)
+                    featureranks.remove(corrfeat)
         if set([feature]) & featuresubs:
-            for subfeat in featuresubs[feature]:
-                print('removing',subfeat)
-                if featureranks.index(subfeat) > i:
-                    featureranks.remove(subfeat)
+            for subfeat in featuresub[feature]:
+                if set([subfeat]) & set(featureranks):
+                    print('removing',subfeat)
+                    if featureranks.index(subfeat) > i:
+                        featureranks.remove(subfeat)
+        i += 1
     return selected_features

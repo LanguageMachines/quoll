@@ -12,17 +12,19 @@ import quoll.classification_pipeline.functions.vectorizer as vectorizer
 @registercomponent
 class FilterFeatures(WorkflowComponent):
     
-    vectors = Parameter()
     featurenames = Parameter()
     featureranks = Parameter()
     featurecorrelation = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='featureranks', extension='.ranked_features.txt', inputparameter='featrank'), InputFormat(self, format_id='featurecorrelation', extension='.corr.txt', inputparameter='featcorr'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self, format_id='featrank', extension='.ranked_features.txt', inputparameter='featureranks'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
         feature_filter = workflow.new_task('filter_features',FilterFeaturesTask,autopass=True)
+        feature_filter.in_featurenames = input_feeds['featurenames']
+        feature_filter.in_featrank = input_feeds['featrank']
+        feature_filter.in_featcorr = input_feeds['featcorr']
 
         return feature_filter
 
@@ -33,19 +35,17 @@ class FilterFeatures(WorkflowComponent):
 
 class FilterFeaturesTask(Task):
 
-    in_vectors = InputSlot()
     in_featurenames = InputSlot()
     in_featrank = InputSlot()
     in_featcorr = InputSlot()
 
-    def out_filtered_vectors(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.filtered.vectors.npz')
+    def out_filtered_features(self):
+        return self.outputfrominput(inputformat='featrank', stripextension='.ranked_features.txt', addextension='.filtered_features.txt')
+
+    def out_filtered_features_index(self):
+        return self.outputfrominput(inputformat='featrank', stripextension='.ranked_features.txt', addextension='.filtered_features_indices.txt')
         
     def run(self):
-
-        # open instances
-        loader = numpy.load(self.in_vectors().path)
-        instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # open feature names
         with open(self.in_featurenames().path,'r',encoding='utf-8') as infile:
@@ -54,7 +54,7 @@ class FilterFeaturesTask(Task):
         # open feature ranks
         with open(self.in_featrank().path,'r',encoding='utf-8') as infile:
             feature_ranks = infile.read().strip().split('\n')
-            fr = [f[0] for f in feature_ranks]
+            fr = [f.split('\t')[0] for f in feature_ranks]
 
         # open feature correlation
         featcorr = {}
@@ -62,17 +62,22 @@ class FilterFeaturesTask(Task):
         with open(self.in_featcorr().path,'r',encoding='utf-8') as infile:
             lines = infile.read().strip().split('\n')
             for line in lines:
-                featcorr[lines[0]] = line[1].split(', ')
-                featsub[lines[0]] = line[2].split(', ')
+                tokens = line.split('\t')
+                if len(tokens) > 1:
+                    featcorr[tokens[0]] = tokens[1].split(', ')
+                if len(tokens) > 2:
+                    featsub[tokens[0]] = tokens[2].split(', ')
 
         # filter features
         filtered_features = vectorizer.filter_features_correlation(fr,featcorr,featsub)
 
         # obtain indices filtered features
-        filtered_features_indices = [fn.index(feature) for feature in filtered_features]
+        filtered_features_indices = sorted([fn.index(feature) for feature in filtered_features])
 
-        # transform vectors
-        transformed_vectors = vectorizer.compress_vectors(instances,filtered_features_indices)
+        # write filtered feature names
+        with open(self.out_filtered_features().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join([f.strip() for f in filtered_features]))
 
-        # write vectors
-        numpy.savez(self.out_filtered_vectors().path, data=transformed_vectors.data, indices=transformed_vectors.indices, indptr=transformed_vectors.indptr, shape=transformed_vectors.shape)
+        # write filtered feature indices
+        with open(self.out_filtered_features_index().path,'w',encoding='utf-8') as out:
+            out.write(' '.join([str(i) for i in filtered_features_indices]))
