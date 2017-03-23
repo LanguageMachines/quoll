@@ -93,10 +93,10 @@ class SVMClassifier(AbstractSKLearnClassifier):
         else: # only two classes to distinguish
             parameters = ['C', 'kernel', 'gamma', 'degree']
             multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(c)]
-        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [kernel]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(gamma)]
-        degree_values = [1, 2, 3, 4] if degree == '' else [int(degree)]
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(x) for x in c.split()]
+        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [k for  k in kernel.split()]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(x) for x in gamma.split()]
+        degree_values = [1, 2, 3, 4] if degree == '' else [int(x) for x in degree.split()]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
@@ -131,7 +131,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        return ['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
+        return [['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
@@ -157,7 +157,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        model_insights = [['feature_importances_gini.txt','\n'.join(self.model.feature_importances_.T.tolist())],['tree.txt',self.tree_]]
+        return [['feature_importances_gini.txt','\n'.join([str(x) for x in self.model.feature_importances_.T.tolist()])],['tree.txt',self.model.tree_.__str__()]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)

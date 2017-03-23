@@ -10,7 +10,7 @@ import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
-from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector 
+from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector, ExperimentComponentSvorimVector 
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 ################################################################################
@@ -197,7 +197,11 @@ class FoldVectorsTask(Task):
             outfile.write('\n'.join(classifier_args))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
+        if self.classifier == 'svorim':
+            svorim_path = classifier_args[0]
+            yield ExperimentComponentSvorimVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, svorim_path=svorim_path)
+        else:
+            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
 
 
 ################################################################################

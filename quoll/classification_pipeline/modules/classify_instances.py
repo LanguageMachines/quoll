@@ -31,7 +31,7 @@ class TrainClassifier(Task):
         self.setup_output_dir(self.out_model_insights().path)
 
         # initiate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'perceptron':PerceptronLClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'perceptron':PerceptronLClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
@@ -53,17 +53,14 @@ class TrainClassifier(Task):
         # train classifier
         clf.train_classifier(vectorized_instances, trainlabels, *classifier_args)
 
-            with open(feature_log_prob_outfile,'w') as file_out:
-                file_out.write('\n'.join(['\t'.join([str(x) for x in feature]) for feature in feature_log_prob_list]))
-
         # save classifier and insights
         model = clf.return_classifier()
         with open(self.out_model().path, 'wb') as fid:
             pickle.dump(model, fid)
         model_insights = clf.return_model_insights()
         for mi in model_insights:
-            with open(self.out_model_insights().path + '/' + mi[1],'w',encoding='utf-8') as outfile:
-                outfile.write(mi[0])
+            with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
+                outfile.write(mi[1])
 
         # save label encoding
         label_encoding = clf.return_label_encoding(trainlabels)

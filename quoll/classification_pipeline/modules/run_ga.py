@@ -209,7 +209,7 @@ class ReportGI(WorkflowComponent):
     fitness_metric = Parameter(default='microF1')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='iterationsdir',extension='.iterations',inputparameter='iterationdir') ) ]
+        return [ ( InputFormat(self,format_id='iterationsdir',extension='.iterations',inputparameter='iterationsdir') ) ]
 
     def setup(self, workflow, input_feeds):
 
