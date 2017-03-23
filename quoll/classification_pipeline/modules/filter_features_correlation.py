@@ -39,6 +39,8 @@ class FilterFeaturesTask(Task):
     in_featrank = InputSlot()
     in_featcorr = InputSlot()
 
+    cutoff = IntParameter()
+
     def out_filtered_features(self):
         return self.outputfrominput(inputformat='featrank', stripextension='.ranked_features.txt', addextension='.filtered_features.txt')
 
@@ -70,6 +72,10 @@ class FilterFeaturesTask(Task):
 
         # filter features
         filtered_features = vectorizer.filter_features_correlation(fr,featcorr,featsub)
+
+        # select top n
+        if self.cutoff > 0:
+            filtered_features = filtered_features[:cutoff]
 
         # obtain indices filtered features
         filtered_features_indices = sorted([fn.index(feature) for feature in filtered_features])

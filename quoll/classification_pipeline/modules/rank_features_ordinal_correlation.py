@@ -41,11 +41,12 @@ class RankFeaturesOrdinalTask(Task):
     in_labels = InputSlot()
     in_featurenames = InputSlot()
 
-    cutoff = IntParameter()
-
     def out_ranked_features(self):
         return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.ranked.txt')
-        
+
+    def out_ranked_features_indices(self):
+        return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.top_indices.txt')
+    
     def run(self):
 
         # open instances
@@ -63,10 +64,6 @@ class RankFeaturesOrdinalTask(Task):
 
         # calculate feature correlations
         sorted_feature_correlation = vectorizer.calculate_ordinal_correlation_feature_labels(instances,labels_np)
-
-        # select top n
-        if self.cutoff > 0:
-            sorted_feature_correlation = sorted_feature_correlation[:cutoff]
 
         # write to file
         with open(self.out_ranked_features().path,'w',encoding='utf-8') as out:

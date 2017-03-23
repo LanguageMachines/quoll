@@ -5,7 +5,7 @@ import pickle
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules import vectorize_instances, vectorize_sparse_instances, classify_instances, report_performance
+from quoll.classification_pipeline.modules import vectorize_instances, vectorize_sparse_instances, classify_instances, report_performance, filter_features_correlation, rank_features_ordinal_correlation
 
 @registercomponent
 class ExperimentComponent(WorkflowComponent):
@@ -111,6 +111,55 @@ class ExperimentComponentSvorimVector(WorkflowComponent):
         classifier.in_train = input_feeds['train']
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['test']
+
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
+        reporter.in_predictions = classifier.out_classifications
+        reporter.in_labels = input_feeds['testlabels']
+        reporter.in_documents = input_feeds['documents']
+
+        return reporter
+
+@registercomponent
+class ExperimentComponentLin(WorkflowComponent):
+
+    train = Parameter()
+    trainlabels = Parameter()
+    test = Parameter()
+    testlabels = Parameter()
+    documents = Parameter()
+    featurenames = Parameter()
+    featurecorrelation = Parameter()
+
+    feature_cutoff = IntParameter()
+    svorim_path = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
+        feature_ranker.in_vectors = input_feeds['train']
+        feature_ranker.in_labels = input_feeds['trainlabels']
+        feature_ranker.in_featurenames = input_feeds['featurenames']
+
+        feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesTask,autopass=True,cutoff=self.feature_cutoff)
+        feature_filter.in_featurenames = input_feeds['featurenames']
+        feature_filter.in_featrank = feature_ranker.out_ranked_features
+        feature_filter.in_featcorr = input_feeds['featcorr']
+
+        train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+        train_vector_transformer.in_vectors = input_feeds['train']
+        train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+
+        test_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+        test_vector_transformer.in_vectors = input_feeds['test']
+        test_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+
+        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=False, svorim_path=self.svorim_path)
+        classifier.in_train = train_vector_transformer.out_vectors
+        classifier.in_labels = input_feeds['trainlabels']
+        classifier.in_test = test_vector_transformer.out_vectors
 
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
         reporter.in_predictions = classifier.out_classifications
