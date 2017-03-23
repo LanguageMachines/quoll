@@ -16,12 +16,14 @@ class FilterFeatures(WorkflowComponent):
     featureranks = Parameter()
     featurecorrelation = Parameter()
 
+    cutoff = IntParameter(default=0)
+
     def accepts(self):
         return [ ( InputFormat(self, format_id='featrank', extension='.ranked_features.txt', inputparameter='featureranks'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        feature_filter = workflow.new_task('filter_features',FilterFeaturesTask,autopass=True)
+        feature_filter = workflow.new_task('filter_features',FilterFeaturesTask,autopass=True, cutoff=self.cutoff)
         feature_filter.in_featurenames = input_feeds['featurenames']
         feature_filter.in_featrank = input_feeds['featrank']
         feature_filter.in_featcorr = input_feeds['featcorr']
@@ -75,7 +77,7 @@ class FilterFeaturesTask(Task):
 
         # select top n
         if self.cutoff > 0:
-            filtered_features = filtered_features[:cutoff]
+            filtered_features = filtered_features[:self.cutoff]
 
         # obtain indices filtered features
         filtered_features_indices = sorted([fn.index(feature) for feature in filtered_features])

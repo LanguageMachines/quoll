@@ -134,7 +134,7 @@ class ExperimentComponentLin(WorkflowComponent):
     svorim_path = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurecorrelation', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -146,13 +146,13 @@ class ExperimentComponentLin(WorkflowComponent):
         feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesTask,autopass=True,cutoff=self.feature_cutoff)
         feature_filter.in_featurenames = input_feeds['featurenames']
         feature_filter.in_featrank = feature_ranker.out_ranked_features
-        feature_filter.in_featcorr = input_feeds['featcorr']
+        feature_filter.in_featcorr = input_feeds['featurecorrelation']
 
         train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
         train_vector_transformer.in_vectors = input_feeds['train']
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
-        test_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+        test_vector_transformer = workflow.new_task('transform_test_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
         test_vector_transformer.in_vectors = input_feeds['test']
         test_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 

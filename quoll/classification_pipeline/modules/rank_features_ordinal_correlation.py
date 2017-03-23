@@ -16,8 +16,6 @@ class RankFeaturesOrdinal(WorkflowComponent):
     labels = Parameter()
     featurenames = Parameter()
 
-    cutoff = IntParameter(default=0)
-
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
@@ -43,9 +41,6 @@ class RankFeaturesOrdinalTask(Task):
 
     def out_ranked_features(self):
         return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.ranked.txt')
-
-    def out_ranked_features_indices(self):
-        return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.top_indices.txt')
     
     def run(self):
 

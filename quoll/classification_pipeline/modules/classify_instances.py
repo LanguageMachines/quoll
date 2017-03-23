@@ -218,7 +218,7 @@ class SvorimClassifier(Task):
         #    out.write('\n'.join(['1' for instance in list_test_instances]))
 
         # perform classification
-        os.system(self.svorim_path + ' ' + expdir+'svorim_train.0')
+        os.system(self.svorim_path + ' -i ' + expdir+'svorim_train.0')
 
         # read in predictions and probabilities
         predictionfile = expdir + 'svorim_cguess.0'
