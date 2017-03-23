@@ -43,35 +43,46 @@ class AnnotateDocumentComponent(StandardWorkflowComponent):
             if not self.morph:
                 frog_skip += 'a'
 
+            task = None
             if 'txt' in input_feeds:
                 #untokenized input
                 if doFrog:
                     frog = workflow.new_task('frog', luiginlp.modules.frog.Frog_txt2folia, language=self.language, tok_input_sentenceperline=self.sentenceperline, skip=frog_skip)
                     frog.in_txt = input_feeds['txt']
-                    return frog
+                    task = frog
                 else:
                     ucto = workflow.new_task('ucto', luiginlp.modules.ucto.Ucto_txt2folia, language=self.language, tok_input_sentenceperline=self.sentenceperline)
                     ucto.in_txt = input_feeds['txt']
-                    return ucto
+                    task = ucto
             elif 'tok' in input_feeds:
                 #pre-tokenized input
                 if doFrog:
                     frog = workflow.new_task('frog', luiginlp.modules.frog.Frog_txt2folia, language=self.language, tok_input_sentenceperline=self.sentenceperline, skip='t' +frog_skip)
                     frog.in_txt = input_feeds['tok']
-                    return frog
+                    task = frog
                 else:
                     ucto = workflow.new_task('ucto', luiginlp.modules.ucto.Ucto_tok2folia, language=self.language, tok_input_sentenceperline=self.sentenceperline)
                     ucto.in_txt = input_feeds['tok']
-                    return ucto
+                    task = ucto
             elif 'folia' in input_feeds:
                 if doFrog:
                     frog = workflow.new_task('frog', luiginlp.modules.frog.Frog_folia2folia, language=self.language, skip=frog_skip)
                     frog.in_folia = input_feeds['folia']
-                    return frog
+                    task = frog
                 else:
                     ucto = workflow.new_task('ucto', luiginlp.modules.ucto.Ucto_folia2folia, language=self.language)
                     ucto.in_folia = input_feeds['folia']
-                    return ucto
+                    task = ucto
+
+            #consolidate output (symlink to the output file with a predicatable name)
+            if isinstance(task, (luiginlp.modules.frog.Frog_txt2folia,luiginlp.modules.frog.Frog_txt2folia)):
+                consolidate = workflow.new_task('symlink', luiginlp.modules.basic.Symlink, stripextension='frogged.folia.xml', addextension='output.folia.xml')
+                consolidate.in_file = task.out_folia
+                return consolidate
+            elif isinstance(task, (luiginlp.modules.ucto.Ucto_txt2folia,luiginlp.modules.ucto.Ucto_tok2folia,luiginlp.modules.ucto.Ucto_folia2folia)):
+                consolidate = workflow.new_task('symlink', luiginlp.modules.basic.Symlink, stripextension='tok.folia.xml', addextension='output.folia.xml')
+                consolidate.in_file = task.out_folia
+                return consolidate
         else:
             raise NotImplementedError("Language " + self.language + " is not supported yet")
 
