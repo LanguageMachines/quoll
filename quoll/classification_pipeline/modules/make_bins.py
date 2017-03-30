@@ -15,6 +15,7 @@ class MakeBins(Task):
     in_labels = InputSlot()
 
     n = IntParameter()
+    steps = IntParameter(default = 1)
 
     # def out_folds(self):
     #     return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'fold_cv')
@@ -33,7 +34,7 @@ class MakeBins(Task):
 
         # select rows per fold based on shape of the features
         num_instances = len(labels)
-        fold_indices = nfold_cv_functions.return_fold_indices(num_instances, self.n)        
+        fold_indices = nfold_cv_functions.return_fold_indices(num_instances,self.n,self.steps)        
         
         # write indices of bins to file
         lw = linewriter.Linewriter(fold_indices)

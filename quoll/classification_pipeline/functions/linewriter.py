@@ -3,9 +3,9 @@ import re
 import datetime
 import csv
 
-#from openpyxl.workbook import Workbook
-#from openpyxl.styles import numbers, is_date_format, Style
-#from openpyxl.utils.datetime import to_excel
+from openpyxl.workbook import Workbook
+from openpyxl.styles import numbers, is_date_format, Style
+from openpyxl.utils.datetime import to_excel
 
 #import gen_functions
 
@@ -13,11 +13,19 @@ class Linewriter:
 
     def __init__(self, lines):
         self.lines = lines
+        self.current_workbook = False
+
+    def set_lines(self, lines):
+        self.lines = lines
 
     def write_xlsx(self, headers, header_style, outfile):
-        wb = Workbook(encoding = 'utf-8')
-        ws = wb.active
-        ws.title = 'sheet1'
+        if not self.current_workbook:
+            self.current_workbook = Workbook(encoding = 'utf-8')
+            ws = self.current_workbook.active
+            ws.title = 'sheet1'
+        else:
+            num_sheets = len(self.current_workbook.get_sheet_names())
+            ws = self.current_workbook.create_sheet(title='sheet'+str(num_sheets+1))
         number_header = {}
         for i, header in enumerate(headers):
             i += 1
@@ -54,7 +62,7 @@ class Linewriter:
                             #except:
                             #    _cell = ws.cell(row = i, column = j, value = float(col))
                             _cell.number_format = st
-        wb.save(filename = outfile)
+        self.current_workbook.save(filename = outfile)
 
     def write_txt(self, outfile, delimiter = '\t'):
         with open(outfile, 'w', encoding = 'utf-8') as out:

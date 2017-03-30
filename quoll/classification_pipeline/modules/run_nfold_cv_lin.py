@@ -29,13 +29,14 @@ class NFoldCVLin(WorkflowComponent):
     svorim_path = Parameter()
     feature_cutoff = IntParameter()
     n = IntParameter(default=10)
+    stepsize = IntParameter(default=1)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurecorrelation', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, stepsize=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('run_folds_lin', RunFoldsLin, autopass=True, n=self.n, cutoff=self.feature_cutoff, svorim_path=self.svorim_path)
@@ -70,7 +71,7 @@ class RunFoldsLin(Task):
     cutoff = IntParameter()
 
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.nocorr_ranked_' + str(self.cutoff) + '.exp')
         
     def run(self):
 
@@ -106,12 +107,13 @@ class FoldLin(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, ordinal=self.ordinal)
+        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, svorim_path=self.svorim_path, cutoff=self.cutoff)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
         fold.in_documents = input_feeds['documents']
-        fold.in_classifier_args = input_feeds['classifier_args']  
+        fold.in_featurenames = input_feeds['featurenames']
+        fold.in_featurecorrelation = input_feeds['featurecorrelation']
         fold.in_bins = input_feeds['bins']   
 
         return fold
@@ -201,7 +203,7 @@ class FoldVectorsTask(Task):
             outfile.write('\n'.join(featurenames))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentLin(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, feature_cutoff=self.cutoff, svorim_path=svorim_path)
+        yield ExperimentComponentLin(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, feature_cutoff=self.cutoff, svorim_path=self.svorim_path)
 
 ################################################################################
 ###Reporter

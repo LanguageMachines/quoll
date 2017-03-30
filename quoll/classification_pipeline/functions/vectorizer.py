@@ -279,16 +279,13 @@ def filter_features_correlation(featureranks,featurecorr,featuresub):
         # add to selected features
         selected_features.append(feature)
         # strip correlating features
-        print(feature)
         if set([feature]) & featurecorrs:
             for corrfeat in featurecorr[feature]:
                 if set([corrfeat]) & set(featureranks):
-                    print('removing',corrfeat)
                     featureranks.remove(corrfeat)
         if set([feature]) & featuresubs:
             for subfeat in featuresub[feature]:
                 if set([subfeat]) & set(featureranks):
-                    print('removing',subfeat)
                     if featureranks.index(subfeat) > i:
                         featureranks.remove(subfeat)
         i += 1

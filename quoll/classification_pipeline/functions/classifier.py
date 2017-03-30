@@ -68,7 +68,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        return [['feature_log_prob.txt',self.model.feature_log_prob_.T.tolist()]]
+        return [['feature_log_prob.txt','\n'.join([str(x) for x in self.model.feature_log_prob_.T.tolist()])]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
@@ -131,7 +131,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_model_insights(self):
-        return [['support_vectors.txt',self.model.support_vectors_.T.tolist()],['feature_weights.txt',self.model.coef_.T.tolist()]]
+        return [['support_vectors.txt','\n'.join(self.model.support_vectors_.T.tolist())],['feature_weights.txt','\n'.join([' '.join(l) for l in self.model.coef_.T.tolist()])]]
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
