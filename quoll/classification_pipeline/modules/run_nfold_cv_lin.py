@@ -36,7 +36,7 @@ class NFoldCVLin(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, stepsize=self.stepsize)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('run_folds_lin', RunFoldsLin, autopass=True, n=self.n, cutoff=self.feature_cutoff, svorim_path=self.svorim_path)

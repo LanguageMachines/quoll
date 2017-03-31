@@ -274,7 +274,7 @@ def filter_features_correlation(featureranks,featurecorr,featuresub):
     featuresubs = set(featuresub.keys())
     # for each feature
     i = 0
-    while i != len(featureranks):
+    while i < len(featureranks):
         feature = featureranks[i] 
         # add to selected features
         selected_features.append(feature)
