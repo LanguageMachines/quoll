@@ -87,6 +87,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
     parameter_options = Parameter()
 
     feature_cutoff = IntParameter(default=0)
+    stepsize = Intparameter(default=1)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
@@ -116,7 +117,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
         train_vector_transformer.in_vectors = input_feeds['train']
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
-        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
+        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split, stepsize=self.stepsize)
         binner.in_labels = input_feeds['trainlabels']
 
         foldrunner = workflow.new_task('run_folds', select_features.RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
