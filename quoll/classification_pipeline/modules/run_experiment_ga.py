@@ -88,6 +88,8 @@ class ExperimentComponentLinGA(WorkflowComponent):
 
     feature_cutoff = IntParameter(default=0)
     stepsize = Intparameter(default=1)
+    classifier = Parameter(default='naive_bayes')
+    ordinal = BoolParameter(default=False)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
