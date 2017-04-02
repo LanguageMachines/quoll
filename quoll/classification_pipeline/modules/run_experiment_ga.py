@@ -148,6 +148,6 @@ class ExperimentComponentLinGA(WorkflowComponent):
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
         reporter.in_predictions = classifier.out_classifications
         reporter.in_labels = input_feeds['testlabels']
-        reporter.in_documents = input_feeds['documents']
+        reporter.in_documents = input_feeds['testdocuments']
 
         return reporter
