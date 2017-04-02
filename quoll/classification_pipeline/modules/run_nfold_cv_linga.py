@@ -103,7 +103,7 @@ class RunFoldsLinGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldLinGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, parameter_options=self.in_parameter_options().path, featurenames=self.in_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, i=fold, cutoff=self.cutoff, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition))
+            yield FoldLinGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, parameter_options=self.in_parameter_options().path, featurenames=self.in_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, i=fold, cutoff=self.cutoff, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 
 ################################################################################
