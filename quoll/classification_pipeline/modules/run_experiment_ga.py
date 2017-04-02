@@ -87,7 +87,9 @@ class ExperimentComponentLinGA(WorkflowComponent):
     parameter_options = Parameter()
 
     feature_cutoff = IntParameter(default=0)
-    stepsize = Intparameter(default=1)
+    stepsize = IntParameter(default=1)
+    classifier = Parameter(default='naive_bayes')
+    ordinal = BoolParameter(default=False)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
@@ -106,10 +108,10 @@ class ExperimentComponentLinGA(WorkflowComponent):
         feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
         feature_ranker.in_vectors = input_feeds['train']
         feature_ranker.in_labels = input_feeds['trainlabels']
-        feature_ranker.in_featurenames = input_feeds['featurenames']
+        feature_ranker.in_featurenames = input_feeds['feature_names']
 
         feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesTask,autopass=True,cutoff=self.feature_cutoff)
-        feature_filter.in_featurenames = input_feeds['featurenames']
+        feature_filter.in_featurenames = input_feeds['feature_names']
         feature_filter.in_featrank = feature_ranker.out_ranked_features
         feature_filter.in_featcorr = input_feeds['featcorr']
 

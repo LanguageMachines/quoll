@@ -104,7 +104,6 @@ class RunFoldsLinGA(Task):
 
         # for each fold
         for fold in range(self.n):
-<<<<<<< HEAD
             yield FoldLinGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, parameter_options=self.in_parameter_options().path, featurenames=self.in_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, i=fold, cutoff=self.cutoff, stepsize=self.stepsize, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 ################################################################################
@@ -169,7 +168,7 @@ class FoldLinGATask(Task):
     
     i = IntParameter()
     cutoff = IntParameter()
-    stepsize = Intparameter()
+    stepsize = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
     training_split = IntParameter()
@@ -253,7 +252,7 @@ class FoldLinGATask(Task):
             outfile.write('\n'.join(featurenames))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentLinGA(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, parameter_options=self.in_parameter_options().path, feature_cutoff=self.cutoff, stepsize=self.stepsize, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
+        yield ExperimentComponentLinGA(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, traindocuments=self.out_traindocuments().path, testdocuments=self.out_testdocuments().path, feature_names=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, parameter_options=self.in_parameter_options().path, feature_cutoff=self.cutoff, stepsize=self.stepsize, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 ################################################################################
 ###Reporter
