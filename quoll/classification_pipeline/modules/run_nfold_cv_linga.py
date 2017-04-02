@@ -30,7 +30,8 @@ class NFoldCVLinGA(WorkflowComponent):
     feature_cutoff = IntParameter()
     n = IntParameter(default=10)
     stepsize = IntParameter(default=1)
-    classifier = Parameter(default='naive_bayes')
+    classifier = Parameter(default='svorim')
+    svorim_path = Parameter()
     ordinal = BoolParameter(default=False)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
@@ -50,7 +51,7 @@ class NFoldCVLinGA(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_lin', RunFoldsLinGA, autopass=True, n=self.n, cutoff=self.feature_cutoff, stepsize=self.stepsize, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
+        fold_runner = workflow.new_task('run_folds_lin', RunFoldsLinGA, autopass=True, n=self.n, cutoff=self.feature_cutoff, stepsize=self.stepsize, classifier=self.classifier, svorim_path=self.svorim_path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -83,6 +84,7 @@ class RunFoldsLinGA(Task):
     stepsize = IntParameter()
     cutoff = IntParameter()
     classifier = Parameter()
+    svorim_path = Parameter()
     ordinal = BoolParameter()
     training_split = IntParameter()
     num_iterations = IntParameter()
@@ -104,8 +106,7 @@ class RunFoldsLinGA(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldLinGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, parameter_options=self.in_parameter_options().path, featurenames=self.in_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, i=fold, cutoff=self.cutoff, stepsize=self.stepsize, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition))
-
+            yield FoldLinGA(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, parameter_options=self.in_parameter_options().path, featurenames=self.in_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, i=fold, cutoff=self.cutoff, stepsize=self.stepsize, classifier=self.classifier, svorim_path=self.svorim_path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 ################################################################################
 ###Fold Wrapper
@@ -127,6 +128,7 @@ class FoldLinGA(WorkflowComponent):
     stepsize = IntParameter()
     cutoff = IntParameter()
     classifier = Parameter()
+    svorim_path = Parameter()
     ordinal = BoolParameter()
     training_split = IntParameter()
     num_iterations = IntParameter()
@@ -143,7 +145,7 @@ class FoldLinGA(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldLinGATask, autopass=False, i=self.i, cutoff=self.cutoff, stepsize=self.stepsize, classifier=self.classifier, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
+        fold = workflow.new_task('run_fold', FoldLinGATask, autopass=False, i=self.i, cutoff=self.cutoff, stepsize=self.stepsize, classifier=self.classifier, svorim_path=self.svorim_path, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size = self.tournament_size, n_crossovers=self.n_crossovers, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -169,8 +171,9 @@ class FoldLinGATask(Task):
     
     i = IntParameter()
     cutoff = IntParameter()
-    stepsize = Intparameter()
+    stepsize = IntParameter()
     classifier = Parameter()
+    svorim_path = Parameter()
     ordinal = BoolParameter()
     training_split = IntParameter()
     num_iterations = IntParameter()
@@ -253,7 +256,7 @@ class FoldLinGATask(Task):
             outfile.write('\n'.join(featurenames))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentLinGA(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, parameter_options=self.in_parameter_options().path, feature_cutoff=self.cutoff, stepsize=self.stepsize, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
+        yield ExperimentComponentLinGA(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, traindocuments=self.out_traindocuments().path, testdocuments=self.out_testdocuments().path, feature_names=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, parameter_options=self.in_parameter_options().path, feature_cutoff=self.cutoff, stepsize=self.stepsize, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, svorim_path=self.svorim_path, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
 
 ################################################################################
 ###Reporter
