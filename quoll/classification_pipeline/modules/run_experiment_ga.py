@@ -86,6 +86,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
     featurecorrelation = Parameter()
     parameter_options = Parameter()
 
+    feature_cutoff = IntParameter(default=0)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
