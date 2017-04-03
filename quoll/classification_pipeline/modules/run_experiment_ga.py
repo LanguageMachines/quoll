@@ -106,9 +106,6 @@ class ExperimentComponentLinGA(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split, steps=self.stepsize)
-        binner.in_labels = input_feeds['trainlabels']
-
         feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
         feature_ranker.in_vectors = input_feeds['train']
         feature_ranker.in_labels = input_feeds['trainlabels']
@@ -122,6 +119,9 @@ class ExperimentComponentLinGA(WorkflowComponent):
         train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
         train_vector_transformer.in_vectors = input_feeds['train']
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+
+        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split, steps=self.stepsize)
+        binner.in_labels = feature_ranker.out_labels
 
         foldrunner = workflow.new_task('run_folds', select_features.RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
         foldrunner.in_bins = binner.out_bins

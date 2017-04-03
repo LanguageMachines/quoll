@@ -42,6 +42,9 @@ class RankFeaturesOrdinalTask(Task):
     def out_ranked_features(self):
         return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.ranked.txt')
     
+    def out_labels(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.ranked.labels')
+
     def run(self):
 
         # open instances
@@ -63,3 +66,6 @@ class RankFeaturesOrdinalTask(Task):
         # write to file
         with open(self.out_ranked_features().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(['\t'.join([fn[fc[0]],str(fc[2]),str(fc[3])]) for fc in sorted_feature_correlation]))
+
+        with open(self.out_labels().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(labels))
