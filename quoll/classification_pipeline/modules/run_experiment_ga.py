@@ -85,6 +85,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
     feature_names = Parameter()
     featurecorrelation = Parameter()
     parameter_options = Parameter()
+    bins = Parameter()
 
     feature_cutoff = IntParameter(default=0)
     svorim_path = Parameter()
@@ -102,7 +103,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
     stop_condition = IntParameter(default=5)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='traindocuments',extension='.txt',inputparameter='traindocuments'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation') ) ]
+        return [ ( InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='parameter_options', extension='.txt', inputparameter='parameter_options'), InputFormat(self, format_id='feature_names', extension='.txt', inputparameter='feature_names'), InputFormat(self,format_id='traindocuments',extension='.txt',inputparameter='traindocuments'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -120,11 +121,8 @@ class ExperimentComponentLinGA(WorkflowComponent):
         train_vector_transformer.in_vectors = input_feeds['train']
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
-        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split, steps=self.stepsize)
-        binner.in_labels = feature_ranker.out_labels
-
         foldrunner = workflow.new_task('run_folds', select_features.RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
-        foldrunner.in_bins = binner.out_bins
+        foldrunner.in_bins = input_feeds['bins']
         foldrunner.in_vectors = train_vector_transformer.out_vectors
         foldrunner.in_labels = input_feeds['trainlabels']
         foldrunner.in_parameter_options = input_feeds['parameter_options']
