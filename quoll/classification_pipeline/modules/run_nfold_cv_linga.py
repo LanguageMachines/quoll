@@ -209,6 +209,9 @@ class FoldLinGATask(Task):
     def out_featurenames(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/featurenames.txt')
 
+    def out_bins(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/' + str(self.training_split) + 'folds.bins.csv')
+
     def run(self):
 
         # make fold directory
@@ -254,6 +257,15 @@ class FoldLinGATask(Task):
             outfile.write('\n'.join(test_documents))
         with open(self.out_featurenames().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(featurenames))
+
+        # write bins
+        # select rows per fold based on shape of the features
+        num_instances = len(train_labels)
+        fold_indices = nfold_cv_functions.return_fold_indices(num_instances,self.n,self.stepsize)        
+        
+        # write indices of bins to file
+        lw = linewriter.Linewriter(fold_indices)
+        lw.write_csv(self.out_bins().path)
 
         print('Running experiment for fold',self.i)
         yield ExperimentComponentLinGA(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, traindocuments=self.out_traindocuments().path, testdocuments=self.out_testdocuments().path, feature_names=self.out_featurenames().path, featurecorrelation=self.in_featurecorrelation().path, parameter_options=self.in_parameter_options().path, feature_cutoff=self.cutoff, stepsize=self.stepsize, training_split=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, svorim_path=self.svorim_path, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)
