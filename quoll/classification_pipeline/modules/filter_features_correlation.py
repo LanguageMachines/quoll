@@ -44,10 +44,10 @@ class FilterFeaturesTask(Task):
     cutoff = IntParameter()
 
     def out_filtered_features(self):
-        return self.outputfrominput(inputformat='featrank', stripextension='.ranked_features.txt', addextension='.filtered_features.txt')
+        return self.outputfrominput(inputformat='featrank', stripextension='.ranked.txt', addextension='.filtered_features.txt')
 
     def out_filtered_features_index(self):
-        return self.outputfrominput(inputformat='featrank', stripextension='.ranked_features.txt', addextension='.filtered_features_indices.txt')
+        return self.outputfrominput(inputformat='featrank', stripextension='.ranked.txt', addextension='.filtered_features_indices.txt')
         
     def run(self):
 

@@ -264,9 +264,9 @@ class ReportFoldsGA(Task):
 
         # gather fold reports
         print('gathering fold reports')
-        fold_reports = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.report.txt') ]
-        fold_best_vectorsolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_vectorsolution.txt') ]
-        fold_best_parametersolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/train.ga.best_parametersolution.txt') ]
+        fold_reports = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/tr.ga.report.txt') ]
+        fold_best_vectorsolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/tr.ga.best_vectorsolution.txt') ]
+        fold_best_parametersolutions = [ filename for filename in glob.glob(self.in_feature_selection_directory().path + '/fold*/tr.ga.best_parametersolution.txt') ]
 
         # summarize reports
         highest = True if self.fitness_metric in ['microPrecision','microRecall','microF1','FPR','AUC','ACC'] else False

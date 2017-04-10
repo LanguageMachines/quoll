@@ -117,7 +117,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
         feature_filter.in_featrank = feature_ranker.out_ranked_features
         feature_filter.in_featcorr = input_feeds['featcorr']
 
-        train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+        train_vector_transformer = workflow.new_task('transform_vectors_train',vectorize_instances.TransformVectorsTask,autopass=True)
         train_vector_transformer.in_vectors = input_feeds['train']
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
@@ -128,13 +128,13 @@ class ExperimentComponentLinGA(WorkflowComponent):
         foldrunner.in_parameter_options = input_feeds['parameter_options']
         foldrunner.in_documents = input_feeds['traindocuments']
 
-        foldreporter = workflow.new_task('report_folds', select_features.ReportFoldsGA, autopass=True)
+        foldreporter = workflow.new_task('report_folds', select_features.ReportFoldsGA, fitness_metric=self.fitness_metric, autopass=True)
         foldreporter.in_feature_selection_directory = foldrunner.out_feature_selection
         foldreporter.in_trainvectors = train_vector_transformer.out_vectors
         foldreporter.in_parameter_options = input_feeds['parameter_options']
-        foldreporter.in_feature_names = input_feeds['feature_names']
+        foldreporter.in_feature_names = feature_filter.out_filtered_features
 
-        test_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+        test_vector_transformer = workflow.new_task('transform_vectors_test',vectorize_instances.TransformVectorsTask,autopass=True)
         test_vector_transformer.in_vectors = input_feeds['test']
         test_vector_transformer.in_selection = foldreporter.out_best_vectorsolution
 

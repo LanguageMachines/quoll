@@ -221,12 +221,16 @@ class SvorimClassifier(Task):
         os.system(self.svorim_path + ' -i ' + expdir+'svorim_train.0')
 
         # read in predictions and probabilities
-        predictionfile = expdir + 'svorim_cguess.0'
-        probfile = expdir + 'svorim_cguess.0.svm.conf'
-        with open(predictionfile) as infile:
-            predictions = infile.read().strip().split('\n')
-        with open(probfile) as infile:
-            probs = infile.read().strip().split('\n')
+        try:
+            predictionfile = expdir + 'svorim_cguess.0'
+            probfile = expdir + 'svorim_cguess.0.svm.conf'
+            with open(predictionfile) as infile:
+                predictions = infile.read().strip().split('\n')
+            with open(probfile) as infile:
+                probs = infile.read().strip().split('\n')
+        except:
+            predictions = ['0']
+            probs = ['0']
 
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:

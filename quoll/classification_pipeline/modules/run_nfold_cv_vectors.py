@@ -28,13 +28,14 @@ class NFoldCV(WorkflowComponent):
     n = IntParameter(default=10)
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
+    stepsize = IntParameter(default=1)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, stepsize=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, ordinal=self.ordinal)
