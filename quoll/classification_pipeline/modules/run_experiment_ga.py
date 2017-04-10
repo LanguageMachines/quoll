@@ -138,7 +138,7 @@ class ExperimentComponentLinGA(WorkflowComponent):
         test_vector_transformer.in_vectors = input_feeds['test']
         test_vector_transformer.in_selection = foldreporter.out_best_vectorsolution
 
-        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=False, svorim_path=self.svorim_path)
+        classifier = workflow.new_task('svorim_classifier', classify_instances.SvorimClassifier, autopass=False, svorim_path=self.svorim_path, ga_catch=True)
         classifier.in_train = foldreporter.out_best_trainvectors
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = test_vector_transformer.out_vectors

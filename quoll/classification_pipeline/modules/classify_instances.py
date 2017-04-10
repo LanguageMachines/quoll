@@ -163,6 +163,7 @@ class TrainApplySvorim(WorkflowComponent):
     testvectors = Parameter()
 
     svorim_path = Parameter()
+    ga_catch = BoolParameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
@@ -183,6 +184,7 @@ class SvorimClassifier(Task):
     in_test = InputSlot()
 
     svorim_path = Parameter()
+    ga_catch = BoolParameter()
 
     def out_classifications(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.classifications.txt')
@@ -229,8 +231,12 @@ class SvorimClassifier(Task):
             with open(probfile) as infile:
                 probs = infile.read().strip().split('\n')
         except:
-            predictions = ['0']
-            probs = ['0']
+            if self.ga_catch:
+                predictions = ['0'] * len(list_test_instances)
+                probs = ['0'] * len(list_test_instances)
+            else:
+                predictions = ['0']
+                probs = ['0']
 
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
