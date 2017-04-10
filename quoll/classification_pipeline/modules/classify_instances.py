@@ -7,6 +7,7 @@ import pickle
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
+from quoll.classification_pipeline.functions.decisiontree_continuous import DecisionTreeContinuous
 
 class TrainClassifier(Task):
 
@@ -31,7 +32,7 @@ class TrainClassifier(Task):
         self.setup_output_dir(self.out_model_insights().path)
 
         # initiate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'perceptron':PerceptronLClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
@@ -241,3 +242,74 @@ class SvorimClassifier(Task):
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
             cl_out.write('\n'.join(['\t'.join([prediction,probs[i]]) for i,prediction in enumerate(predictions)])) 
+
+
+#################################################
+######## Decision tree classification (continuous segmentation)
+#################################################
+
+@registercomponent
+class TrainApplyDTC(WorkflowComponent):
+
+    trainvectors = Parameter()
+    trainlabels = Parameter()
+    testvectors = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        classifier = workflow.new_task('dtc_classifier', DTCClassifier, autopass=True)
+        classifier.in_train = input_feeds['trainvectors']
+        classifier.in_labels = input_feeds['trainlabels']
+        classifier.in_test = input_feeds['testvectors']
+
+        return classifier
+
+class DTCClassifier(Task):
+
+    in_train = InputSlot()
+    in_labels = InputSlot()
+    in_test = InputSlot()
+
+    def out_classifications(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.dtc.classifications.txt')
+
+    def out_tree(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.dtc.tree.txt')
+
+    def run(self):
+
+        # open train
+        loader = numpy.load(self.in_train().path)
+        sparse_train_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        # array_train_instances = sparse_train_instances.toarray()
+        # list_train_instances = array_train_instances.tolist()
+
+        # open labels
+        with open(self.in_labels().path) as infile:
+            labels = infile.read().strip().split('\n')
+
+        # open test
+        loader = numpy.load(self.in_test().path)
+        sparse_test_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        # array_test_instances = sparse_test_instances.toarray()
+        # list_test_instances = array_test_instances.tolist()
+
+        # train classifier
+        dtc = DecisionTreeContinuous()
+        dtc.fit(sparse_train_instances,labels)
+
+        # apply classifier
+        predictions = dtc.transform(sparse_test_instances)
+
+        # write tree to file
+        with open(self.out_tree().path,'w',encoding='utf-8') as tree_out:
+            tree = dtc.Tree
+            print(tree)
+            tree_out.write('\n'.join(['\t'.join([str(y) for y in x]) for x in tree]))
+
+        # write classifications to file
+        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
+            cl_out.write('\n'.join([[str(prediction),'-'] for prediction in predictions])) 
