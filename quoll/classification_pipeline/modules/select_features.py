@@ -22,6 +22,7 @@ class SelectFeatures(WorkflowComponent):
     feature_names = Parameter()
     documents = Parameter()
 
+    stepsize = IntParameter(default=1)
     training_split = IntParameter(default=10)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
@@ -39,7 +40,7 @@ class SelectFeatures(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split)
+        binner = workflow.new_task('make_bins', make_bins.MakeBins, autopass=True, n=self.training_split,steps=self.stepsize)
         binner.in_labels = input_feeds['trainlabels']
 
         foldrunner = workflow.new_task('run_folds', RunFoldsGA, autopass=True, n=self.training_split, num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate, tournament_size=self.tournament_size, n_crossovers=self.n_crossovers, classifier=self.classifier, ordinal=self.ordinal, fitness_metric=self.fitness_metric, stop_condition=self.stop_condition)

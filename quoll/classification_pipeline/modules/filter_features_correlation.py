@@ -19,7 +19,7 @@ class FilterFeatures(WorkflowComponent):
     cutoff = IntParameter(default=0)
 
     def accepts(self):
-        return [ ( InputFormat(self, format_id='featrank', extension='.ranked_features.txt', inputparameter='featureranks'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self, format_id='featrank', extension='.ranked.txt', inputparameter='featureranks'), InputFormat(self, format_id='featcorr', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
@@ -66,11 +66,11 @@ class FilterFeaturesTask(Task):
         with open(self.in_featcorr().path,'r',encoding='utf-8') as infile:
             lines = infile.read().strip().split('\n')
             for line in lines:
-                tokens = line.split('\t')
+                tokens = line.strip().split('\t')
                 if len(tokens) > 1:
-                    featcorr[tokens[0]] = tokens[1].split(', ')
+                    featcorr[tokens[0]] = tokens[1].strip().split(', ')
                 if len(tokens) > 2:
-                    featsub[tokens[0]] = tokens[2].split(', ')
+                    featsub[tokens[0]] = tokens[2].strip().split(', ')
 
         # filter features
         filtered_features = vectorizer.filter_features_correlation(fr,featcorr,featsub)
