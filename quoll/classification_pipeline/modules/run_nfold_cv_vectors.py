@@ -24,6 +24,7 @@ class NFoldCV(WorkflowComponent):
     labels = Parameter()
     documents = Parameter()
     classifier_args = Parameter()
+    featurenames = Parameter()
 
     n = IntParameter(default=10)
     classifier = Parameter(default='naive_bayes')
@@ -31,7 +32,7 @@ class NFoldCV(WorkflowComponent):
     stepsize = IntParameter(default=1)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
@@ -44,6 +45,7 @@ class NFoldCV(WorkflowComponent):
         fold_runner.in_labels = input_feeds['labels']
         fold_runner.in_documents = input_feeds['documents']        
         fold_runner.in_classifier_args = input_feeds['classifier_args']
+        fold_runner.in_featurenames = input_feeds['featurenames']
 
         folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
@@ -92,6 +94,7 @@ class FoldVectors(WorkflowComponent):
     labels = Parameter()
     documents = Parameter()
     classifier_args = Parameter()
+    featurenames = Parameter()
     bins = Parameter()
 
     i = IntParameter()
@@ -99,7 +102,7 @@ class FoldVectors(WorkflowComponent):
     ordinal = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
@@ -108,7 +111,8 @@ class FoldVectors(WorkflowComponent):
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
         fold.in_documents = input_feeds['documents']
-        fold.in_classifier_args = input_feeds['classifier_args']  
+        fold.in_classifier_args = input_feeds['classifier_args']
+        fold.in_featurenames = input_feeds['featurenames']  
         fold.in_bins = input_feeds['bins']   
 
         return fold
@@ -120,6 +124,7 @@ class FoldVectorsTask(Task):
     in_labels = InputSlot()
     in_documents = InputSlot()
     in_classifier_args = InputSlot()
+    in_featurenames = InputSlot()
     in_bins = InputSlot()
     
     i = IntParameter()
@@ -201,6 +206,8 @@ class FoldVectorsTask(Task):
         if self.classifier == 'svorim':
             svorim_path = classifier_args[0]
             yield ExperimentComponentSvorimVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, svorim_path=svorim_path)
+        elif self.classifier == 'dtc':
+            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal)
         else:
             yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
 

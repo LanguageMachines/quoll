@@ -120,6 +120,36 @@ class ExperimentComponentSvorimVector(WorkflowComponent):
         return reporter
 
 @registercomponent
+class ExperimentComponentDTCVector(WorkflowComponent):
+
+    train = Parameter()
+    trainlabels = Parameter()
+    test = Parameter()
+    testlabels = Parameter()
+    documents = Parameter()
+    featurenames = Parameter()
+
+    ordinal = BoolParameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        classifier = workflow.new_task('dtc_classifier', classify_instances.DTCClassifier, autopass=False)
+        classifier.in_train = input_feeds['train']
+        classifier.in_labels = input_feeds['trainlabels']
+        classifier.in_test = input_feeds['test']
+        classifier.in_featurenames = input_feeds['featurenames']
+
+        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
+        reporter.in_predictions = classifier.out_classifications
+        reporter.in_labels = input_feeds['testlabels']
+        reporter.in_documents = input_feeds['documents']
+
+        return reporter
+
+@registercomponent
 class ExperimentComponentLin(WorkflowComponent):
 
     train = Parameter()
