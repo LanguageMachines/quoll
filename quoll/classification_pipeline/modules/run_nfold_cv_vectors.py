@@ -64,6 +64,7 @@ class RunFoldsVectors(Task):
     in_labels = InputSlot()
     in_documents = InputSlot()
     in_classifier_args = InputSlot()
+    in_featurenames = InputSlot()
 
     n = IntParameter()
     classifier = Parameter()
@@ -79,7 +80,7 @@ class RunFoldsVectors(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, i=fold, classifier=self.classifier, ordinal=self.ordinal)
+            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, featurenames=self.in_featurenames().path, i=fold, classifier=self.classifier, ordinal=self.ordinal)
 
 
 ################################################################################
