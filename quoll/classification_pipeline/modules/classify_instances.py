@@ -335,7 +335,7 @@ class DTCClassifier(Task):
 
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
-            cl_out.write('\n'.join([' '.join([str(prediction),'-']) for prediction in predictions])) 
+            cl_out.write('\n'.join(['\t'.join([str(prediction),'-']) for prediction in predictions])) 
 
         # write best features to file
         best_featurenames = list(numpy.array(featurenames)[best_features])
