@@ -152,10 +152,10 @@ def fcbf(X, y, thresh):
     slist[:,1] = idx
     if thresh < 0:
         thresh = np.median(slist[-1,0])
-        print "Using minimum SU value as default threshold: {0}".format(thresh)
+        print('Using minimum SU value as default threshold: {0}'.format(thresh))
     elif thresh >= 1 or thresh > max(slist[:,0]):
-        print "No relevant features selected for given threshold."
-        print "Please lower the threshold and try again."
+        print('No relevant features selected for given threshold.')
+        print('Please lower the threshold and try again.')
         exit()
         
     slist = slist[slist[:,0]>thresh,:] # desc. ordered per SU[i,c]
@@ -208,15 +208,15 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
     """
     if os.path.exists(inpath):
         try:
-            print "Reading file. Please wait ..."
+            print('Reading file. Please wait ...')
             if header:
                 d = np.genfromtxt(inpath, delimiter=str(delim), skip_header=1)
             else:
                 d = np.loadtxt(inpath, delimiter=delim)
-            print "Success! Dimensions: {0} x {1}".format(d.shape[0], d.shape[1])
+            print('Success! Dimensions: {0} x {1}'.format(d.shape[0], d.shape[1]))
         except Exception, e:
-            print "Input file loading failed. Please check the file."
-            print "Error:", e
+            print('Input file loading failed. Please check the file.')
+            print('Error:', e)
             raise e
             exit()
         
@@ -229,23 +229,23 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
             y = d[:, classAt]   
 
         try:
-            print "Performing FCBF selection. Please wait ..."
+            print('Performing FCBF selection. Please wait ...')
             sbest = fcbf(X, y, thresh)
-            print "Done!"
-            print "\n#Features selected: {0}".format(len(sbest))
-            print "Selected feature indices:\n{0}".format(sbest)
+            print('Done!')
+            print('\n#Features selected: {0}'.format(len(sbest)))
+            print('Selected feature indices:\n{0}'.format(sbest))
             try:
                 outpath = os.path.split(inpath)[0] \
                             + '/features_' + os.path.split(inpath)[1]
                 np.savetxt(outpath, sbest, fmt="%0.8f,%d", newline="\n", \
                             header='SU, 0-based Feature')
-                print "\nFile saved successfully. Path: {0}".format(outpath)
+                print('\nFile saved successfully. Path: {0}'.format(outpath))
             except Exception, e:
-                print "Error encountered while saving file:", e
+                print('Error encountered while saving file:', e)
         except Exception, e:
-            print "Error:", e           
+            print('Error:', e)           
     else:
-        print "The file you specified does not exist."
+        print('The file you specified does not exist.')
     
 def main():
     ## ================= PARAMS =================
