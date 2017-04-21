@@ -57,7 +57,7 @@ def getFirstElement(d):
     
     t = np.where(d[:,2]>0)[0]
     if len(t):
-        return d[t[0],0], d[t[0],1], t[0]
+        return d[t[0],0], int(d[t[0],1]), t[0]
     return None, None, None
 
 def getNextElement(d, idx):
@@ -79,7 +79,7 @@ def getNextElement(d, idx):
     t = np.where(d[:,2]>0)[0]
     t = t[t > idx]
     if len(t):
-        return d[t[0],0], d[t[0],1], t[0]
+        return d[t[0],0], int(d[t[0],1]), t[0]
     return None, None, None
     
 def removeElement(d, idx):
@@ -164,13 +164,14 @@ def fcbf(X, y, thresh):
     cache = {}
     m = len(slist)
     p_su, p, p_idx = getFirstElement(slist)
-    for i in xrange(m):
+    for i in range(m):
         q_su, q, q_idx = getNextElement(slist, p_idx)
         if q:
             while q:
                 if (p, q) in cache:
                     pq_su = cache[(p,q)]
                 else:
+                    
                     pq_su = symmetrical_uncertainty(X[:,p], X[:,q])
                     cache[(p,q)] = pq_su
 
@@ -227,22 +228,22 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
             X = d[:, idx[idx != classAt]]
             y = d[:, classAt]   
 
+        # try:
+        print('Performing FCBF selection. Please wait ...')
+        sbest = fcbf(X, y, thresh)
+        print('Done!')
+        print('\n#Features selected: {0}'.format(len(sbest)))
+        print('Selected feature indices:\n{0}'.format(sbest))
         try:
-            print('Performing FCBF selection. Please wait ...')
-            sbest = fcbf(X, y, thresh)
-            print('Done!')
-            print('\n#Features selected: {0}'.format(len(sbest)))
-            print('Selected feature indices:\n{0}'.format(sbest))
-            try:
-                outpath = os.path.split(inpath)[0] \
-                            + '/features_' + os.path.split(inpath)[1]
-                np.savetxt(outpath, sbest, fmt="%0.8f,%d", newline="\n", \
-                            header='SU, 0-based Feature')
-                print('\nFile saved successfully. Path: {0}'.format(outpath))
-            except Exception:
-                print('Error encountered while saving file on line 243:')
+            outpath = os.path.split(inpath)[0] \
+                        + '/features_' + os.path.split(inpath)[1]
+            np.savetxt(outpath, sbest, fmt="%0.8f,%d", newline="\n", \
+                        header='SU, 0-based Feature')
+            print('\nFile saved successfully. Path: {0}'.format(outpath))
         except Exception:
-            print('Error line 245')           
+            print('Error encountered while saving file on line 243:')
+        # except Exception:
+        #     print('Error line 245')           
     else:
         print('The file you specified does not exist.')
     

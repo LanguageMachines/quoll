@@ -4,7 +4,8 @@ from scipy import sparse
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.functions import linewriter, docreader, fcbf, vectorizer
+from quoll.classification_pipeline.modules import vectorize_instances
+from quoll.classification_pipeline.functions import linewriter, docreader, fcbf
 
 ################################################################################
 ###Component
@@ -32,9 +33,9 @@ class ApplyFCBF(WorkflowComponent):
         feature_selector.in_instances = file_formatter.out_instances
         feature_selector.in_featurenames = input_feeds['featurenames']
 
-        vector_transformer = workflow.new_task('transform_vectors', vectorizer.TransformVectors, autopass=False)
+        vector_transformer = workflow.new_task('transform_vectors', vectorize_instances.TransformVectorsTask, autopass=False)
         vector_transformer.in_vectors = input_feeds['trainvectors']
-        vector_transformer.selection = feature_selector.out_feature_indices
+        vector_transformer.in_selection = feature_selector.out_feature_indices
 
         return vector_transformer
 
@@ -80,10 +81,10 @@ class FCBFTask(Task):
     threshold = Parameter()
 
     def out_feature_indices(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.txt', addextension='.selected_feature_indices.txt')
+        return self.outputfrominput(inputformat='instances', stripextension='fcbf.csv', addextension='.selected_feature_indices.txt')
 
     def out_featurenames(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.txt', addextension='.selected_features.txt')
+        return self.outputfrominput(inputformat='instances', stripextension='fcbf.csv', addextension='.selected_features.txt')
 
     def run(self):
 
@@ -97,14 +98,13 @@ class FCBFTask(Task):
         selected_features_file = filepath + '/features_' + filename
         dr = docreader.Docreader()
         selected_features_lines = dr.parse_csv(selected_features_file)
-        print(selected_features_lines)
 
         # read in featurenames
         with open(self.in_featurenames().path,'r',encoding='utf-8') as file_in:
-            featurenames = file_in.read().strip().split('\n')
+            featurenames = [fn.strip() for fn in file_in.read().strip().split('\n')]
 
         # extract selected feature indices and names
-        selected_feature_indices = []
+        selected_feature_indices = [int(line[1]) for line in selected_features_lines[1:]]
         selected_featurenames = numpy.array(featurenames)[selected_feature_indices]
 
         # write to files
