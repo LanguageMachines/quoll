@@ -214,10 +214,9 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
             else:
                 d = np.loadtxt(inpath, delimiter=delim)
             print('Success! Dimensions: {0} x {1}'.format(d.shape[0], d.shape[1]))
-        except Exception, e:
+        except Exception:
             print('Input file loading failed. Please check the file.')
-            print('Error:', e)
-            raise e
+            print('Error line 219, exiting')
             exit()
         
         if classAt == -1:
@@ -240,10 +239,10 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
                 np.savetxt(outpath, sbest, fmt="%0.8f,%d", newline="\n", \
                             header='SU, 0-based Feature')
                 print('\nFile saved successfully. Path: {0}'.format(outpath))
-            except Exception, e:
-                print('Error encountered while saving file:', e)
-        except Exception, e:
-            print('Error:', e)           
+            except Exception:
+                print('Error encountered while saving file on line 243:')
+        except Exception:
+            print('Error line 245')           
     else:
         print('The file you specified does not exist.')
     
