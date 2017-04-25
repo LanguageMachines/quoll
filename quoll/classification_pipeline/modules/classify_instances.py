@@ -245,9 +245,9 @@ class SvorimClassifier(Task):
             cl_out.write('\n'.join(['\t'.join([prediction,probs[i]]) for i,prediction in enumerate(predictions)])) 
 
 
-#################################################
+#####################################################################
 ######## Decision tree classification (continuous segmentation)
-#################################################
+#####################################################################
 
 @registercomponent
 class TrainApplyDTC(WorkflowComponent):
@@ -341,3 +341,77 @@ class DTCClassifier(Task):
         best_featurenames = list(numpy.array(featurenames)[best_features])
         with open(self.out_best_features().path,'w') as outfile:
             outfile.write('\n'.join(best_featurenames))
+
+#####################################################################
+######## Balanced Winnow classification (using LCS)
+#####################################################################
+
+@registercomponent
+class TrainApplyBalancedWinnow(WorkflowComponent):
+
+    trainvectors = Parameter()
+    trainlabels = Parameter()
+    testvectors = Parameter()
+    testlabels = Parameters()
+    vocabulary = Parameter()
+
+    lcs_path = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='vocabulary',extension='.vocabulary.txt',inputparameter='vocabulary') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        bw_classifier = workflow.new_task('bw_classifier', BalancedWinnowClassifier, lcs_path=self.lcs_path, autopass=True)
+        bw_classifier.in_train = input_feeds['trainvectors']
+        bw_classifier.in_trainlabels = input_feeds['trainlabels']
+        bw_classifier.in_test = input_feeds['testvectors']
+        bw_classifier.in_testlabels = input_feeds['testlabels']
+        bw_classifier.in_vocabulary = input_feeds['vocabulary']
+
+        return bw_classifier
+
+class BalancedWinnowClassifier(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+    in_test = InputSlot()
+    in_testlabels = InputSlot()
+    in_vocabulary = InputSlot()
+
+    lcs_path = Parameter()
+
+    def out_classifications(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.classifications.txt')
+
+    def run(self):
+
+        # open train
+        loader = numpy.load(self.in_train().path)
+        sparse_train_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # open trainlabels
+        with open(self.in_trainlabels().path) as infile:
+            trainlabels = infile.read().strip().split('\n')
+
+        # open test
+        loader = numpy.load(self.in_test().path)
+        sparse_test_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # open testlabels
+        with open(self.in_testlabels().path) as infile:
+            testlabels = infile.read().strip().split('\n')
+
+        # open vocabulary
+        with open(self.in_vocabulary().path) as infile:
+            vocabulary = infile.read().strip().split('\n')
+
+        # train classifier
+        experiment_directory = '/'.join(self.in_train().path.split('/')[:-1])
+        lcsc = LCS_classifier(experiment_directory)
+        lcsc.experiment(sparse_train_instances,trainlabels,sparse_test_instances,testlabels,vocabulary)
+        classifications = lcsc.classifications
+
+        # write classifications to file
+        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
+            cl_out.write('\n'.join(['\t'.join(classification_score) for classification_score in classifications])) 

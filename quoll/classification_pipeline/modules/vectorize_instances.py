@@ -30,7 +30,6 @@ class VectorizeTask(Task):
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
 
 
-
 @registercomponent
 class Vectorize(StandardWorkflowComponent):
 

@@ -25,7 +25,8 @@ class Vectorize_traininstances(Task):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.topfeatures.txt')
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorlabels')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorized.labels')
+
     def run(self):
 
         weight_functions = {'frequency':[vectorizer.return_document_frequency, False], 'binary':[vectorizer.return_document_frequency, vectorizer.return_binary_vectors], 'tfidf':[vectorizer.return_idf, vectorizer.return_tfidf_vectors], 'infogain':[vectorizer.return_infogain, vectorizer.return_infogain_vectors]}
@@ -110,7 +111,7 @@ class Vectorize_testinstances(Task):
 
         # align the test instances to the top features to get the right indices
         with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
-                sourcevocabulary = infile.read().split('\n')
+            sourcevocabulary = infile.read().split('\n')
         testvectors = vectorizer.align_vectors(featurized_instances, topfeatures_vocabulary, sourcevocabulary)
 
         # set feature weights
@@ -150,6 +151,7 @@ class Vectorize_traintest(WorkflowComponent):
     testfile = Parameter()
     trainvocabulary = Parameter()
     testvocabulary = Parameter()
+
     weight = Parameter(default = 'frequency')
     prune = IntParameter(default = 5000)
     balance = BoolParameter(default = False)
