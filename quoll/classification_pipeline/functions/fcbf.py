@@ -157,25 +157,26 @@ def fcbf(X, y, thresh):
         print('No relevant features selected for given threshold.')
         print('Please lower the threshold and try again.')
         exit()
-        
+
     slist = slist[slist[:,0]>thresh,:] # desc. ordered per SU[i,c]
-    
+
     # identify redundant features among the relevant ones
     cache = {}
     m = len(slist)
     p_su, p, p_idx = getFirstElement(slist)
     for i in range(m):
+        print(i,'of',m)
         q_su, q, q_idx = getNextElement(slist, p_idx)
         if q:
             while q:
                 if (p, q) in cache:
                     pq_su = cache[(p,q)]
                 else:
-                    
                     pq_su = symmetrical_uncertainty(X[:,p], X[:,q])
                     cache[(p,q)] = pq_su
-
+                    print(p,q,pq_su,q_su)
                 if pq_su >= q_su:
+                    print('remove')
                     slist = removeElement(slist, q_idx)
                 q_su, q, q_idx = getNextElement(slist, q_idx)
                 
@@ -230,6 +231,7 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
 
         # try:
         print('Performing FCBF selection. Please wait ...')
+        print('Y',y,'Thresh',thresh)
         sbest = fcbf(X, y, thresh)
         print('Done!')
         print('\n#Features selected: {0}'.format(len(sbest)))
