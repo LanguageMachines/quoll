@@ -8,6 +8,7 @@ import math
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
+from quoll.classification_pipeline.functions.lcs_classifier import LCS_classifier
 from quoll.classification_pipeline.functions.decisiontree_continuous import DecisionTreeContinuous
 
 class TrainClassifier(Task):
@@ -352,7 +353,7 @@ class TrainApplyBalancedWinnow(WorkflowComponent):
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
-    testlabels = Parameters()
+    testlabels = Parameter()
     vocabulary = Parameter()
 
     lcs_path = Parameter()
