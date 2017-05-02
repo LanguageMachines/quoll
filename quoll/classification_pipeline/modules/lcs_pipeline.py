@@ -32,7 +32,7 @@ class LCSPipeline_traintest(WorkflowComponent):
     def setup(self, workflow, input_feeds):
 
         traintokenizer = workflow.new_task('tokenize_traininstances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
-        traintokenizer.in_txt = input_feeds['traininstances']
+        traintokenizer.in_txt = input_feeds['testinstances']
 
         testtokenizer = workflow.new_task('tokenize_testinstances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
         testtokenizer.in_txt = input_feeds['traininstances']

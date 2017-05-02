@@ -1,6 +1,7 @@
 #!/usr/bin/env 
 
 import os
+import numpy
 
 from quoll.classification_pipeline.functions import nfold_cv_functions
 
@@ -9,15 +10,38 @@ class LCS_classifier:
     def __init__(self, directory):
         self.expdir = directory
         self.filesdir = False
-        self.classifications = False
-
-    def experiment(self,traininstances,trainlabels,testinstances=False,testlabels=False,vocabulary):
-        if testinstances:
-            trainparts = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
-            testparts = self.prepare(testinstances,testlabels,vocabulary, 'test/')
-            self.classify(trainparts, testparts, self.expdir)
-        else: 
-            parts = self.prepare(traininstances,trainlabels,vocabulary)
+        self.classifications = []
+    
+    def experiment(self,traininstances,trainlabels,vocabulary,testinstances=False,testlabels=False):
+        self.filesdir = self.expdir + 'files/'
+        try:
+            os.mkdir(self.filesdir)
+        except:
+            print('filesdirectory already exists')
+        try:
+            if not os.path.exists('train'):
+                trainparts = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
+                with open('train', 'w', encoding = 'utf-8') as train:
+                    train.write('\n'.join(trainparts))            
+            else:
+                print('Trainfile already exists, skipping data preparation')
+            if not os.path.exists('test'):
+                testparts = self.prepare(testinstances,testlabels,vocabulary, 'test/')
+                with open('test', 'w', encoding = 'utf-8') as test:
+                    test.write('\n'.join(testparts))
+            else:
+                print('Testfile already exists, skipping data preparation')
+            self.classify(self.expdir)
+        except: 
+            print('Running 10-fold cross-validation')
+            if not os.path.exists('parts'):
+                parts = self.prepare(traininstances,trainlabels,vocabulary)
+                with open('parts','w',encoding='utf-8') as parts_out:
+                    parts_out.write('\n'.join(parts))
+            else:
+                with open('parts','r',encoding='utf-8') as parts_in:
+                    parts = parts_in.read().strip().split('\n')
+                print('Partsfile already exists, skipping data preparation')
             # perform tenfold on train
             folds = nfold_cv_functions.return_fold_indices(len(parts),10,1)
             for i, fold in enumerate(folds):
@@ -29,7 +53,11 @@ class LCS_classifier:
                 numparts = numpy.array(parts)
                 trainparts = list([numparts[indices] for j,indices in enumerate(folds) if j != i])
                 testparts = list(numparts[fold])
-                self.classify(trainparts, testparts, expdir)
+                with open('train','w',encoding='utf-8') as train_out:
+                    train_out.write('\n'.join(trainparts))
+                with open('test','w',encoding='utf-8') as test_out:
+                    test_out.write('\n'.join(testparts))
+                self.classify(expdir)
 
     def instance_2_ngrams(self,instance,vocabulary):
         return list(numpy.array(vocabulary)[list(instance.nonzero()[1])])
@@ -45,21 +73,17 @@ class LCS_classifier:
         # transform instances from vectors to vocabularylists
         instances_vocabulary = self.instances_2_ngrams(instances,vocabulary)
         # make directory to write files to
-        self.filesdir = self.expdir + 'files/'
-        try:
-            os.mkdir(self.filesdir)
-        except:
-            print('filesdirectory already exists')
         # make added directory
         if add_dir:
             add = add_dir
             try:
                 os.mkdir(self.filesdir + add)
-            print('added dir already exists')
+            except:
+                print('added dir already exists')
         else:
             add = ''
         # make chunks of 25000 from the data
-        data = zip(labels,instances_vocabulary)
+        data = list(zip(labels,instances_vocabulary))
         if len(data) > 25000:
             chunks = [list(t) for t in zip(*[iter(data)]*int(round(len(data) / 25000), 0))]
         else:
@@ -82,15 +106,15 @@ class LCS_classifier:
                 parts.append(filename + ' ' + label)
         return parts
 
-    def classify(self, trainparts, testparts, expdir):
-        with open('train', 'w', encoding = 'utf-8') as train:
-            train.write('\n'.join(trainparts))
-        with open('test', 'w', encoding = 'utf-8') as test:
-            test.write('\n'.join(testparts))
+    def classify(self,expdir):
         self.write_config()
         os.system('lcs --verbose')
         self.extract_performance()
-        os.system('mv * ' + expdir)
+        os.system('mv train ' + expdir)
+        os.system('mv data/ ' + expdir)
+        os.system('mv test* ' + expdir)
+        os.system('mv lcs* ' + expdir)
+        os.system('mv index/ ' + expdir)
 
     def extract_performance(self):
         with open('test.rnk') as rnk:

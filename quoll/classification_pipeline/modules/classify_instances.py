@@ -408,9 +408,9 @@ class BalancedWinnowClassifier(Task):
             vocabulary = infile.read().strip().split('\n')
 
         # train classifier
-        experiment_directory = '/'.join(self.in_train().path.split('/')[:-1])
+        experiment_directory = '/'.join(self.in_train().path.split('/')[:-1]) + '/'
         lcsc = LCS_classifier(experiment_directory)
-        lcsc.experiment(sparse_train_instances,trainlabels,sparse_test_instances,testlabels,vocabulary)
+        lcsc.experiment(sparse_train_instances,trainlabels,vocabulary,sparse_test_instances,testlabels)
         classifications = lcsc.classifications
 
         # write classifications to file
