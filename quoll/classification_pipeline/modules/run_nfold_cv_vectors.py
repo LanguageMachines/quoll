@@ -36,7 +36,7 @@ class NFoldCV(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, stepsize=self.stepsize)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, ordinal=self.ordinal)
@@ -208,7 +208,8 @@ class FoldVectorsTask(Task):
             svorim_path = classifier_args[0]
             yield ExperimentComponentSvorimVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, svorim_path=svorim_path)
         elif self.classifier == 'dtc':
-            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal)
+            minimum_per_class = int(classifier_args[0])
+            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal, minimum_per_class=minimum_per_class)
         else:
             yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
 
@@ -249,11 +250,21 @@ class ReportFolds(Task):
         all_performance = [performance_combined[0][0]] # headers
         label_performance = defaultdict(list)
         for p in performance_combined:
-            for i in range(1,len(p)): # labels 
+            for i in range(1,len(p)): # labels  
+                no_float = []
                 performance = []
                 label = p[i][0] # name of label
                 for j in range(1,len(p[i])): # report values
-                    performance.append(float(p[i][j]))
+                    if j not in no_float:
+                        try:
+                            performance.append(float(p[i][j]))
+                        except:
+                            no_float.append(j)
+                            performance.append('nan')
+                            for lp in label_performance[label]:
+                                lp[j] = 'nan'
+                    else:
+                        performance.append('nan')
                 label_performance[label].append(performance)
 
         # compute mean and sum per label
@@ -265,7 +276,10 @@ class ReportFolds(Task):
         for label in labels_order:
             average_performance = [label]
             for j in range(0,len(label_performance[label][0])-3):
-                average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
+                if label_performance[label][0][j] != 'nan':
+                    average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
+                else:
+                    average_performance.append('nan')
             for j in range(len(label_performance[label][0])-3,len(label_performance[label][0])):
                 average_performance.append(str(sum([int(p[j]) for p in label_performance[label]])))
             all_performance.append(average_performance)

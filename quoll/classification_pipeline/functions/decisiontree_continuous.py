@@ -18,12 +18,12 @@ class DecisionTreeContinuous:
         self.labels = []
         self.unique_labels = []
 
-    def fit(self,instances,labels):
+    def fit(self,instances,labels,minimum_split=5):
         self.train_instances=instances
         self.labels = labels
         # self.used_indices = []
         self.unique_labels = list(set(labels))
-        self.construct_tree(list(range(len(labels))),1)
+        self.construct_tree(list(range(len(labels))),1,minimum_split)
 
     def transform(self,instances):
         # predicted=[]
@@ -94,12 +94,13 @@ class DecisionTreeContinuous:
         else:
             return self.find_best_segmentation_binrec(target_num_segments,saved_thresholds,current_segments_labels,current_segments_thresholds,current_segments_featurevals)
 
-    def find_best_segmentation_binary(self,feature_values,thresholds,labels):
+    def find_best_segmentation_binary(self,feature_values,thresholds,labels,minimum_split):
         threshold_IG = []
         for threshold in thresholds:
-            segmentation = self.return_segmentation_binary(threshold,feature_values,labels)
-            groups = self.return_groups_segmentation(segmentation,labels)
-            threshold_IG.append([threshold,groups,self.calculateIG(groups,labels)])
+            segmentation = self.return_segmentation_binary(threshold,feature_values)
+            if len(segmentation[0]) >= minimum_split and len(segmentation[1]) > minimum_split:
+                groups = self.return_groups_segmentation(segmentation,labels)
+                threshold_IG.append([threshold,groups,self.calculateIG(groups,labels)])
         best = sorted(threshold_IG,key = lambda k : k[2],reverse=True)[0]
         return best
 
@@ -107,13 +108,13 @@ class DecisionTreeContinuous:
         segmentation = [[],[]]
         for i,fv in enumerate(feature_values):
             if fv <= threshold:
-                groups[0].append(i)
+                segmentation[0].append(i)
             else:
-                groups[1].append(i)
+                segmentation[1].append(i)
         return segmentation
 
     def return_groups_segmentation(self, segmentation, labels):
-        return [list(numpy.array(labels)[segmentation[0]]),list(numpy.array(labels)[segmentation[1]])]
+        return [list(np.array(labels)[segmentation[0]]),list(np.array(labels)[segmentation[1]])]
 
     def return_segmentations(self,thresholds,num_segments,max_value):
         segmentations = []
@@ -150,7 +151,7 @@ class DecisionTreeContinuous:
         infogain = current_entropy - sum(group_entropy)
         return infogain
        
-    def findSegmentationAndIG(self,instances,feature_index,labels):
+    def findSegmentationAndIG(self,instances,feature_index,labels,minimum_split):
         instances_column = instances[:,feature_index]
         feature_values = set(instances[:,feature_index])
         feature_values_sorted=sorted(feature_values)
@@ -161,26 +162,26 @@ class DecisionTreeContinuous:
         IG=[]
         try:
             # best_segmentation = self.find_best_segmentation_binrec(2,[],[labels],[thresholds],[list(instances_column)])
-            best_segmentation = self.find_best_segmentation_binary(feature_values,thresholds,labels)
+            best_segmentation = self.find_best_segmentation_binary(feature_values,thresholds,labels,minimum_split)
             # best_segmentation_begin_end = [0] + sorted(best_segmentation) + [max(feature_values_sorted)+1000]
             # best_segmentation_formatted = [[best_segmentation_begin_end[i],best_segmentation_begin_end[i+1]] for i in range(len(best_segmentation_begin_end)-1)]
-            # groups = self.apply_segmentation(best_segmentation_formatted,list(instances_column))
+        # groups = self.apply_segmentation(best_segmentation_formatted,list(instances_column))
             # labelgroups=[]
             # for group in groups:
             #     labelgroups.append([labels[i] for i in group])
-            # maxIG = self.calculateIG(labelgroups,labels) 
+        # maxIG = self.calculateIG(labelgroups,labels) 
         except:
-            best_segmentation_formatted = 0
-            maxIG = 0
-        return best_segmentation_formatted,maxIG
+            best_segmentation = [0,0,0]
+        #     maxIG = 0
+        # return best_segmentation_formatted,maxIG
+        return best_segmentation
             
-    def construct_tree(self,selection,node_index):
-            # print('node index is ',node_index)
-            # print('TREE UPTO NOW:',self.Tree)
+    def construct_tree(self,selection,node_index,minimum_split):
+            print('node index is ',node_index)
+            print('TREE UPTO NOW:',self.Tree)
             labels = list(np.array(self.labels)[selection])
             label_instances = [labels.count(label) for label in self.unique_labels]
-            # print(label_instances)
-            # print(self.used_indices)
+            print(label_instances)
             if sum(i > 0 for i in label_instances) == 1: # all instances in one category
                 self.Tree[node_index] = [False,False,sorted([[label,labels.count(label)] for label in self.unique_labels],key = lambda k : k[1],reverse=True)[0][0]]
                 return
@@ -194,17 +195,21 @@ class DecisionTreeContinuous:
             for feature_index in range(0,self.train_instances.shape[1]):
                 # if not feature_index in self.used_indices:
                 # print('generating segmentation for feature index',feature_index)
-                segm,IG=self.findSegmentationAndIG(instances,feature_index,labels)
-                # print('Done. segmentation:',segm,', Infogain:',IG)
+                segm=self.findSegmentationAndIG(instances,feature_index,labels,minimum_split)
+                segmentation = segm[0]
+                groups = segm[1]
+                IG = segm[2]
+                # print('Done. segmentation:',segmentation,', Infogain:',IG)
                 IGA.append(IG)
-                feature_segmentations.append([feature_index,segm,IG])
+                feature_segmentations.append([feature_index,segmentation,IG])
 
             # print('All IGs:',IGA)
                 
             best = sorted(feature_segmentations,key=lambda k : k[2],reverse=True)[0]
             maxIG = best[2]
+            # print('best',best)
             if maxIG == 0: # no improvement
-                [False,False,sorted([[label,labels.count(label)] for label in self.unique_labels],key = lambda k : k[1],reverse=True)[0][0]]
+                self.Tree[node_index] = [False,False,sorted([[label,labels.count(label)] for label in self.unique_labels],key = lambda k : k[1],reverse=True)[0][0]]
                 return 
             feature_index=best[0]
             # print('Best feature index is',feature_index)
@@ -232,7 +237,7 @@ class DecisionTreeContinuous:
                 # print('making new tree node, current node',node_index,'group index',i,'num labels',len(self.unique_labels),'calculated',len(self.unique_labels)*node_index+i)
                 new_node_index = len(self.unique_labels)*node_index+i
                 self.Tree[new_node_index] = [False,False,self.Tree[node_index][2]]
-                self.construct_tree(group_selection,len(self.unique_labels)*node_index+i)
+                self.construct_tree(group_selection,len(self.unique_labels)*node_index+i,minimum_split)
         
     def predict(self,selection,node_index):
 
@@ -241,21 +246,21 @@ class DecisionTreeContinuous:
             feature_index = node[0]
             instances_column = self.test_instances[selection,feature_index]
             # segmentation = node[1]
-            groups = return_segmentation_binary(node[1],instances_column)
+            groups = self.return_segmentation_binary(node[1],instances_column)
             # groups = self.apply_segmentation(segmentation,instances_column)
-            if sum(len(g) > 0 for g in groups) == 1: # one group is filled
-                predicted_label = node[2]
-                for i in selection:
-                    self.predictions[i] = predicted_label
-                    # print('predicted instance',i)
-            else:
-                for i,group in enumerate(groups):
-                    if len(group) == 0:
-                        continue
-                    else:
-                        selection_group = [selection[j] for j in group]
+            # if sum(len(g) > 0 for g in groups) == 1: # one group is filled
+            #     predicted_label = node[2]
+            #     for i in selection:
+            #         self.predictions[i] = predicted_label
+            #         # print('predicted instance',i)
+            # else:
+            for i,group in enumerate(groups):
+                if len(group) == 0:
+                    continue
+                else:
+                    selection_group = [selection[j] for j in group]
                         # print('starting prediction for group',selection_group)
-                        self.predict(selection_group,len(self.unique_labels)*node_index+i)
+                    self.predict(selection_group,len(self.unique_labels)*node_index+i)
         else:
             predicted_label = node[2]
             for i in selection:

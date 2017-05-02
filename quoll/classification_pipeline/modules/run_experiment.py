@@ -130,13 +130,14 @@ class ExperimentComponentDTCVector(WorkflowComponent):
     featurenames = Parameter()
 
     ordinal = BoolParameter()
+    minimum_per_class = IntParameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        classifier = workflow.new_task('dtc_classifier', classify_instances.DTCClassifier, autopass=False)
+        classifier = workflow.new_task('dtc_classifier', classify_instances.DTCClassifier, minimum_per_class=self.minimum_per_class, autopass=False)
         classifier.in_train = input_feeds['train']
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['test']

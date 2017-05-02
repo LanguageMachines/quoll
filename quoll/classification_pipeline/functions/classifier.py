@@ -137,7 +137,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
-class LogisticRegressionClassifier(AbstractSKLearnClassifier):
+# class LogisticRegressionClassifier(AbstractSKLearnClassifier):
     
 
 class TreeClassifier(AbstractSKLearnClassifier):

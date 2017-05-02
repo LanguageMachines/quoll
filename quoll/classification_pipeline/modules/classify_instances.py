@@ -258,12 +258,14 @@ class TrainApplyDTC(WorkflowComponent):
     testvectors = Parameter()
     featurenames = Parameter()
 
+    minimum_per_class = IntParameter()
+
     def accepts(self):
         return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        classifier = workflow.new_task('dtc_classifier', DTCClassifier, autopass=True)
+        classifier = workflow.new_task('dtc_classifier', DTCClassifier, autopass=True, minimum_per_class=self.minimum_per_class)
         classifier.in_train = input_feeds['trainvectors']
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['testvectors']
@@ -277,6 +279,8 @@ class DTCClassifier(Task):
     in_labels = InputSlot()
     in_test = InputSlot()
     in_featurenames = InputSlot()
+
+    minimum_per_class = IntParameter()
 
     def out_classifications(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.dtc.classifications.txt')
@@ -311,7 +315,7 @@ class DTCClassifier(Task):
 
         # train classifier
         dtc = DecisionTreeContinuous()
-        dtc.fit(array_train_instances,labels)
+        dtc.fit(array_train_instances,labels,self.minimum_per_class)
 
         # apply classifier
         predictions = dtc.transform(array_test_instances)
@@ -330,7 +334,8 @@ class DTCClassifier(Task):
                     best_features.append(feature_index)
                 featurename = featurenames[feature_index] if item[0] else 'LAST'
                 segmentation = item[1][1]
-                st = '\t'.join([' - '.join([str(round(x[0],10)),str(round(x[1],10))]) for x in segmentation]) if segmentation else 'LAST'
+                # st = '\t'.join([' - '.join([str(round(x[0],10)),str(round(x[1],10))]) for x in segmentation]) if segmentation else 'LAST'
+                st = str(segmentation) if segmentation else 'LAST'
                 label = item[1][2]
                 tree_out.write('\n'.join([node,featurename,st,label]) + '\n')
 
