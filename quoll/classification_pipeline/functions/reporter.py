@@ -5,7 +5,7 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, probabilities, labels=False, ordinal=False, documents=False):
+    def __init__(self, predictions, probabilities, labels=False, unique_labels = False, ordinal=False, documents=False):
         self.predictions = predictions
         if len(predictions) != len(probabilities):
             print('The number of probabilities (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -24,7 +24,10 @@ class Reporter:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
             self.save_classifier_output(self.labels, self.predictions)
-            self.unique_labels = list(set(self.labels))
+            if unique_labels:
+                self.unique_labels = unique_labels
+            else:
+                self.unique_labels = list(set(self.labels))
         else:
             self.labels = ['-'] * len(self.predictions)
             self.unique_labels = ['-']
@@ -58,7 +61,10 @@ class Reporter:
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
         for label in self.unique_labels:
-            performance.append(self.assess_ordinal_label_performance(label))
+            if label in self.labels:
+                performance.append(self.assess_ordinal_label_performance(label))
+            else:
+                performance.append([0,0,0,0,0,0,0,0,0,0,0,0])
         performance.append(self.assess_overall_ordinal_performance())
         return performance
 

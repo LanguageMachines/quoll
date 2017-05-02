@@ -146,6 +146,7 @@ class ExperimentComponentDTCVector(WorkflowComponent):
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
         reporter.in_predictions = classifier.out_classifications
         reporter.in_labels = input_feeds['testlabels']
+        reporter.in_trainlabels = input_feeds['trainlabels']
         reporter.in_documents = input_feeds['documents']
 
         return reporter
