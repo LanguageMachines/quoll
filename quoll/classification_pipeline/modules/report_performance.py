@@ -66,14 +66,6 @@ class ReportPerformance(Task):
         lw = linewriter.Linewriter(predictions_by_document)
         lw.write_csv(self.out_docpredictions().path)
 
-        # report confusion matrix
-        if not self.ordinal:
-            confusion_matrix = rp.return_confusion_matrix()
-        else:
-            confusion_matrix = '-'
-        with open(self.out_confusionmatrix().path,'w') as cm_out:
-            cm_out.write(confusion_matrix)
-
         # report fps per label
         self.setup_output_dir(self.out_fps_dir().path)
         for label in list(set(labels)):
@@ -89,6 +81,13 @@ class ReportPerformance(Task):
             outfile = self.out_tps_dir().path + '/' + label + '.csv'
             lw = linewriter.Linewriter(ranked_tps)
             lw.write_csv(outfile)
+
+        # report confusion matrix
+        if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
+            rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
+        confusion_matrix = rp.return_confusion_matrix()
+        with open(self.out_confusionmatrix().path,'w') as cm_out:
+            cm_out.write(confusion_matrix)
 
 class ReportDocpredictions(Task):
 

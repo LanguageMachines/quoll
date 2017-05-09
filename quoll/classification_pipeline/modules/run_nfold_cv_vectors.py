@@ -8,6 +8,7 @@ import glob
 import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
+import quoll.classification_pipeline.functions.reporter as reporter
 
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector, ExperimentComponentSvorimVector, ExperimentComponentDTCVector 
@@ -232,11 +233,25 @@ class ReportFolds(Task):
 
     in_expdirectory = InputSlot()
 
+    ordinal = BoolParameter()
+
+    def out_macro_performance(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.macro_performance.csv')  
+
     def out_performance(self):
         return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.performance.csv')    
 
     def out_docpredictions(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.docpredictions.csv')    
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.docpredictions.csv')
+
+    def out_confusionmatrix(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.confusion_matrix.csv')
+
+    def out_fps_dir(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_fps')
+
+    def out_tps_dir(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_tps')
  
     def run(self):
 
@@ -286,9 +301,49 @@ class ReportFolds(Task):
             all_performance.append(average_performance)
 
         lw = linewriter.Linewriter(all_performance)
-        lw.write_csv(self.out_performance().path)
+        lw.write_csv(self.out_macro_performance().path)
 
         # write predictions per document
-        docpredictions = sum([dr.parse_csv(docprediction_file) for docprediction_file in docprediction_files], [])
+        docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
+        documents = [line[0] for line in docpredictions]
+        labels = [line[3] for line in docpredictions]
+        unique_labels = sorted(list(set(labels)))
+        predictions = [line[4] for line in docpredictions]
+        probabilities = [line[5] for line in docpredictions]
+
+        # initiate reporter
+        rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, self.ordinal, documents)
+
+        # report performance
+        if self.ordinal:
+            performance = rp.assess_ordinal_performance()
+        else:
+            performance = rp.assess_performance()
+        lw = linewriter.Linewriter(performance)
+        lw.write_csv(self.out_performance().path)
+
+        # report fps per label
+        self.setup_output_dir(self.out_fps_dir().path)
+        for label in list(set(labels)):
+            ranked_fps = rp.return_ranked_fps(label)
+            outfile = self.out_fps_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_fps)
+            lw.write_csv(outfile)
+
+        # report fps per label
+        self.setup_output_dir(self.out_tps_dir().path)
+        for label in list(set(labels)):
+            ranked_tps = rp.return_ranked_tps(label)
+            outfile = self.out_tps_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_tps)
+            lw.write_csv(outfile)
+
+        # report confusion matrix
+        if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
+            rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
+        confusion_matrix = rp.return_confusion_matrix()
+        with open(self.out_confusionmatrix().path,'w') as cm_out:
+            cm_out.write(confusion_matrix)
+
         lw = linewriter.Linewriter(docpredictions)
         lw.write_csv(self.out_docpredictions().path)
