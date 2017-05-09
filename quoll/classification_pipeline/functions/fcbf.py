@@ -141,12 +141,18 @@ def fcbf(X, y, thresh):
     sbest : 2-D ndarray
         An array containing SU[i,c] values and feature index i.
     """
+    log = []
+
     n = X.shape[1]
     slist = np.zeros((n, 3))
     slist[:, -1] = 1
 
     # identify relevant features
     slist[:,0] = c_correlation(X, y) # compute 'C-correlation'
+
+    print('DIR slist:')
+    print(dir(slist))
+
     idx = slist[:,0].argsort()[::-1]
     slist = slist[idx, ]
     slist[:,1] = idx
@@ -164,28 +170,33 @@ def fcbf(X, y, thresh):
     cache = {}
     m = len(slist)
     p_su, p, p_idx = getFirstElement(slist)
+    log.append('Going through all features\n')
     for i in range(m):
-        # print(i,'of',m)
         q_su, q, q_idx = getNextElement(slist, p_idx)
+        log.append('START OF LOOP, i = ' + str(i))
         if q:
             while q:
+                log.append('q_su: ' + str(q_su) + ', q: ' + str(q) + 'q_idx: ' + str(q_idx))
                 if (p, q) in cache:
                     pq_su = cache[(p,q)]
                 else:
                     pq_su = symmetrical_uncertainty(X[:,p], X[:,q])
                     cache[(p,q)] = pq_su
                     # print(p,q,pq_su,q_su)
+                log.append('pq_su: ' + str(pq_su) + ';\t')
                 if pq_su >= q_su:
-                    # print('remove')
+                    log.append('pq_su > q_su, removing')
                     slist = removeElement(slist, q_idx)
                 q_su, q, q_idx = getNextElement(slist, q_idx)
-                
         p_su, p, p_idx = getNextElement(slist, p_idx)
+        log.append('Getting new p; p_su=' + str(p_su) + ', p=' + str(p) + ', p_idx=' + str(p_idx))
         if not p_idx:
+            log.append('No p_idx, breaking from loop')
+            log.append('')
             break
     
     sbest = slist[slist[:,2]>0, :2]
-    return sbest
+    return sbest, log
 
 def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
     """
@@ -232,7 +243,7 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
         # try:
         print('Performing FCBF selection. Please wait ...')
         print('Y',y,'Thresh',thresh)
-        sbest = fcbf(X, y, thresh)
+        sbest, log = fcbf(X, y, thresh)
         print('Done!')
         print('\n#Features selected: {0}'.format(len(sbest)))
         print('Selected feature indices:\n{0}'.format(sbest))
@@ -246,6 +257,9 @@ def fcbf_wrapper(inpath, thresh, delim=',', header=False, classAt=-1):
             print('Error encountered while saving file on line 243:')
         # except Exception:
         #     print('Error line 245')           
+        outpath = os.path.split(inpath)[0] + '/log_' + os.path.split(inpath)[1]
+        with open(outpath,'w',encoding='utf-8') as log_out:
+            log_out.write('\n'.join(log))
     else:
         print('The file you specified does not exist.')
     
