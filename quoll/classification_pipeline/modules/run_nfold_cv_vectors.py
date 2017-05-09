@@ -209,7 +209,8 @@ class FoldVectorsTask(Task):
             yield ExperimentComponentSvorimVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, svorim_path=svorim_path)
         elif self.classifier == 'dtc':
             minimum_per_class = int(classifier_args[0])
-            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal, minimum_per_class=minimum_per_class)
+            minimum_IG = classifier_args[1]
+            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal, minimum_per_class=minimum_per_class, minimum_IG=minimum_IG)
         else:
             yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
 

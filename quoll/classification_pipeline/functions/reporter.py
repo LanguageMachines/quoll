@@ -16,18 +16,19 @@ class Reporter:
             if len(predictions) != len(labels):
                 print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
                 quit()
+            if unique_labels:
+                self.unique_labels = unique_labels
+            else:
+                self.unique_labels = list(set(self.labels))
             if ordinal:
                 self.ce = evaluation.OrdinalEvaluation()
                 self.labels = [int(label) for label in labels]
+                self.unique_labels = [int(label) for label in unique_labels]
                 self.predictions = [int(prediction) for prediction in predictions]
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
             self.save_classifier_output(self.labels, self.predictions)
-            if unique_labels:
-                self.unique_labels = unique_labels
-            else:
-                self.unique_labels = list(set(self.labels))
         else:
             self.labels = ['-'] * len(self.predictions)
             self.unique_labels = ['-']
@@ -60,11 +61,11 @@ class Reporter:
     def assess_ordinal_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
-        for label in self.unique_labels:
-            if label in self.labels:
+        for label in sorted(self.unique_labels):
+            if label in self.labels or label in self.predictions:
                 performance.append(self.assess_ordinal_label_performance(label))
             else:
-                performance.append([0,0,0,0,0,0,0,0,0,0,0,0])
+                performance.append([label,0,0,0,0,0,0,0,0,0,0,0,0])
         performance.append(self.assess_overall_ordinal_performance())
         return performance
 
@@ -81,8 +82,11 @@ class Reporter:
     def assess_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
-        for label in self.unique_labels:
-            performance.append(self.assess_label_performance(label))
+        for label in sorted(self.unique_labels):
+            if label in self.labels or label in self.predictions:
+                performance.append(self.assess_label_performance(label))
+            else:
+                performance.append([label,0,0,0,0,0,0,0,0,0,0,0,0])
         performance.append(self.assess_micro_performance())
         return performance
 

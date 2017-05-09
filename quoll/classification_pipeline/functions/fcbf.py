@@ -165,7 +165,7 @@ def fcbf(X, y, thresh):
     m = len(slist)
     p_su, p, p_idx = getFirstElement(slist)
     for i in range(m):
-        print(i,'of',m)
+        # print(i,'of',m)
         q_su, q, q_idx = getNextElement(slist, p_idx)
         if q:
             while q:
@@ -174,9 +174,9 @@ def fcbf(X, y, thresh):
                 else:
                     pq_su = symmetrical_uncertainty(X[:,p], X[:,q])
                     cache[(p,q)] = pq_su
-                    print(p,q,pq_su,q_su)
+                    # print(p,q,pq_su,q_su)
                 if pq_su >= q_su:
-                    print('remove')
+                    # print('remove')
                     slist = removeElement(slist, q_idx)
                 q_su, q, q_idx = getNextElement(slist, q_idx)
                 

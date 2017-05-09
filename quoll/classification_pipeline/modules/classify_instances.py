@@ -281,6 +281,7 @@ class DTCClassifier(Task):
     in_featurenames = InputSlot()
 
     minimum_per_class = IntParameter()
+    minimum_IG = Parameter()
 
     def out_classifications(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.dtc.classifications.txt')
@@ -315,7 +316,7 @@ class DTCClassifier(Task):
 
         # train classifier
         dtc = DecisionTreeContinuous()
-        dtc.fit(array_train_instances,labels,self.minimum_per_class)
+        dtc.fit(array_train_instances,labels,self.minimum_per_class,float(self.minimum_IG))
 
         # apply classifier
         predictions = dtc.transform(array_test_instances)
@@ -337,7 +338,7 @@ class DTCClassifier(Task):
                 # st = '\t'.join([' - '.join([str(round(x[0],10)),str(round(x[1],10))]) for x in segmentation]) if segmentation else 'LAST'
                 st = str(segmentation) if segmentation else 'LAST'
                 label = item[1][2]
-                tree_out.write('\n'.join([node,featurename,st,label]) + '\n')
+                tree_out.write('\n'.join([node,featurename,st,label]) + '\n\n')
 
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:

@@ -18,12 +18,12 @@ class DecisionTreeContinuous:
         self.labels = []
         self.unique_labels = []
 
-    def fit(self,instances,labels,minimum_split=5):
+    def fit(self,instances,labels,minimum_split=5,minimum_IG=0):
         self.train_instances=instances
         self.labels = labels
         # self.used_indices = []
         self.unique_labels = list(set(labels))
-        self.construct_tree(list(range(len(labels))),1,minimum_split)
+        self.construct_tree(list(range(len(labels))),1,minimum_split,minimum_IG)
 
     def transform(self,instances):
         # predicted=[]
@@ -176,12 +176,12 @@ class DecisionTreeContinuous:
         # return best_segmentation_formatted,maxIG
         return best_segmentation
             
-    def construct_tree(self,selection,node_index,minimum_split):
-            print('node index is ',node_index)
-            print('TREE UPTO NOW:',self.Tree)
+    def construct_tree(self,selection,node_index,minimum_split,minimum_IG):
+            # print('node index is ',node_index)
+            # print('TREE UPTO NOW:',self.Tree)
             labels = list(np.array(self.labels)[selection])
             label_instances = [labels.count(label) for label in self.unique_labels]
-            print(label_instances)
+            # print(label_instances)
             if sum(i > 0 for i in label_instances) == 1: # all instances in one category
                 self.Tree[node_index] = [False,False,sorted([[label,labels.count(label)] for label in self.unique_labels],key = lambda k : k[1],reverse=True)[0][0]]
                 return
@@ -208,7 +208,7 @@ class DecisionTreeContinuous:
             best = sorted(feature_segmentations,key=lambda k : k[2],reverse=True)[0]
             maxIG = best[2]
             # print('best',best)
-            if maxIG == 0: # no improvement
+            if maxIG < minimum_IG: # no improvement
                 self.Tree[node_index] = [False,False,sorted([[label,labels.count(label)] for label in self.unique_labels],key = lambda k : k[1],reverse=True)[0][0]]
                 return 
             feature_index=best[0]
@@ -237,7 +237,7 @@ class DecisionTreeContinuous:
                 # print('making new tree node, current node',node_index,'group index',i,'num labels',len(self.unique_labels),'calculated',len(self.unique_labels)*node_index+i)
                 new_node_index = len(self.unique_labels)*node_index+i
                 self.Tree[new_node_index] = [False,False,self.Tree[node_index][2]]
-                self.construct_tree(group_selection,len(self.unique_labels)*node_index+i,minimum_split)
+                self.construct_tree(group_selection,len(self.unique_labels)*node_index+i,minimum_split,minimum_IG)
         
     def predict(self,selection,node_index):
 
