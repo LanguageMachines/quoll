@@ -10,7 +10,7 @@ import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
 
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentFCBF
-from quoll.classification_pipeline.modules.run_nfold_cv_lin import ReportFolds
+from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFolds
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 ################################################################################
@@ -45,7 +45,7 @@ class NFoldCVFCBF(WorkflowComponent):
         fold_runner.in_documents = input_feeds['documents']        
         fold_runner.in_featurenames = input_feeds['featurenames']
 
-        folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
+        folds_reporter = workflow.new_task('report_folds', ReportFolds, ordinal=True, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
 
         return folds_reporter

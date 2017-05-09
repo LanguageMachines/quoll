@@ -48,7 +48,7 @@ class NFoldCV(WorkflowComponent):
         fold_runner.in_classifier_args = input_feeds['classifier_args']
         fold_runner.in_featurenames = input_feeds['featurenames']
 
-        folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
+        folds_reporter = workflow.new_task('report_folds', ReportFolds, ordinal=self.ordinal, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
 
         return folds_reporter
@@ -306,10 +306,10 @@ class ReportFolds(Task):
         # write predictions per document
         docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
         documents = [line[0] for line in docpredictions]
-        labels = [line[3] for line in docpredictions]
+        labels = [line[1] for line in docpredictions]
         unique_labels = sorted(list(set(labels)))
-        predictions = [line[4] for line in docpredictions]
-        probabilities = [line[5] for line in docpredictions]
+        predictions = [line[2] for line in docpredictions]
+        probabilities = [line[3] for line in docpredictions]
 
         # initiate reporter
         rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, self.ordinal, documents)
