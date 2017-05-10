@@ -118,8 +118,12 @@ def c_correlation(X, y):
         Symmetric Uncertainty (SU) values for each feature.
     """
     su = np.zeros(X.shape[1])
+    # c_log = []                  
     for i in np.arange(X.shape[1]):
+        # c_log.append('SU ' + str(X[:,i]) + ' - ' + str(y) + ':')
         su[i] = symmetrical_uncertainty(X[:,i], y)
+        # c_log.append(str(su[i]))
+    # return su, c_log
     return su
 
 def fcbf(X, y, thresh):
@@ -148,11 +152,18 @@ def fcbf(X, y, thresh):
     slist[:, -1] = 1
 
     # identify relevant features
+    log.append('COMPUTING FEATURE-CLASS CORRELATIONS')
+    log.append('X:')
+    log.append(np.array2string(X))
+    log.append('y:')
+    log.append(np.array2string(y))
+    # slist[:,0], c_log = c_correlation(X, y) # compute 'C-correlation'
     slist[:,0] = c_correlation(X, y) # compute 'C-correlation'
-
-    print('DIR slist:')
-    print(dir(slist))
-
+    # log.extend(c_log)
+    log.append('')
+    log.append('START CORRELATIONS:')
+    log.append(np.array2string(slist[:,0]))
+    log.append('\n')
     idx = slist[:,0].argsort()[::-1]
     slist = slist[idx, ]
     slist[:,1] = idx
@@ -163,20 +174,24 @@ def fcbf(X, y, thresh):
         print('No relevant features selected for given threshold.')
         print('Please lower the threshold and try again.')
         exit()
-
+        
     slist = slist[slist[:,0]>thresh,:] # desc. ordered per SU[i,c]
+    log.append('ABOVE THRESHOLD:')
+    log.append(np.array2string(slist[:,0]))
+    log.append('\n')
 
     # identify redundant features among the relevant ones
     cache = {}
     m = len(slist)
     p_su, p, p_idx = getFirstElement(slist)
+    log.append('Getting first p; p_su=' + str(p_su) + ', p=' + str(p) + ', p_idx=' + str(p_idx))
     log.append('Going through all features\n')
     for i in range(m):
         q_su, q, q_idx = getNextElement(slist, p_idx)
         log.append('START OF LOOP, i = ' + str(i))
         if q:
             while q:
-                log.append('q_su: ' + str(q_su) + ', q: ' + str(q) + 'q_idx: ' + str(q_idx))
+                log.append('q_su: ' + str(q_su) + ', q: ' + str(q) + ', q_idx: ' + str(q_idx))
                 if (p, q) in cache:
                     pq_su = cache[(p,q)]
                 else:
