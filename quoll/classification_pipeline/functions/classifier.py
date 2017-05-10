@@ -137,8 +137,59 @@ class SVMClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
-# class LogisticRegressionClassifier(AbstractSKLearnClassifier):
-    
+class LogisticRegressionClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+
+    def train_classifier(self, trainvectors, labels, c='', solver='', dual='', penalty='', multiclass='', max_iterations=100, iterations=10):
+        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+            parameters = ['estimator__C', 'estimator__solver', 'estimator__dual', 'estimator__penalty', 'estimator__multi_class']
+            multi = True
+        else: # only two classes to distinguish
+            parameters = ['C', 'solver', 'dual', 'penalty', 'multi_class']
+            multi = False
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(x) for x in c.split()]
+        solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == '' else [s for  s in solver.split()]
+        dual_values = [True, False] if dual == '' else [int(dual)] # 1 or 0
+        penalty_values = ['l1', 'l2'] if penalty == '' else [penalty]
+        multiclass_values = ['ovr', 'multinomial'] if multiclass == '' else [multiclass]
+        grid_values = [c_values, solver_values, dual_values, penalty_values, multiclass_values]
+        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
+            settings = {}
+            for i, parameter in enumerate(parameters):
+                settings[parameter] = grid_values[i][0]
+        else: # try different parameter combinations
+            iterations=int(iterations)
+            param_grid = {}
+            for i, parameter in enumerate(parameters):
+                param_grid[parameter] = grid_values[i]
+            model = linear_model.LogisticRegression()
+            if multi:
+                model = OutputCodeClassifier(model)
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
+            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            settings = paramsearch.best_params_
+        # train a logistic regression classifier with the settings that led to the best performance
+        self.model = linear_model.LogisticRegression(
+           C = settings[parameters[0]],
+           solver = settings[parameters[1]],
+           dual = settings[parameters[2]],
+           penalty = settings[parameters[3]],
+           multi_class = settings[parameters[4]],
+           max_iter = max_iterations,
+           verbose = 2
+           )
+        if multi:
+            self.model = OutputCodeClassifier(self.model)
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
 class TreeClassifier(AbstractSKLearnClassifier):
 
