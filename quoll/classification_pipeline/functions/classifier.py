@@ -191,6 +191,16 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             self.model = OutputCodeClassifier(self.model)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
+    def return_classifier(self):
+        return self.model
+
+    def return_model_insights(self):
+        return [['feature_weights.txt','\n'.join([' '.join(l) for l in self.model.coef_.T.tolist()])]]
+
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
+
 class TreeClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
