@@ -68,7 +68,7 @@ class RepeatExperimentTask(Task):
     ordinal = BoolParameter()
 
     def out_repeat_directory(self):
-        return self.outputfrominput(inputformat='trainvectors', stripextension='.vectors.npz', addextension='.repeats')
+        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.repeats')
         
     def run(self):
 

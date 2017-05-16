@@ -60,10 +60,13 @@ class TrainClassifier(Task):
         model = clf.return_classifier()
         with open(self.out_model().path, 'wb') as fid:
             pickle.dump(model, fid)
-        model_insights = clf.return_model_insights()
-        for mi in model_insights:
-            with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
-                outfile.write(mi[1])
+        try:
+            model_insights = clf.return_model_insights()
+            for mi in model_insights:
+                with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
+                    outfile.write(mi[1])
+        except:
+            print('No model insights returned.')
 
         # save label encoding
         label_encoding = clf.return_label_encoding(trainlabels)
