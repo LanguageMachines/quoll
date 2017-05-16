@@ -5,8 +5,9 @@ from scipy import sparse
 
 import quoll.classification_pipeline.functions.vectorizer as vectorizer
 
+  
 ################################################################################
-###Component to thread the tasks together
+###Feature ranker
 ################################################################################
 
 @registercomponent
@@ -27,11 +28,6 @@ class RankFeaturesOrdinal(WorkflowComponent):
         feature_ranker.in_featurenames = input_feeds['featurenames']
 
         return feature_ranker
-
-    
-################################################################################
-###Feature ranker
-################################################################################
 
 class RankFeaturesOrdinalTask(Task):
 
@@ -62,4 +58,53 @@ class RankFeaturesOrdinalTask(Task):
 
         # write to file
         with open(self.out_ranked_features().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join(['\t'.join([fn[fc[0]],str(fc[2]),str(fc[3])]) for fc in sorted_feature_correlation]))
+            out.write('\n'.join(['\t'.join([fc[0],fn[fc[0]],str(fc[2]),str(fc[3])]) for fc in sorted_feature_correlation]))
+
+
+    
+################################################################################
+###Feature correlation 
+################################################################################
+
+@registercomponent
+class CalculateFeatureCorrelation(WorkflowComponent):
+    
+    vectors = Parameter()
+    featurenames = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+    
+    def setup(self, workflow, input_feeds):
+
+        feature_correlation = workflow.new_task('feature_correlation',CalculateFeatureCorrelationTask,autopass=True)
+        feature_correlation.in_vectors = input_feeds['vectors']
+        feature_correlation.in_featurenames = input_feeds['featurenames']
+
+        return feature_correlation
+
+class CalculateFeatureCorrelationTask(Task):
+
+    in_vectors = InputSlot()
+    in_featurenames = InputSlot()
+
+    def out_feature_correlation(self):
+        return self.outputfrominput(inputformat='featurenames', stripextension='.txt', addextension='.correlations.txt')
+
+    def run(self):
+
+        # open instances
+        loader = numpy.load(self.in_vectors().path)
+        instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load feature names
+        with open(self.in_featurenames().path,'r',encoding='utf-8') as infile:
+            fn = infile.read().strip().split('\n')
+
+        # calculate feature correlations
+        feature_correlation = vectorizer.calculate_feature_correlation(instances)
+
+        # write to file
+        with open(self.out_feature_correlation().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(['\t'.join([str(fc[0]),str(fc[1]),fn[fc[0]],fn[fc[1]],str(fc[2]),str(fc[3]),str(fc[4])]) for fc in sorted_feature_correlation]))
+
