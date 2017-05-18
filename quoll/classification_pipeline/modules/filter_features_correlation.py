@@ -1,5 +1,6 @@
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
+from collections import defaultdict
 import numpy
 from scipy import sparse
 
@@ -123,10 +124,10 @@ class FilterFeaturesFTask(Task):
     threshold_correlation = Parameter()
 
     def out_filtered_features(self):
-        return self.outputfrominput(inputformat='featrank', stripextension='.ranked.txt', addextension='.filtered_features.txt')
+        return self.outputfrominput(inputformat='featstrength', stripextension='.ranked.txt', addextension='.filtered_features.txt')
 
     def out_filtered_features_index(self):
-        return self.outputfrominput(inputformat='featrank', stripextension='.ranked.txt', addextension='.filtered_features_indices.txt')
+        return self.outputfrominput(inputformat='featstrength', stripextension='.ranked.txt', addextension='.filtered_features_indices.txt')
       
     def out_filter_log(self):
         return self.outputfrominput(inputformat='featstrength', stripextension='.ranked.txt', addextension='.filtered_features_log.txt')
@@ -139,11 +140,11 @@ class FilterFeaturesFTask(Task):
 
         # open feature ranks
         feature_strength = {}
-        with open(self.in_featrank().path,'r',encoding='utf-8') as infile:
+        with open(self.in_featstrength().path,'r',encoding='utf-8') as infile:
             feature_ranks = infile.read().strip().split('\n')
             for f in feature_ranks:
                 data = f.split('\t')
-                feature_strength[int(f[0])] = float(f[2])
+                feature_strength[int(data[0])] = abs(float(data[2]))
 
         # open feature correlation
         featcorr = defaultdict(lambda : {})
@@ -160,20 +161,16 @@ class FilterFeaturesFTask(Task):
         # filter features
         filtered_features, log = vectorizer.filter_features_correlation_f(feature_strength,featcorr,float(self.threshold_strength),float(self.threshold_correlation))
 
-        # select top n
-        if self.cutoff > 0:
-            filtered_features = filtered_features[:self.cutoff]
-
         # obtain names of filtered features
         filtered_features_names = [fn[feature_index] for feature_index in filtered_features]
 
         # write filtered features
         with open(self.out_filtered_features().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join([f.strip() for f in filtered_feature_names]))
+            out.write('\n'.join([f.strip() for f in filtered_features_names]))
 
         # write filtered feature indices
         with open(self.out_filtered_features_index().path,'w',encoding='utf-8') as out:
-            out.write(' '.join([str(i) for i in filtered_features_indices]))
+            out.write(' '.join([str(i) for i in filtered_features]))
 
         # write log
         with open(self.out_filter_log().path,'w',encoding='utf-8') as out:

@@ -221,7 +221,7 @@ class ExperimentComponentFilter(WorkflowComponent):
     svorim_path = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurecorrelation', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -231,10 +231,10 @@ class ExperimentComponentFilter(WorkflowComponent):
         feature_ranker.in_featurenames = input_feeds['featurenames']
 
         feature_correlation = workflow.new_task('feature_correlation',rank_features_ordinal_correlation.CalculateFeatureCorrelationTask,autopass=True)
-        feature_correlation.in_vectors = input_feeds['vectors']
+        feature_correlation.in_vectors = input_feeds['train']
         feature_correlation.in_featurenames = input_feeds['featurenames']
 
-        feature_filter = workflow.new_task('filter_features',FilterFeaturesFTask,autopass=True, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
+        feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesFTask,autopass=True, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
         feature_filter.in_featurenames = input_feeds['featurenames']
         feature_filter.in_featstrength = feature_ranker.out_ranked_features
         feature_filter.in_featcorr = feature_correlation.out_feature_correlation

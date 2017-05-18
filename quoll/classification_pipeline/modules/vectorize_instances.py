@@ -19,7 +19,7 @@ class VectorizeTask(Task):
         # load instances
         loader = docreader.Docreader()
         instances = loader.parse_csv(self.in_csv().path)
-        instances_float = [[0.0 if feature == 'NA' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
+        instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
         instances_sparse = sparse.csr_matrix(instances_float)
 
         # normalize features

@@ -58,7 +58,9 @@ class RankFeaturesOrdinalTask(Task):
 
         # write to file
         with open(self.out_ranked_features().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join(['\t'.join([fc[0],fn[fc[0]],str(fc[2]),str(fc[3])]) for fc in sorted_feature_correlation]))
+            # for fc in sorted_feature_correlation:
+            #     out.write('\t'.join([fc[0],fn[fc[0]],str(fc[2]),str(fc[3])]) + '\n')
+            out.write('\n'.join(['\t'.join([str(fc[0]),fn[fc[0]],str(fc[2]),str(fc[3])]) for fc in sorted_feature_correlation]))
 
 
     
@@ -106,5 +108,7 @@ class CalculateFeatureCorrelationTask(Task):
 
         # write to file
         with open(self.out_feature_correlation().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join(['\t'.join([str(fc[0]),str(fc[1]),fn[fc[0]],fn[fc[1]],str(fc[2]),str(fc[3]),str(fc[4])]) for fc in sorted_feature_correlation]))
-
+            # for fc in feature_correlation:
+            #     print(fc,len(fc))
+            #     out.write('\t'.join([str(fc[0]),str(fc[1]),fn[fc[0]],fn[fc[1]],str(fc[2]),str(fc[3]),str(fc[4])]) + '\n')
+           out.write('\n'.join(['\t'.join([str(fc[0]),str(fc[1]),fn[fc[0]],fn[fc[1]],str(fc[2]),str(fc[3]),str(fc[4])]) for fc in feature_correlation]))

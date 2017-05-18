@@ -8,6 +8,7 @@ import glob
 import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
+import quoll.classification_pipeline.functions.reporter as reporter
 
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentFilter
@@ -27,18 +28,19 @@ class NFoldCVFilter(WorkflowComponent):
 
     threshold_strength = Parameter()
     threshold_correlation = Parameter()
+    svorim_path = Parameter()
     n = IntParameter(default=10)
     stepsize = IntParameter(default=1)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurecorrelation', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_lin', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, svorim_path=self.svorim_path)
+        fold_runner = workflow.new_task('run_folds_filter', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, svorim_path=self.svorim_path)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -67,10 +69,9 @@ class RunFoldsFilter(Task):
     threshold_correlation = Parameter()
     n = IntParameter()
     svorim_path = Parameter()
-    cutoff = IntParameter()
 
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.nocorr_ranked_' + str(self.cutoff) + '.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.filter_' + self.threshold_strength + '_' + self.threshold_correlation + '.exp')
         
     def run(self):
 
@@ -94,7 +95,6 @@ class FoldFilter(WorkflowComponent):
     labels = Parameter()
     documents = Parameter()
     featurenames = Parameter()
-    featurecorrelation = Parameter()
     bins = Parameter()
 
     i = IntParameter()
@@ -103,7 +103,7 @@ class FoldFilter(WorkflowComponent):
     threshold_correlation = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurecorrelation', extension='.txt', inputparameter='featurecorrelation'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
     
     def setup(self, workflow, input_feeds):
 

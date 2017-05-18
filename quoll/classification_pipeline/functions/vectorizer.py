@@ -6,6 +6,7 @@ import math
 import random
 import numpy
 import copy
+import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
 
@@ -281,7 +282,7 @@ def calculate_feature_correlation(instances):
                     corr = 0
             except:
                 corr = 0
-        feature_correlation.append([i,j,abs(corr),corr,p])
+            feature_correlation.append([i,j,abs(corr),corr,p])
     return feature_correlation
 
 def filter_features_correlation(featureranks,featurecorr,featuresub):
@@ -310,20 +311,31 @@ def filter_features_correlation(featureranks,featurecorr,featuresub):
 def filter_features_correlation_f(feature_strength,feature_feature_correlation,strength_threshold,correlation_threshold):
     selected_features = []
     out_log_list = []
-    out_log_list.append('Starting feature filter with strength threshold ' + str(strength_threshold) + 'and correlation_threshold ' + str(correlation_threshold))
+    out_log_list.append('Starting feature filter with strength threshold ' + str(strength_threshold) + ' and correlation_threshold ' + str(correlation_threshold))
     out_log_list.append('')
-    for feature_index in feature_strength.keys():
-        feature_strength = feature_strength[feature_index]
-        out_log_list.append('Feature ' + str(feature_index) + ': strength = ' + str(feature_strength))
-        if feature_strength > strength_threshold:
-            out_log_list.append('Threshold met, adding to selected features.')
-            selected_features.append(feature_index)
-            correlating_features = [feature[0] for feature in list(feature_feature_correlation[feature_index].items()) if feature[1] < correlation_threshold]
-            out_log_list.append('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
-            for cf in correlating_features:
-                del feature_strength[cf]
-        else:
-            out_log_list.append('Feature did not meet threshold, moving on to next feature')
-        out_log_list.append('')
+    sorted_keys = [kv[0] for kv in sorted(feature_strength.items(), key=operator.itemgetter(1), reverse=True)]
+    discarded = []
+    for feature_index in sorted_keys:
+        try:
+            out_log_list.append('Inspecting feature ' + str(feature_index))
+            if not feature_index in discarded:
+                strength = feature_strength[feature_index]
+                out_log_list.append('Strength = ' + str(strength))
+                if strength > strength_threshold:
+                    out_log_list.append('Threshold met, adding to selected features.')
+                    selected_features.append(feature_index)
+                    correlating_features = [feature[0] for feature in list(feature_feature_correlation[feature_index].items()) if feature[1] > correlation_threshold]
+                    out_log_list.append('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
+                    discarded.extend(correlating_features)
+                    out_log_list.append('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
+                    # for cf in correlating_features:
+                    #     del feature_strength[cf]
+                else:
+                    out_log_list.append('Feature did not meet threshold, moving on to next feature')
+            else:
+                out_log_list.append('Feature was discarded, moving on to next feature')
+            out_log_list.append('')
+        except: # feature index already deleted
+            continue
     out_log = '\n'.join(out_log_list)
     return selected_features, out_log
