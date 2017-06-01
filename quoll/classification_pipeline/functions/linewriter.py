@@ -18,9 +18,9 @@ class Linewriter:
     def set_lines(self, lines):
         self.lines = lines
 
-    def write_xlsx(self, headers, header_style, outfile):
+    def write_xlsx(self, headers, header_style, outfile, encoding='utf-8'):
         if not self.current_workbook:
-            self.current_workbook = Workbook(encoding = 'utf-8')
+            self.current_workbook = Workbook(encoding = encoding)
             ws = self.current_workbook.active
             ws.title = 'sheet1'
         else:
@@ -43,7 +43,11 @@ class Linewriter:
 #                print(type(col))
 #                if j != 1:
 #                    print(i, j, col)
-                _cell = ws.cell(row = i, column = j, value = col)
+                try:
+                    _cell = ws.cell(row = i, column = j, value = col)
+                except:
+                    _cell = ws.cell(row=i,column=j,value='')
+                    continue
                 if re.search('^http', str(col)) and not ' ' in str(col):
                     #_cell.hyperlink = col
                     _cell = ws.cell(row = i, column = j, value = '=HYPERLINK("' + col + '","' + col + '")')

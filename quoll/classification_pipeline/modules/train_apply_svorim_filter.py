@@ -18,7 +18,7 @@ class TrainApplySvorimFilter(WorkflowComponent):
     svorim_path = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents_test',extension='.txt',inputparameter='documents_test'), InputFormat(self, format_id='featurenames_train', extension='.txt', inputparameter='featurenames_train'), InputFormat(self, format_id='featurenames_test', extension='.txt', inputparameter='featurenames_test') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self,format_id='documents_test',extension='.txt',inputparameter='documents_test'), InputFormat(self, format_id='featurenames_train', extension='.txt', inputparameter='featurenames_train'), InputFormat(self, format_id='featurenames_test', extension='.txt', inputparameter='featurenames_test') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -41,9 +41,8 @@ class TrainApplySvorimFilter(WorkflowComponent):
         train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
         index_generator = workflow.new_task('generate_feature_indices',GenerateFeatureIndices,autopass=True)
-        index_generator.in_original_featurenames = input_feeds['featurenames_train']
-        index_generator.in_selected_feature_indices = feature_filter.out_filtered_features
-        index_generator.in_new_featurenames = input_feeds['featurenames_test']
+        index_generator.in_all_featurenames = input_feeds['featurenames_test']
+        index_generator.in_selected_featurenames = feature_filter.out_filtered_features
 
         test_vector_transformer = workflow.new_task('transform_test_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
         test_vector_transformer.in_vectors = input_feeds['test']
@@ -54,7 +53,7 @@ class TrainApplySvorimFilter(WorkflowComponent):
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = test_vector_transformer.out_vectors
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportDocpredictions:, autopass=True)
+        reporter = workflow.new_task('report_performance', report_performance.ReportDocpredictions, autopass=True)
         reporter.in_predictions = classifier.out_classifications
         reporter.in_documents = input_feeds['documents_test']
 
@@ -66,7 +65,7 @@ class GenerateFeatureIndices(Task):
     in_selected_featurenames = InputSlot()
 
     def out_features_index(self):
-        return self.outputfrominput(inputformat='selected_featurenames', stripextension='.txt', addextension='.incices_test.txt')
+        return self.outputfrominput(inputformat='selected_featurenames', stripextension='.txt', addextension='.indices_test.txt')
 
     def run(self):
 
@@ -76,10 +75,10 @@ class GenerateFeatureIndices(Task):
         with open(self.in_selected_featurenames().path,'r',encoding='utf-8') as infile:
             selected_featurenames = infile.read().strip().split('\n')
 
+        print('all_featurenames:',all_featurenames)
+        print('selected_featurenames:',selected_featurenames)
         indices = [i for i,fn in enumerate(all_featurenames) if fn in selected_featurenames]
+        print('Indices:',indices)
 
         with open(self.out_features_index().path, 'w', encoding='utf-8') as out:
-            out.write(' '.join(indices))
-
-        with open(out_fns,'w',encoding='utf-8') as out:
-            out.write('\n'.join([str(x[1]) for x in indices]))
+            out.write(' '.join([str(x) for x in indices]))

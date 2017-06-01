@@ -300,13 +300,11 @@ class ReportFolds(Task):
         probabilities = [line[3] for line in docpredictions]
 
         # initiate reporter
-        rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, self.ordinal, documents)
+        rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, True, documents)
 
         # report performance
-        if self.ordinal:
-            performance = rp.assess_ordinal_performance()
-        else:
-            performance = rp.assess_performance()
+        performance = rp.assess_ordinal_performance()
+
         lw = linewriter.Linewriter(performance)
         lw.write_csv(self.out_performance().path)
 
@@ -327,8 +325,7 @@ class ReportFolds(Task):
             lw.write_csv(outfile)
 
         # report confusion matrix
-        if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
-            rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
+        rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
         confusion_matrix = rp.return_confusion_matrix()
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)

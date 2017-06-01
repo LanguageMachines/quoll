@@ -240,14 +240,41 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
     keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
     transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
+    print('Transform_dict:',transform_dict)
     num_instances = instances.shape[0]
     columns = []
-    for index in range(len(target_vocabulary)):
+    lt = len(target_vocabulary)
+    print('Obtaining indices for target vocabulary:')
+    indices = []
+    nocols = []
+    for i,index in enumerate(range(lt)):
         try:
-            columns.append(instances.getcol(transform_dict[index]))
+            indices.append(transform_dict[index])
+            # columns.append(instances.getcol(transform_dict[index]))
+            # print('Column obtained')
         except:
-            columns.append(sparse.csr_matrix([[0]] * num_instances))
-    aligned_vectors = sparse.hstack(columns).tocsr()
+            nocols.append(i)
+            # print('Failed to obtain column, adding column with zeros')
+#            columns.append(sparse.csr_matrix([[0]] * num_instances))
+    print('Obtaining columns for target vocabulary and stacking:')
+    sliced = instances.tocsc()[:, indices].tocsr()
+    zerocol = sparse.csr_matrix([[0]] * num_instances)
+    parts = []
+    last = 0
+    minus = 0
+    print('Adding zerocols:')
+    for bound in nocols:
+        print('Bound',bound,'of',len(nocols))
+        if not (bound-minus)-last == 0:
+            parts.append(sliced[:, list(range(last,bound-minus,1))])
+        parts.append(zerocol)
+        last = bound
+        minus += 1
+    print('Done. Stacking matrices...')
+    # print('Stacking aligned vectors...')
+    aligned_vectors = sparse.hstack(parts).tocsr()
+    # aligned_vectors = sparse.hstack(columns).tocsr()
+    print('Done. Shape:',aligned_vectors.shape)
     return aligned_vectors
 
 def normalize_features(instances):
@@ -308,6 +335,19 @@ def filter_features_correlation(featureranks,featurecorr,featuresub):
         i += 1
     return selected_features
 
+def filter_features_groups(ranked_features,feature_group):
+    selected_features = []
+    discarded = []
+    for feature in ranked_features:
+        if not feature in discarded:
+            # add to selected features
+            selected_features.append(feature)
+            # discard other features in group
+            group_features = feature_group[feature]
+            discarded.extend(group_features)
+    return selected_features
+
+    
 def filter_features_correlation_f(feature_strength,feature_feature_correlation,strength_threshold,correlation_threshold):
     selected_features = []
     out_log_list = []
@@ -339,3 +379,4 @@ def filter_features_correlation_f(feature_strength,feature_feature_correlation,s
             continue
     out_log = '\n'.join(out_log_list)
     return selected_features, out_log
+

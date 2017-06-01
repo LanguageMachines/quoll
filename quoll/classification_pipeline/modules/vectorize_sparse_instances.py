@@ -101,22 +101,28 @@ class Vectorize_testinstances(Task):
         # load featurized instances
         loader = numpy.load(self.in_test().path)
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-
+        
+        print('Loaded test instances, Shape:',featurized_instances.shape,', now loading topfeatures...')
+ 
         # load top features
         with open(self.in_topfeatures().path,'r',encoding='utf-8') as infile:
             lines = infile.read().split('\n')
             topfeatures = [line.split('\t') for line in lines]
         topfeatures_vocabulary = [x[0] for x in topfeatures]
         feature_weights = dict([(i, float(feature[1])) for i, feature in enumerate(topfeatures)])
+        print('Loaded',len(topfeatures_vocabulary),'topfeatures, now loading sourcevocabulary...')
 
         # align the test instances to the top features to get the right indices
         with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
             sourcevocabulary = infile.read().split('\n')
+        print('Loaded sourcevocabulary of size',len(sourcevocabulary),', now aliging testvectors...')
         testvectors = vectorizer.align_vectors(featurized_instances, topfeatures_vocabulary, sourcevocabulary)
+        print('Done. Shape of testvectors:',testvectors.shape,', now setting feature weights...')
 
         # set feature weights
         if weight_functions[self.weight]:
             testvectors = weight_functions[self.weight](testvectors, feature_weights)
+        print('Done. Writing instances to file...')
 
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
