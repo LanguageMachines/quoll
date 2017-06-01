@@ -277,6 +277,25 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     print('Done. Shape:',aligned_vectors.shape)
     return aligned_vectors
 
+def align_vectors_mutually(instances_train, instances_test, target_vocabulary, source_vocabulary):
+
+    source_feature_indices = dict([(feature, i) for i, feature in enumerate(source_vocabulary)])
+    target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
+    keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
+    transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
+    num_instances = instances.shape[0]
+    traincolumns = []
+    testcolumns = []
+    for index in range(len(target_vocabulary)):
+        try:
+            traincolumns.append(instances_train.getcol(index))
+            testcolumns.append(instances_test.getcol(transform_dict[index]))
+        except:
+            continue
+    aligned_trainvectors = sparse.hstack(traincolumns).tocsr()
+    aligned_testvectors = sparse.hstack(testcolumns).tocsr()
+    return aligned_trainvectors, aligned_testvectors
+
 def normalize_features(instances):
     normalized = normalize(instances,norm='l1')
     return normalized

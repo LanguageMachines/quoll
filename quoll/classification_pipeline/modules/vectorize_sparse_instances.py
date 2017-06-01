@@ -127,6 +127,112 @@ class Vectorize_testinstances(Task):
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
+
+class Vectorize_traintest(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+    in_vocabulary = InputSlot()
+    in_test = InputSlot()
+    in_sourcevocabulary = InputSlot()
+
+    weight = Parameter(default='frequency')
+    prune = IntParameter()
+    balance = BoolParameter()
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
+
+    def out_test(self):
+        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vectors.npz')
+
+    def out_featureweights(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.feature_weights.txt')
+
+    def out_topfeatures(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.topfeatures.txt')
+
+    def out_labels(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorized.labels')
+
+    def run(self):
+
+        weight_functions = {'frequency':[vectorizer.return_document_frequency, False], 'binary':[vectorizer.return_document_frequency, vectorizer.return_binary_vectors], 'tfidf':[vectorizer.return_idf, vectorizer.return_tfidf_vectors], 'infogain':[vectorizer.return_infogain, vectorizer.return_infogain_vectors]}
+
+        # load featurized traininstances
+        loader = numpy.load(self.in_train().path)
+        featurized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load featurized testinstances
+        loader = numpy.load(self.in_test().path)
+        featurized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load trainlabels
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+            trainlabels = infile.read().strip().split('\n')
+
+        # load vocabulary
+        with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
+            vocabulary = infile.read().strip().split('\n')
+
+        # balance instances by label frequency
+        if self.balance:
+            featurized_traininstances, trainlabels = vectorizer.balance_data(featurized_traininstances, trainlabels)
+
+        # calculate feature_weight
+        feature_weights = weight_functions[self.weight][0](featurized_traininstances, trainlabels)
+
+        # vectorize instances
+        if weight_functions[self.weight][1]:
+            trainvectors = weight_functions[self.weight][1](featurized_traininstances, feature_weights)
+        else:
+            trainvectors = featurized_traininstances
+
+        # prune features
+        topfeatures = vectorizer.return_top_features(feature_weights, self.prune)
+        topfeatures_vocabulary = []
+        for index in topfeatures:
+            topfeatures_vocabulary.append(vocabulary[index])
+
+        # compress vectors
+        compressed_trainvectors = vectorizer.compress_vectors(trainvectors, topfeatures)
+
+        # align train and testvectors
+        with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
+            sourcevocabulary = infile.read().split('\n')
+        print('Now aligning train and test vectors')
+        aligned_trainvectors, aligned_testvectors = vectorizer.align_vectors_mutually(compressed_trainvectors, featurized_testinstances, topfeatures_vocabulary, sourcevocabulary)
+        print('Done. Trainvectors shape:',aligned_trainvectors.shape,', Testvectors shape:',aligned_testvectors.shape)
+
+        # set feature weights
+        if weight_functions[self.weight]:
+            aligned_testvectors = weight_functions[self.weight](aligned_testvectors, feature_weights)
+
+        # write instances to file
+        numpy.savez(self.out_train().path, data=aligned_trainvectors.data, indices=aligned_trainvectors.indices, indptr=aligned_trainvectors.indptr, shape=aligned_trainvectors.shape)
+
+        # write instances to file
+        numpy.savez(self.out_test().path, data=aligned_testvectors.data, indices=aligned_testvectors.indices, indptr=aligned_testvectors.indptr, shape=aligned_testvectors.shape)
+
+        # write feature weights to file
+        with open(self.out_featureweights().path, 'w', encoding = 'utf-8') as w_out:
+            outlist = []
+            for key, value in sorted(feature_weights.items(), key = lambda k: k[0]):
+                outlist.append('\t'.join([str(key), str(value)]))
+            w_out.write('\n'.join(outlist))
+
+        # write top features to file
+        with open(self.out_topfeatures().path, 'w', encoding = 'utf-8') as t_out:
+            outlist = []
+            for index in topfeatures:
+                outlist.append('\t'.join([vocabulary[index], str(feature_weights[index])]))
+            t_out.write('\n'.join(outlist))
+
+        # write labels to file
+        with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
+            l_out.write('\n'.join(trainlabels))
+
+
 @registercomponent
 class Vectorize(WorkflowComponent):
 
