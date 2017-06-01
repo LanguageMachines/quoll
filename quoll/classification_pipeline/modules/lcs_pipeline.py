@@ -43,16 +43,23 @@ class LCSPipeline_traintest(WorkflowComponent):
         testfeaturizer = workflow.new_task('featurize_testinstances', Featurize_tokens, autopass=True, token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase)
         testfeaturizer.in_tokenized = testtokenizer.out_tokenized
 
-        trainvectorizer = workflow.new_task('vectorize_traininstances', Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
-        trainvectorizer.in_train = trainfeaturizer.out_features
-        trainvectorizer.in_trainlabels = input_feeds['trainlabels']
-        trainvectorizer.in_vocabulary = trainfeaturizer.out_vocabulary
+        # trainvectorizer = workflow.new_task('vectorize_traininstances', Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
+        # trainvectorizer.in_train = trainfeaturizer.out_features
+        # trainvectorizer.in_trainlabels = input_feeds['trainlabels']
+        # trainvectorizer.in_vocabulary = trainfeaturizer.out_vocabulary
 
-        testvectorizer = workflow.new_task('vectorize_testinstances', Vectorize_testinstances, autopass=True, weight=self.weight)
-        testvectorizer.in_test = testfeaturizer.out_features
-        testvectorizer.in_sourcevocabulary = testfeaturizer.out_vocabulary
-        testvectorizer.in_topfeatures = trainvectorizer.out_topfeatures
+        # testvectorizer = workflow.new_task('vectorize_testinstances', Vectorize_testinstances, autopass=True, weight=self.weight)
+        # testvectorizer.in_test = testfeaturizer.out_features
+        # testvectorizer.in_sourcevocabulary = testfeaturizer.out_vocabulary
+        # testvectorizer.in_topfeatures = trainvectorizer.out_topfeatures
 
+        vectorizer = workflow.new_task('vectorize', Vectorize_traintest, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
+        vectorizer.in_train = trainfeaturizer.out_features
+        vectorizer.in_trainlabels = input_feeds['trainlabels']
+        vectorizer.in_vocabulary = trainfeaturizer.out_vocabulary
+        vectorizer.in_test = testfeaturizer.out_features
+        vectorizer.in_sourcevocabulary = testfeaturizer.out_vocabulary
+        
         lcs_classifier = workflow.new_task('classify_lcs', BalancedWinnowClassifier, autopass=True, lcs_path=self.lcs_path)
         lcs_classifier.in_train = trainvectorizer.out_train
         lcs_classifier.in_trainlabels = trainvectorizer.out_labels
