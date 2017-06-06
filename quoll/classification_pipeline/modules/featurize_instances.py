@@ -104,17 +104,22 @@ class Featurize(StandardWorkflowComponent):
     language = Parameter(default='nl')
 
     def accepts(self):
-        return 
-            InputFormat(self, format_id='tokenized', extension='tok.txt'), 
-            InputComponent(self, Tokenize, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation), 
-            InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), 
-            InputComponent(self, Ucto_dir, language = self.language)
+        return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputComponent(self, Tokenize, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation), InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
                     
     def setup(self, workflow, input_feeds):
-        if 'tokenized' in input_feeds.keys():
+        if workflow.inputfile[-4:] == '.txt' or 'tokenized' in input_feeds.keys():
             featurizertask = workflow.new_task('FeaturizerTask_tokens', Featurize_tokens, autopass=True)
             featurizertask.in_tokenized = input_feeds['tokenized']
         elif 'toktxtdir' in input_feeds.keys():
             featurizertask = workflow.new_task('FeaturizerTask_dirtxt', Featurize_tokdir, autopass=True)
             featurizertask.in_tokdir = input_feeds['toktxtdir']
+        elif 'txtdir' in input_feeds.keys():
+            tokenizer = workflow.new_task('tokenize_dir', Ucto_dir, autopass=True, language=self.language)
+            tokenizer.in_txt = input_feeds['txtdir']
+
+            featurizertask = workflow.new_task('FeaturizerTask_dirtxt', Featurize_tokdir, autopass=True)
+            featurizertask.in_tokdir = tokenizer.out_tok
+input_feeds['toktxtdir']
+
+            featurizertask = workflow.new_task('FeaturizerTask_dirtxt', Featurize_tokdir, autopass=True)
         return featurizertask
