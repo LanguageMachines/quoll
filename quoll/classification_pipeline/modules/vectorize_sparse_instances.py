@@ -128,7 +128,7 @@ class Vectorize_testinstances(Task):
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
 
-class Vectorize_traintest(Task):
+class Vectorize_mutually(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
@@ -200,13 +200,13 @@ class Vectorize_traintest(Task):
         # align train and testvectors
         with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
             sourcevocabulary = infile.read().split('\n')
-        print('Now aligning train and test vectors')
-        aligned_trainvectors, aligned_testvectors = vectorizer.align_vectors_mutually(compressed_trainvectors, featurized_testinstances, topfeatures_vocabulary, sourcevocabulary)
+        print('Now aligning train and test vectors, shape compressed trainvectors:',compressed_trainvectors.shape,', number of topfeatures:',len(topfeatures_vocabulary))
+        aligned_trainvectors, aligned_testvectors, topfeatures_vocabulary = vectorizer.align_vectors_mutually(compressed_trainvectors, featurized_testinstances, topfeatures_vocabulary, sourcevocabulary)
         print('Done. Trainvectors shape:',aligned_trainvectors.shape,', Testvectors shape:',aligned_testvectors.shape)
 
         # set feature weights
         if weight_functions[self.weight]:
-            aligned_testvectors = weight_functions[self.weight](aligned_testvectors, feature_weights)
+            aligned_testvectors = weight_functions[self.weight][1](aligned_testvectors, feature_weights)
 
         # write instances to file
         numpy.savez(self.out_train().path, data=aligned_trainvectors.data, indices=aligned_trainvectors.indices, indptr=aligned_trainvectors.indptr, shape=aligned_trainvectors.shape)
@@ -223,10 +223,10 @@ class Vectorize_traintest(Task):
 
         # write top features to file
         with open(self.out_topfeatures().path, 'w', encoding = 'utf-8') as t_out:
-            outlist = []
-            for index in topfeatures:
-                outlist.append('\t'.join([vocabulary[index], str(feature_weights[index])]))
-            t_out.write('\n'.join(outlist))
+            # outlist = []
+            # for feature in topfeatures_vocabulary:
+            #     outlist.append([feature,  vocabulary[index], str(feature_weights[feature])]))
+            t_out.write('\n'.join(topfeatures_vocabulary))
 
         # write labels to file
         with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:

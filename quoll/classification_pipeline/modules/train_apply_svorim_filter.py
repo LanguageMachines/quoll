@@ -10,7 +10,7 @@ class TrainApplySvorimFilter(WorkflowComponent):
     trainlabels = Parameter()
     test = Parameter()
     featurenames_train = Parameter()
-    featurenames_test = Parameter()t
+    featurenames_test = Parameter()
     documents_test = Parameter()
 
     threshold_strength = Parameter()

@@ -240,41 +240,15 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
     keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
     transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
-    print('Transform_dict:',transform_dict)
     num_instances = instances.shape[0]
     columns = []
     lt = len(target_vocabulary)
-    print('Obtaining indices for target vocabulary:')
-    indices = []
-    nocols = []
     for i,index in enumerate(range(lt)):
         try:
-            indices.append(transform_dict[index])
-            # columns.append(instances.getcol(transform_dict[index]))
-            # print('Column obtained')
+            columns.append(instances.getcol(transform_dict[index]))
         except:
-            nocols.append(i)
-            # print('Failed to obtain column, adding column with zeros')
-#            columns.append(sparse.csr_matrix([[0]] * num_instances))
-    print('Obtaining columns for target vocabulary and stacking:')
-    sliced = instances.tocsc()[:, indices].tocsr()
-    zerocol = sparse.csr_matrix([[0]] * num_instances)
-    parts = []
-    last = 0
-    minus = 0
-    print('Adding zerocols:')
-    for bound in nocols:
-        print('Bound',bound,'of',len(nocols))
-        if not (bound-minus)-last == 0:
-            parts.append(sliced[:, list(range(last,bound-minus,1))])
-        parts.append(zerocol)
-        last = bound
-        minus += 1
-    print('Done. Stacking matrices...')
-    # print('Stacking aligned vectors...')
-    aligned_vectors = sparse.hstack(parts).tocsr()
-    # aligned_vectors = sparse.hstack(columns).tocsr()
-    print('Done. Shape:',aligned_vectors.shape)
+            columns.append(sparse.csr_matrix([[0]] * num_instances))
+    aligned_vectors = sparse.hstack(columns).tocsr()
     return aligned_vectors
 
 def align_vectors_mutually(instances_train, instances_test, target_vocabulary, source_vocabulary):
@@ -283,18 +257,18 @@ def align_vectors_mutually(instances_train, instances_test, target_vocabulary, s
     target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
     keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
     transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
-    num_instances = instances.shape[0]
     traincolumns = []
     testcolumns = []
     for index in range(len(target_vocabulary)):
         try:
-            traincolumns.append(instances_train.getcol(index))
-            testcolumns.append(instances_test.getcol(transform_dict[index]))
+            testcolumns.append(transform_dict[index])
+            traincolumns.append(index)
         except:
             continue
-    aligned_trainvectors = sparse.hstack(traincolumns).tocsr()
-    aligned_testvectors = sparse.hstack(testcolumns).tocsr()
-    return aligned_trainvectors, aligned_testvectors
+    aligned_trainvectors = instances_train[:, traincolumns]
+    aligned_testvectors = instances_test[:, testcolumns]
+    vocabulary_intersect = list(numpy.array(target_vocabulary)[traincolumns])
+    return aligned_trainvectors, aligned_testvectors, vocabulary_intersect
 
 def normalize_features(instances):
     normalized = normalize(instances,norm='l1')

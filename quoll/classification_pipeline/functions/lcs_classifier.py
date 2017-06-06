@@ -18,54 +18,54 @@ class LCS_classifier:
             os.mkdir(self.filesdir)
         except:
             print('filesdirectory already exists')
-        try:
-            if not os.path.exists('train'):
-                trainparts = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
-                with open('train', 'w', encoding = 'utf-8') as train:
-                    train.write('\n'.join(trainparts))            
-            else:
-                print('Trainfile already exists, skipping data preparation')
-            if not os.path.exists('test'):
-                testparts = self.prepare(testinstances,testlabels,vocabulary, 'test/')
-                with open('test', 'w', encoding = 'utf-8') as test:
-                    test.write('\n'.join(testparts))
-            else:
-                print('Testfile already exists, skipping data preparation')
-            self.classify(self.expdir)
-        except: 
-            print('Running 10-fold cross-validation')
-            if not os.path.exists('parts'):
-                parts = self.prepare(traininstances,trainlabels,vocabulary)
-                with open('parts','w',encoding='utf-8') as parts_out:
-                    parts_out.write('\n'.join(parts))
-            else:
-                with open('parts','r',encoding='utf-8') as parts_in:
-                    parts = parts_in.read().strip().split('\n')
-                print('Partsfile already exists, skipping data preparation')
-            # perform tenfold on train
-            folds = nfold_cv_functions.return_fold_indices(len(parts),10,1)
-            for i, fold in enumerate(folds):
-                expdir = self.expdir + 'fold_' + str(i) + '/'
-                try:
-                    os.mkdir(expdir)
-                except:
-                    print('folddirectory already exists')
-                numparts = numpy.array(parts)
-                trainparts = list([numparts[indices] for j,indices in enumerate(folds) if j != i])
-                testparts = list(numparts[fold])
-                with open('train','w',encoding='utf-8') as train_out:
-                    train_out.write('\n'.join(trainparts))
-                with open('test','w',encoding='utf-8') as test_out:
-                    test_out.write('\n'.join(testparts))
-                self.classify(expdir)
-
-    def instance_2_ngrams(self,instance,vocabulary):
-        return list(numpy.array(vocabulary)[list(instance.nonzero()[1])])
+        # try:
+        if not os.path.exists('train'):
+            trainparts = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
+            with open('train', 'w', encoding = 'utf-8') as train:
+                train.write('\n'.join(trainparts))            
+        else:
+            print('Trainfile already exists, skipping data preparation')
+        if not os.path.exists('test'):
+            testparts = self.prepare(testinstances,testlabels,vocabulary, 'test/')
+            with open('test', 'w', encoding = 'utf-8') as test:
+                test.write('\n'.join(testparts))
+        else:
+            print('Testfile already exists, skipping data preparation')
+        self.classify(self.expdir)
+        # except: 
+        #     print('Running 10-fold cross-validation')
+        #     if not os.path.exists('parts'):
+        #         parts = self.prepare(traininstances,trainlabels,vocabulary)
+        #         with open('parts','w',encoding='utf-8') as parts_out:
+        #             parts_out.write('\n'.join(parts))
+        #     else:
+        #         with open('parts','r',encoding='utf-8') as parts_in:
+        #             parts = parts_in.read().strip().split('\n')
+        #         print('Partsfile already exists, skipping data preparation')
+        #     # perform tenfold on train
+        #     folds = nfold_cv_functions.return_fold_indices(len(parts),10,1)
+        #     for i, fold in enumerate(folds):
+        #         expdir = self.expdir + 'fold_' + str(i) + '/'
+        #         try:
+        #             os.mkdir(expdir)
+        #         except:
+        #             print('folddirectory already exists')
+        #         numparts = numpy.array(parts)
+        #         trainparts = list([numparts[indices] for j,indices in enumerate(folds) if j != i])
+        #         testparts = list(numparts[fold])
+        #         with open('train','w',encoding='utf-8') as train_out:
+        #             train_out.write('\n'.join(trainparts))
+        #         with open('test','w',encoding='utf-8') as test_out:
+        #             test_out.write('\n'.join(testparts))
+        #         self.classify(expdir)
 
     def instances_2_ngrams(self,instances,vocabulary):
         instances_ngrams = []
+        vocab_numpy = numpy.array(vocabulary)
+        indices = instances.indices
+        indptr = instances.indptr
         for i in range(instances.shape[0]):
-            instances_ngrams.append(self.instance_2_ngrams(instances[i,:],vocabulary))
+            instances_ngrams.append(list(vocab_numpy[indices[indptr[i]:indptr[i+1]]]))
         return instances_ngrams
 
     def prepare(self, instances, labels, vocabulary, add_dir=False):
@@ -84,8 +84,9 @@ class LCS_classifier:
             add = ''
         # make chunks of 25000 from the data
         data = list(zip(labels,instances_vocabulary))
+        print('\n'.join(data[0][1]).encode('utf-8'))
         if len(data) > 25000:
-            chunks = [list(t) for t in zip(*[iter(data)]*int(round(len(data) / 25000), 0))]
+            chunks = [list(t) for t in zip(*[iter(data)]*25000)]
         else:
             chunks = [data]
         for i, chunk in enumerate(chunks):

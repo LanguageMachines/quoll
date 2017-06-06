@@ -413,7 +413,7 @@ class BalancedWinnowClassifier(Task):
             testlabels = infile.read().strip().split('\n')
 
         # open vocabulary
-        with open(self.in_vocabulary().path) as infile:
+        with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
             vocabulary = infile.read().strip().split('\n')
 
         # train classifier
@@ -425,3 +425,27 @@ class BalancedWinnowClassifier(Task):
         # write classifications to file
         with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
             cl_out.write('\n'.join(['\t'.join(classification_score) for classification_score in classifications])) 
+
+
+@registercomponent
+class ApplyBalancedWinnow(WorkflowComponent):
+
+    
+    testvectors = Parameter()
+    testvocabulary = Parameter()
+
+    lcs_path = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='vocabulary',extension='.vocabulary.txt',inputparameter='vocabulary') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        bw_classifier = workflow.new_task('bw_classifier', BalancedWinnowClassifier, lcs_path=self.lcs_path, autopass=True)
+        bw_classifier.in_train = input_feeds['trainvectors']
+        bw_classifier.in_trainlabels = input_feeds['trainlabels']
+        bw_classifier.in_test = input_feeds['testvectors']
+        bw_classifier.in_testlabels = input_feeds['testlabels']
+        bw_classifier.in_vocabulary = input_feeds['vocabulary']
+
+        return bw_classifier
