@@ -5,7 +5,6 @@ import ucto
 
 class Tokenize_instances(Task):
     """"Tokenizes a file one document per line"""
-
     in_txt = InputSlot()
 
     tokconfig = Parameter()
@@ -31,6 +30,29 @@ class Tokenize_instances(Task):
                         tokens.append(token.text)
                 file_out.write(' '.join(tokens) + '\n')
 
+class Tokenize_txtdir(Task):
+    """"Tokenizes a directory with files"""
+
+    in_txtdir = InputSlot()
+
+    tokconfig = Parameter()
+    strip_punctuation = BoolParameter()
+
+    def out_toktxtdir(self):
+        return self.outputfrominput(inputformat='txtdir', stripextension='.txtdir', addextension='.tok.txtdir')
+
+    def run(self):
+        #Set up the output directory, will create it and tear it down on failure automatically
+        self.setup_output_dir(self.out_toktxtdir().path)
+
+        #gather input files
+        inputfiles = [ filename for filename in glob.glob(self.in_txtdir().path + '/*.txt') ]
+
+        print('Running Tokenizer...')
+        yield [ Tokenize(inputfile=inputfile,outputdir=self.out_toktxtdir().path,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
+
+
+
 @registercomponent
 class Tokenize(StandardWorkflowComponent):
 
@@ -42,3 +64,14 @@ class Tokenize(StandardWorkflowComponent):
 
     def accepts(self):
         return InputFormat(self, format_id='txt', extension='.txt')
+
+class Tokenize_dir(StandardWorkflowComponent):
+
+    tokconfig = Parameter()
+    strip_punctuation = BoolParameter()
+
+    def autosetup(self):
+        return Tokenize_dir
+
+    def accepts(self):
+        return InputFormat(self, format_id='txtdir', extension='.txtdir')
