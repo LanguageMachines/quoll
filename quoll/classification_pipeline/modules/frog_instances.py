@@ -3,6 +3,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputC
 
 import frog
 import glob
+import json
 
 class Frog_instances(Task):
     """"Frogs a file one document per line"""
@@ -45,7 +46,7 @@ class Frog_instances(Task):
             sentence = []
             # add each token to the sentence...
             for token in frogged:
-                if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
+                if not (self.strip_punctuation and token['pos'] == 'LET()'):
                     sentence.append({'text':token['text'], 'lemma':token['lemma'], 'pos':token['pos']})
                 # ...until the sentence ends
                 if 'eos' in token:
@@ -59,7 +60,7 @@ class Frog_instances(Task):
 
         # write output
         with open(self.out_frogged().path,'w',encoding = 'utf-8') as file_out:
-            json.dumps(documents)
+            json.dump(documents,file_out)
 
 class Frog_txtdir(Task):
     """"Tokenizes a directory with files"""
@@ -80,7 +81,7 @@ class Frog_txtdir(Task):
         inputfiles = [ filename for filename in glob.glob(self.in_txtdir().path + '/*.txt') ]
 
         print('Running Frogger...')
-        yield [ Frog_component(inputfile=inputfile,outputdir=self.out_toktxtdir().path,frogconfig=self.tokconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
+        yield [ Frog_component(inputfile=inputfile,outputdir=self.out_frogjsondir().path,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
 
 
 @registercomponent

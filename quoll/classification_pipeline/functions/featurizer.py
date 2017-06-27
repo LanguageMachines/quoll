@@ -168,7 +168,7 @@ class CocoNgrams:
         for i, (pattern, indices) in items:
             vocabulary.append(pattern.tostring(self.classdecoder))
             lines = [index[0] - 1 for index in indices]
-            docs = [self.cursor[lineindex] for line in lines]
+            docs = [self.cursor[lineindex] for lineindex in lines]
             counts = Counter(docs)
             unique = counts.keys()
             rows.extend(unique)
@@ -230,6 +230,7 @@ class TokenNgrams(CocoNgrams):
             self.blackfeats = kwargs['blackfeats']
         else:
             self.blackfeats = []
+        self.mt = kwargs['mt']
         CocoNgrams.__init__(self, self.n_list, self.blackfeats)
         self.features = []
 
@@ -244,7 +245,7 @@ class TokenNgrams(CocoNgrams):
         tmpdir = os.getcwd() + '/tmp/'
         if not os.path.isdir(tmpdir):
             os.mkdir(tmpdir)
-        CocoNgrams.fit(self, tmpdir, documents_text)
+        CocoNgrams.fit(self, tmpdir, documents_text, self.mt)
 
     def transform(self):
         """
@@ -308,6 +309,7 @@ class LemmaNgrams(CocoNgrams):
             self.blackfeats = kwargs['blackfeats']
         else:
             self.blackfeats = []
+        self.mt = kwargs['mt']
         CocoNgrams.__init__(self, self.n_list, self.blackfeats)
         self.features = []
 
@@ -322,7 +324,7 @@ class LemmaNgrams(CocoNgrams):
         tmpdir = os.getcwd() + '/tmp/'
         if not os.path.isdir(tmpdir):
             os.mkdir(tmpdir)
-        CocoNgrams.fit(self, tmpdir, documents_lemmas)
+        CocoNgrams.fit(self, tmpdir, documents_lemmas, self.mt)
 
     def transform(self):
         """
@@ -353,7 +355,7 @@ class LemmaNgrams(CocoNgrams):
         self.fit(documents)
         return self.transform()
 
-class POSNgrams(CocoNgrams):
+class PosNgrams(CocoNgrams):
     """
     POS ngram extractor
     =====
@@ -385,6 +387,7 @@ class POSNgrams(CocoNgrams):
             self.blackfeats = kwargs['blackfeats']
         else:
             self.blackfeats = []
+        self.mt = kwargs['mt']
         CocoNgrams.__init__(self, self.n_list, self.blackfeats)
         self.features = []
 
@@ -399,7 +402,7 @@ class POSNgrams(CocoNgrams):
         tmpdir = os.getcwd() + '/tmp/'
         if not os.path.isdir(tmpdir):
             os.mkdir(tmpdir)
-        CocoNgrams.fit(self, tmpdir, documents_pos)
+        CocoNgrams.fit(self, tmpdir, documents_pos, self.mt)
 
     def transform(self):
         """
