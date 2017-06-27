@@ -12,6 +12,22 @@ import colibricore
 
 from quoll.classification_pipeline.functions import utils
 
+
+#####################################################
+### Helpers ####
+#####################################################
+
+def extract_tokentype(docs, tokentype):
+    documents_tokentype = []
+    for document in docs:
+        documents_tokentype.append([[token[tokentype] for token in sentence] for sentence in document])
+    return documents_tokentype
+
+
+#####################################################
+### Featurizer ####
+#####################################################
+
 class Featurizer:
     """
     Featurizer
@@ -51,9 +67,10 @@ class Featurizer:
     def __init__(self, documents, features):
         self.documents = documents
         self.modules = {
-            'token_ngrams':         TokenNgrams,
-            'char_ngrams':          CharNgrams,
-            'simple_stats':         SimpleStats
+            'chars'   :           CharNgrams,
+            'tokens'  :           TokenNgrams,
+            'lemmas'  :           LemmaNgrams,
+            'pos'     :           PosNgrams
         }
         self.helpers = [v(**features[k]) for k, v in self.modules.items() if k in features.keys()]
         self.features = {}
@@ -101,33 +118,29 @@ class Featurizer:
         vocabulary = np.hstack([self.vocabularies[name] for name in helpernames])
         return instances, vocabulary
 
-class SimpleStats:
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        pass
-
-    def transform(self):
-        pass
-
-    def fit_transform(self):
-        self.fit()
-        self.transform()
-
 class CocoNgrams:
 
     def __init__(self, ngrams, blackfeats):
         self.ngrams = ngrams
         self.blackfeats = set(blackfeats)
+        self.documents = False
+        self.classdecoder = False
+        self.model = False
+        self.cursor = {}
 
-    def fit(self, tmpdir, documents, mt = 1):
+    def fit(self, tmpdir, documents, mt):
         self.documents = documents
         coco_file = tmpdir + 'instances.txt'
+        linecursor = 0
         with open(coco_file, 'w', encoding = 'utf-8') as txt:
-            for doc in documents:
-                txt.write(doc)
+            for doccursor,doc in enumerate(documents):
+                indices = []
+                for sentence in doc:
+                    indices.append(linecursor)
+                    linecursor+=1
+                    txt.write(' '.join(sentence) + '\n')
+                for index in indices:
+                    self.cursor[index] = doccursor
         classfile = tmpdir + 'instances.colibri.cls'
         # Build class encoder
         classencoder = colibricore.ClassEncoder()
@@ -154,7 +167,8 @@ class CocoNgrams:
         items = list(zip(range(self.model.__len__()), self.model.items()))
         for i, (pattern, indices) in items:
             vocabulary.append(pattern.tostring(self.classdecoder))
-            docs = [index[0] - 1 for index in indices]
+            lines = [index[0] - 1 for index in indices]
+            docs = [self.cursor[lineindex] for line in lines]
             counts = Counter(docs)
             unique = counts.keys()
             rows.extend(unique)
@@ -210,7 +224,7 @@ class TokenNgrams(CocoNgrams):
         List of feature names, to keep track of the values of feature indices
     """
     def __init__(self, **kwargs):
-        self.name = 'token_ngrams'
+        self.name = 'tokens'
         self.n_list = [int(x) for x in kwargs['n_list']]
         if 'blackfeats' in kwargs.keys():
             self.blackfeats = kwargs['blackfeats']
@@ -226,10 +240,166 @@ class TokenNgrams(CocoNgrams):
         Function to make an overview of all the existing features
 
         """
+        documents_text = extract_tokentype(documents,'text')
         tmpdir = os.getcwd() + '/tmp/'
         if not os.path.isdir(tmpdir):
             os.mkdir(tmpdir)
-        CocoNgrams.fit(self, tmpdir, documents)
+        CocoNgrams.fit(self, tmpdir, documents_text)
+
+    def transform(self):
+        """
+        Model transformer
+        =====
+        Function to featurize instances based on the fitted features
+
+        """
+        instances, features = CocoNgrams.transform(self)
+        return(instances, features)
+
+    def fit_transform(self, documents):
+        """
+        Fit transform
+        =====
+        Function to perform the fit and transform sequence
+
+        Parameters
+        -----
+
+        Returns
+        -----
+        self.transform(tagged_data) : list
+            The featurized instances
+        self.features : list
+            The vocabulary
+        """
+        self.fit(documents)
+        return self.transform()
+
+
+class LemmaNgrams(CocoNgrams):
+    """
+    Lemma ngram extractor
+    =====
+    Class to extract lemma ngrams from all documents
+
+    Parameters
+    -----
+    kwargs : dict
+        n_list : list
+            The values of N (1 - ...)
+        blackfeats : list
+            Features to exclude
+
+    Attributes
+    -----
+    self.name : str
+        The name of the module
+    self.n_list : list
+        The n_list parameter
+    self.blackfeats : list
+        The blackfeats parameter
+    self.features : list
+        List of feature names, to keep track of the values of feature indices
+    """
+    def __init__(self, **kwargs):
+        self.name = 'lemmas'
+        self.n_list = [int(x) for x in kwargs['n_list']]
+        if 'blackfeats' in kwargs.keys():
+            self.blackfeats = kwargs['blackfeats']
+        else:
+            self.blackfeats = []
+        CocoNgrams.__init__(self, self.n_list, self.blackfeats)
+        self.features = []
+
+    def fit(self, documents):
+        """
+        Model fitter
+        =====
+        Function to make an overview of all the existing features
+
+        """
+        documents_lemmas = extract_tokentype(documents, 'lemma')
+        tmpdir = os.getcwd() + '/tmp/'
+        if not os.path.isdir(tmpdir):
+            os.mkdir(tmpdir)
+        CocoNgrams.fit(self, tmpdir, documents_lemmas)
+
+    def transform(self):
+        """
+        Model transformer
+        =====
+        Function to featurize instances based on the fitted features
+
+        """
+        instances, features = CocoNgrams.transform(self)
+        return(instances, features)
+
+    def fit_transform(self, documents):
+        """
+        Fit transform
+        =====
+        Function to perform the fit and transform sequence
+
+        Parameters
+        -----
+
+        Returns
+        -----
+        self.transform(tagged_data) : list
+            The featurized instances
+        self.features : list
+            The vocabulary
+        """
+        self.fit(documents)
+        return self.transform()
+
+class POSNgrams(CocoNgrams):
+    """
+    POS ngram extractor
+    =====
+    Class to extract lemma ngrams from all documents
+
+    Parameters
+    -----
+    kwargs : dict
+        n_list : list
+            The values of N (1 - ...)
+        blackfeats : list
+            Features to exclude
+
+    Attributes
+    -----
+    self.name : str
+        The name of the module
+    self.n_list : list
+        The n_list parameter
+    self.blackfeats : list
+        The blackfeats parameter
+    self.features : list
+        List of feature names, to keep track of the values of feature indices
+    """
+    def __init__(self, **kwargs):
+        self.name = 'pos'
+        self.n_list = [int(x) for x in kwargs['n_list']]
+        if 'blackfeats' in kwargs.keys():
+            self.blackfeats = kwargs['blackfeats']
+        else:
+            self.blackfeats = []
+        CocoNgrams.__init__(self, self.n_list, self.blackfeats)
+        self.features = []
+
+    def fit(self, documents):
+        """
+        Model fitter
+        =====
+        Function to make an overview of all the existing features
+
+        """
+        documents_pos = extract_tokentype(documents, 'pos')
+        tmpdir = os.getcwd() + '/tmp/'
+        if not os.path.isdir(tmpdir):
+            os.mkdir(tmpdir)
+        CocoNgrams.fit(self, tmpdir, documents_pos)
 
     def transform(self):
         """
@@ -362,19 +532,3 @@ class CharNgrams:
         """
         self.fit(documents)
         return self.transform(documents), self.features
-
-#TODO
-class SimpleStats:
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        pass
-
-    def transform(self):
-        pass
-
-    def fit_transform(self):
-        self.fit()
-        self.transform()

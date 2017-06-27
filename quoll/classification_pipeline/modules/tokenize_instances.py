@@ -1,5 +1,4 @@
 
-
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter
 
 import ucto
