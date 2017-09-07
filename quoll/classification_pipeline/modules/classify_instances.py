@@ -396,7 +396,13 @@ class BalancedWinnowClassifier(Task):
     def out_classifications(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.classifications.txt')
 
+    def out_lcsdir(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcsdir')
+
     def run(self):
+
+        #Set up the output directory, will create it and tear it down on failure automatically
+        self.setup_output_dir(self.out_lcsdir().path)
 
         # open train
         loader = numpy.load(self.in_train().path)
@@ -419,8 +425,7 @@ class BalancedWinnowClassifier(Task):
             vocabulary = infile.read().strip().split('\n')
 
         # train classifier
-        experiment_directory = '/'.join(self.in_train().path.split('/')[:-1]) + '/'
-        lcsc = LCS_classifier(experiment_directory)
+        lcsc = LCS_classifier(self.out_lcsdir().path)
         lcsc.experiment(sparse_train_instances,trainlabels,vocabulary,sparse_test_instances,testlabels)
         classifications = lcsc.classifications
 
