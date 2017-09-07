@@ -13,7 +13,7 @@ class LCS_classifier:
         self.classifications = []
     
     def experiment(self,traininstances,trainlabels,vocabulary,testinstances=False,testlabels=False):
-        self.filesdir = self.expdir + 'files/'
+        self.filesdir = self.expdir + '/files/'
         try:
             os.mkdir(self.filesdir)
         except:
@@ -72,7 +72,6 @@ class LCS_classifier:
         parts = []
         # transform instances from vectors to vocabularylists
         instances_vocabulary = self.instances_2_ngrams(instances,vocabulary)
-        print('INSTANCES VOCABULARY',instances_vocabulary[0])
         # make directory to write files to
         # make added directory
         if add_dir:
@@ -85,7 +84,6 @@ class LCS_classifier:
             add = ''
         # make chunks of 25000 from the data
         data = list(zip(labels,instances_vocabulary))
-        print('\n'.join(data[0][1]).encode('utf-8'))
         if len(data) > 25000:
             chunks = [list(t) for t in zip(*[iter(data)]*25000)]
         else:
