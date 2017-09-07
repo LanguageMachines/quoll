@@ -72,6 +72,7 @@ class LCS_classifier:
         parts = []
         # transform instances from vectors to vocabularylists
         instances_vocabulary = self.instances_2_ngrams(instances,vocabulary)
+        print('INSTANCES VOCABULARY',instances_vocabulary[0])
         # make directory to write files to
         # make added directory
         if add_dir:

@@ -20,13 +20,13 @@ class TrainClassifier(Task):
     classifier = Parameter()
 
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model.pkl')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension=self.classifier + '.model.pkl')
 
     def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.le')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension=self.classifier + '.le')
 
     def out_model_insights(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.model_insights')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension=self.classifier + '.model_insights')
 
     def run(self):
 
@@ -79,8 +79,10 @@ class ApplyClassifier(Task):
     in_labels = InputSlot()
     in_model = InputSlot()
 
+    classifier = Parameter()
+
     def out_classifications(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.classifications.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension=self.classifier + '.classifications.txt')
 
     def run(self):
 

@@ -5,8 +5,10 @@ from quoll.classification_pipeline.functions import featurizer
 from quoll.classification_pipeline.modules.tokenize_instances import Tokenize_instances, Tokenize_txtdir
 from quoll.classification_pipeline.modules.frog_instances import Frog_instances, Frog_txtdir
 
+from itertools import groupby 
 import numpy
 import json
+import natsort
 from os import listdir
 from scipy import sparse
 
@@ -29,6 +31,9 @@ def format_tokdoc(docname, lowercase):
         document.append([{'text':token} for token in line.split()])
 
     return document
+
+def keyfunc(s): # to sort any directory with an index system numerically
+    return [int(''.join(g)) if k else ''.join(g) for k, g in groupby(s, str.isdigit)]
 
 #################################################################
 ### Tasks 
@@ -57,7 +62,7 @@ class Tokenized2Features(Task):
         features = {'tokens':{'n_list':self.ngrams.split(), 'blackfeats':self.blackfeats.split(), 'mt':self.minimum_token_frequency}}
         
         # format lines
-        documents = format_tokdoc(self.in_tokenized().path,self.lowercase)
+        documents = [[doc] for doc in format_tokdoc(self.in_tokenized().path,self.lowercase)]
 
         # extract features
         ft = featurizer.Featurizer(documents, features)
@@ -83,10 +88,10 @@ class Tokdir2Features(Task):
     lowercase = BoolParameter()
         
     def out_features(self):
-        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.features.npz')
+        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.dir.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.dir.vocabulary.txt')
 
     def run(self):
         
@@ -95,28 +100,13 @@ class Tokdir2Features(Task):
         
         # read in files and put in right format for featurizer
         documents = []
-        for infile in listdir(self.in_tokdir().path):
+        for infile in sorted(listdir(self.in_tokdir().path),key=keyfunc):
             documents.append(format_tokdoc(self.in_tokdir().path + '/' + infile,self.lowercase))
             
         # extract features
-        print(documents)
         ft = featurizer.Featurizer(documents, features) # to prevent ngrams across sentences, a featurizer is generated per document
         ft.fit_transform()
         instances, vocabulary = ft.return_instances(['tokens'])
-
-        # # combine featurized documents
-        # overall_vocabulary = list(set(sum([list(fd[1]) for fd in featurized_documents],[])))
-        # feature_index = dict(zip(overall_vocabulary,list(range(len(overall_vocabulary)))))
-        # nd = len(featurized_documents)
-        # aligned_docs = []
-        # for j,fd in enumerate(featurized_documents):
-        #     doc = fd[0]
-        #     vocab = fd[1]
-        #     row = [0] * len(overall_vocabulary)
-        #     for i,feature in enumerate(vocab):
-        #         row[feature_index[feature]] = doc[0,i]
-        #     aligned_docs.append(row)
-        # instances = sparse.csr_matrix(aligned_docs)
 
         # write output
         numpy.savez(self.out_features().path, data=instances.data, indices=instances.indices, indptr=instances.indptr, shape=instances.shape)
@@ -159,7 +149,19 @@ class Frog2Features(Task):
         
         # set text to lowercase if argument is given
         if self.lowercase:
-            documents = [[[token['text'].lower() for token in line] for line in document] for document in documents]
+            new_docs = []
+            for document in documents:
+                new_doc = []
+                for line in document:
+                    new_line = []
+                    for token in line:
+                        new_token = []
+                        token['text'] = token['text'].lower()
+                        new_token = token
+                        new_line.append(new_token)
+                    new_doc.append(new_line)
+                new_docs.append(new_doc)
+            documents = new_docs
 
         # extract features
         ft = featurizer.Featurizer(documents, features)
@@ -185,10 +187,10 @@ class Frogdir2Features(Task):
     lowercase = BoolParameter() # applies to text tokens only
         
     def out_features(self):
-        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.features.npz')
+        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.dir.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.dir.vocabulary.txt')
 
     def run(self):
         
@@ -202,11 +204,9 @@ class Frogdir2Features(Task):
         for featuretype in featuretypes:
             features[featuretype] = {'n_list':ngrams, 'blackfeats':blackfeats, 'mt':self.minimum_token_frequency}
 
-        print('Features',features)
-
         # read in files and put in right format
         documents = []
-        for infile in listdir(self.in_frogdir().path):
+        for infile in sorted(listdir(self.in_frogdir().path),key=keyfunc):            
             with open(self.in_frogdir().path + '/' + infile, 'r', encoding = 'utf-8') as file_in:
                 document = sum(json.loads(file_in.read()), []) # to convert output, which is represented as  multiple documents, to one document    
                 # set text to lowercase if argument is given
@@ -220,20 +220,6 @@ class Frogdir2Features(Task):
         ft = featurizer.Featurizer(documents, features)
         ft.fit_transform()
         instances, vocabulary = ft.return_instances(featuretypes)
-
-        # # combine featurized documents
-        # overall_vocabulary = list(set(sum([list(fd[1]) for fd in featurized_documents],[])))
-        # feature_index = dict(zip(overall_vocabulary,list(range(len(overall_vocabulary)))))
-        # nd = len(featurized_documents)
-        # aligned_docs = []
-        # for j,fd in enumerate(featurized_documents):
-        #     doc = fd[0]
-        #     vocab = fd[1]
-        #     row = [0] * len(overall_vocabulary)
-        #     for i,feature in enumerate(vocab):
-        #         row[feature_index[feature]] = doc[0,i]
-        #     aligned_docs.append(row)
-        # instances = sparse.csr_matrix(aligned_docs)
 
         # write output
         numpy.savez(self.out_features().path, data=instances.data, indices=instances.indices, indptr=instances.indptr, shape=instances.shape)
@@ -258,7 +244,7 @@ class Featurize(StandardWorkflowComponent):
     strip_punctuation = BoolParameter(default=True)
 
     def accepts(self):
-        return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputFormat(self, format_id='frogged', extension='frog.json'), InputFormat(self, format_id='txt', extension='txt'), InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), InputFormat(self, format_id='frogtxtdir', extension='.frog.txtdir', directory=True), InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
+        return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputFormat(self, format_id='frogged', extension='frog.json'), InputFormat(self, format_id='txt', extension='txt'), InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), InputFormat(self, format_id='frogjsondir', extension='.frog.jsondir', directory=True), InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
                     
     def setup(self, workflow, input_feeds):
         if 'tokenized' in input_feeds.keys():
@@ -286,9 +272,9 @@ class Featurize(StandardWorkflowComponent):
             featurizertask = workflow.new_task('FeaturizerTask_tokdir', Tokdir2Features, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency, autopass=True)
             featurizertask.in_tokdir = input_feeds['toktxtdir']
 
-        elif 'frogtxtdir' in input_feeds.keys():
+        elif 'frogjsondir' in input_feeds.keys():
             featurizertask = workflow.new_task('FeaturizerTask_frogdir', Frogdir2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency, autopass=True)
-            featurizertask.in_frogdir = input_feeds['frogtxtdir']
+            featurizertask.in_frogdir = input_feeds['frogjsondir']
 
         elif 'txtdir' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument

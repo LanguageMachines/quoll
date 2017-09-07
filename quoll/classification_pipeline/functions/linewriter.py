@@ -18,14 +18,21 @@ class Linewriter:
     def set_lines(self, lines):
         self.lines = lines
 
-    def write_xlsx(self, headers, header_style, outfile, encoding='utf-8'):
+    def write_xlsx(self, headers, header_style, outfile, sheetname=False,encoding='utf-8'):
         if not self.current_workbook:
             self.current_workbook = Workbook(encoding = encoding)
             ws = self.current_workbook.active
-            ws.title = 'sheet1'
+            if sheetname:
+                ws.title = sheetname
+            else:
+                ws.title = 'sheet1'
         else:
             num_sheets = len(self.current_workbook.get_sheet_names())
-            ws = self.current_workbook.create_sheet(title='sheet'+str(num_sheets+1))
+            if sheetname:
+                ws = self.current_workbook.create_sheet(title=sheetname)
+            else:
+                ws = self.current_workbook.create_sheet(title='sheet'+str(num_sheets+1))
+    
         number_header = {}
         for i, header in enumerate(headers):
             i += 1

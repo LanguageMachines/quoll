@@ -17,9 +17,10 @@ class Tokenize_instances(Task):
     def run(self):
 
         with open(self.in_txt().path, 'r', encoding = 'utf-8') as file_in:
-            lines = file_in.readlines()
+            lines = file_in.read().strip().split('\n')
 
         with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
+            c = 0
             tokenizer = ucto.Tokenizer(self.tokconfig)
             for line in lines:
                 tokenizer.process(line)
@@ -27,7 +28,11 @@ class Tokenize_instances(Task):
                 for token in tokenizer:
                     if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
                         tokens.append(token.text)
+#                print(len(' '.join(tokens).split('\n')))
+#                    print('Too long!! Inputline',line,'\nTokens',tokens)
                 file_out.write(' '.join(tokens) + '\n')
+                c += 1
+            print(len(lines),c)
 
 
 class Tokenize_document(Task):

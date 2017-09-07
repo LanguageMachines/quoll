@@ -16,7 +16,10 @@ class Vectorize_traininstances(Task):
     balance = BoolParameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
+        if self.balance:
+            return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.vectors.npz')
+        else:
+            return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
 
     def out_featureweights(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.feature_weights.txt')
@@ -25,7 +28,10 @@ class Vectorize_traininstances(Task):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.topfeatures.txt')
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorized.labels')
+        if self.balance:
+            return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.vectorized.labels')
+        else:
+            return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.vectorized.labels')
 
     def run(self):
 

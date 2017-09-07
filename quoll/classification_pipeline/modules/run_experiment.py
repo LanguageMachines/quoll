@@ -14,7 +14,8 @@ class ExperimentComponent(WorkflowComponent):
     trainlabels = Parameter()
     testfeatures = Parameter()
     testlabels = Parameter()
-    vocabulary = Parameter()
+    trainvocabulary = Parameter()
+    testvocabulary = Parameter()
     documents = Parameter()
     classifier_args = Parameter()
 
@@ -26,18 +27,18 @@ class ExperimentComponent(WorkflowComponent):
     lcs_path = Parameter(default='/home/fkunneman/local/bin/lcs')
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
+        return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='trainvocabulary', extension='.vocabulary.txt', inputparameter='trainvocabulary'), InputFormat(self, format_id='testvocabulary', extension='.vocabulary.txt', inputparameter='testvocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
         train_vectors = workflow.new_task('vectorize_traininstances', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
         train_vectors.in_train = input_feeds['train']
         train_vectors.in_trainlabels = input_feeds['trainlabels']
-        train_vectors.in_vocabulary = input_feeds['vocabulary']
+        train_vectors.in_vocabulary = input_feeds['trainvocabulary']
 
         test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
         test_vectors.in_test = input_feeds['test']
-        test_vectors.in_sourcevocabulary = input_feeds['vocabulary']
+        test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
         test_vectors.in_topfeatures = train_vectors.out_topfeatures
 
         if self.classifier == 'balanced_winnow':
