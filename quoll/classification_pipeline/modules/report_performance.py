@@ -9,6 +9,7 @@ import quoll.classification_pipeline.functions.linewriter as linewriter
 class ReportPerformance(Task):
 
     in_predictions = InputSlot()
+    in_full_predictions = InputSlot()
     in_labels = InputSlot()
     in_trainlabels = InputSlot()
     in_documents = InputSlot()
@@ -16,27 +17,36 @@ class ReportPerformance(Task):
     ordinal = BoolParameter()
 
     def out_performance(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.performance.csv')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.performance.csv')
 
     def out_docpredictions(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.docpredictions.csv')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.docpredictions.csv')
 
     def out_confusionmatrix(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.confusion_matrix.csv')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.confusion_matrix.csv')
 
     def out_fps_dir(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.ranked_fps')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.ranked_fps')
 
     def out_tps_dir(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.ranked_tps')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.ranked_tps')
+
+    def out_fns_dir(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.ranked_fns')
+
+    def out_tns_dir(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.ranked_tns')
 
     def run(self):
 
-        # load predictions and probabilities
+        # load predictions and full_predictions
         with open(self.in_predictions().path) as infile:
-            predictions_probabilities = [line.split('\t') for line in infile.read().strip().split('\n')]
-        predictions = [x[0] for x in predictions_probabilities]
-        probabilities = [x[1] for x in predictions_probabilities]
+            predictions = infile.read().strip().split('\n')
+
+        with open(self.in_full_predictions().path) as infile:
+            lines = [line.split('\t') for line in infile.read().strip().split('\n')]
+        label_order = lines[0]
+        full_predictions = lines[1:]
 
         # load labels
         with open(self.in_labels().path) as infile:
@@ -51,7 +61,7 @@ class ReportPerformance(Task):
             documents = infile.read().strip().split('\n')
 
         # initiate reporter
-        rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, self.ordinal, documents)
+        rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, self.ordinal, documents)
 
         # report performance
         if self.ordinal:
@@ -68,7 +78,7 @@ class ReportPerformance(Task):
 
         # report fps per label
         self.setup_output_dir(self.out_fps_dir().path)
-        for label in list(set(labels)):
+        for label in list(set(unique_labels)):
             ranked_fps = rp.return_ranked_fps(label)
             outfile = self.out_fps_dir().path + '/' + label + '.csv'
             lw = linewriter.Linewriter(ranked_fps)
@@ -76,7 +86,23 @@ class ReportPerformance(Task):
 
         # report fps per label
         self.setup_output_dir(self.out_tps_dir().path)
-        for label in list(set(labels)):
+        for label in list(set(unique_labels)):
+            ranked_tps = rp.return_ranked_tps(label)
+            outfile = self.out_tps_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_tps)
+            lw.write_csv(outfile)
+
+        # report fns per label
+        self.setup_output_dir(self.out_fns_dir().path)
+        for label in list(set(unique_labels)):
+            ranked_tps = rp.return_ranked_tps(label)
+            outfile = self.out_tps_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_tps)
+            lw.write_csv(outfile)
+
+        # report tns per label
+        self.setup_output_dir(self.out_tns_dir().path)
+        for label in list(set(unique_labels)):
             ranked_tps = rp.return_ranked_tps(label)
             outfile = self.out_tps_dir().path + '/' + label + '.csv'
             lw = linewriter.Linewriter(ranked_tps)
@@ -92,25 +118,29 @@ class ReportPerformance(Task):
 class ReportDocpredictions(Task):
 
     in_predictions = InputSlot()
+    in_full_predictions = InputSlot()
     in_documents = InputSlot()
 
     def out_docpredictions(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.classifications.txt', addextension='.docpredictions.csv')
+        return self.outputfrominput(inputformat='predictions', stripextension='.full_predictions.txt', addextension='.docpredictions.csv')
 
     def run(self):
 
-        # load predictions and probabilities
+        # load predictions and full_predictions
         with open(self.in_predictions().path) as infile:
-            predictions_probabilities = [line.split('\t') for line in infile.read().strip().split('\n')]
-        predictions = [x[0] for x in predictions_probabilities]
-        probabilities = [x[1] for x in predictions_probabilities]
+            predictions = infile.read().strip().split('\n')
+
+        with open(self.in_full_predictions().path) as infile:
+            lines = [line.split('\t') for line in infile.read().strip().split('\n')]
+        label_order = lines[0]
+        full_predictions = lines[1:]
 
         # load documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
             documents = infile.read().strip().split('\n')
 
         # initiate reporter
-        rp = reporter.Reporter(predictions, probabilities, documents=documents)
+        rp = reporter.Reporter(predictions, full_predictions, label_order, documents=documents)
 
         # report predictions by document
         predictions_by_document = rp.predictions_by_document()
@@ -121,18 +151,23 @@ class ReportDocpredictions(Task):
 class ReporterComponent(WorkflowComponent):
 
     predictions = Parameter()
+    full_predictions = Parameter()
     labels = Parameter()
+    trainlabels = Parameter()
     documents = Parameter()
+
     ordinal = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self, format_id='predictions', extension='.predictions.txt',inputparameter='predictions'), InputFormat(self, format_id='full_predictions', extension='.full_predictions.txt',inputparameter='full_predictions'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, documents=self.documents, ordinal=self.ordinal)
+        reporter = workflow.new_task('report_performance', ReportPerformance, autopass=True, ordinal=self.ordinal)
         reporter.in_predictions = input_feeds['predictions']
+        reporter.in_full_predictions = input_feeds['full_predictions']
         reporter.in_labels = input_feeds['labels']
+        reporter.in_trainlabels = input_feeds['trainlabels']
         reporter.in_documents = input_feeds['documents']
 
         return reporter
@@ -140,15 +175,17 @@ class ReporterComponent(WorkflowComponent):
 class ReportDocpredictionsComponent(WorkflowComponent):
 
     predictions = Parameter()
+    full_predictions = Parameter()
     documents = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self, format_id='predictions', extension='.classifications.txt',inputparameter='predictions'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
+        return [ ( InputFormat(self, format_id='predictions', extension='.predictions.txt',inputparameter='predictions'), InputFormat(self, format_id='full_predictions', extension='.full_predictions.txt',inputparameter='full_predictions'), InputFormat(self, format_id='documents', extension='.txt',inputparameter='documents') ) ]
 
     def setup(self, workflow, input_feeds):
 
         reportdocs = workflow.new_task('report_performance', ReportDocpredictions, autopass=True)
         reportdocs.in_predictions = input_feeds['predictions']
+        reportdocs.in_full_predictions = input_feeds['full_predictions']
         reportdocs.in_documents = input_feeds['documents']
 
         return reportdocs

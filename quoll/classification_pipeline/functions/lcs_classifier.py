@@ -2,6 +2,7 @@
 
 import os
 import numpy
+import re
 
 from quoll.classification_pipeline.functions import nfold_cv_functions
 
@@ -9,9 +10,12 @@ class LCS_classifier:
 
     def __init__(self, directory):
         self.expdir = directory
-        self.filesdir = False
-        self.classifications = []
-    
+        self.filesdir = False 
+        self.predictions = False
+        self.full_predictions = False
+        self.docs = False
+        self.model = False
+        
     def experiment(self,traininstances,trainlabels,vocabulary,testinstances=False,testlabels=False):
         self.filesdir = self.expdir + '/files/'
         try:
@@ -20,18 +24,23 @@ class LCS_classifier:
             print('filesdirectory already exists')
         # try:
         if not os.path.exists('train'):
-            trainparts = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
+            trainparts, trainfile_index = self.prepare(traininstances,trainlabels,vocabulary, 'train/')
             with open('train', 'w', encoding = 'utf-8') as train:
                 train.write('\n'.join(trainparts))            
+            with open(self.expdir + '/trainfile_index.txt','w',encoding='utf-8') as out:
+                out.write('\n'.join([' '.join([str(x) for x in line]) for line in trainfile_index]))
         else:
             print('Trainfile already exists, skipping data preparation')
         if not os.path.exists('test'):
-            testparts = self.prepare(testinstances,testlabels,vocabulary, 'test/')
+            testparts, testfile_index = self.prepare(testinstances,testlabels,vocabulary, 'test/')
             with open('test', 'w', encoding = 'utf-8') as test:
                 test.write('\n'.join(testparts))
+            with open(self.expdir + '/testfile_index.txt','w',encoding='utf-8') as out:
+                out.write('\n'.join([' '.join([str(x) for x in line]) for line in testfile_index]))
         else:
             print('Testfile already exists, skipping data preparation')
         self.classify(self.expdir)
+
         # except: 
         #     print('Running 10-fold cross-validation')
         #     if not os.path.exists('parts'):
@@ -58,7 +67,7 @@ class LCS_classifier:
         #         with open('test','w',encoding='utf-8') as test_out:
         #             test_out.write('\n'.join(testparts))
         #         self.classify(expdir)
-
+        
     def instances_2_ngrams(self,instances,vocabulary):
         instances_ngrams = []
         vocab_numpy = numpy.array(vocabulary)
@@ -70,19 +79,22 @@ class LCS_classifier:
 
     def prepare(self, instances, labels, vocabulary, add_dir=False):
         parts = []
+        filename_index = []
         # transform instances from vectors to vocabularylists
         instances_vocabulary = self.instances_2_ngrams(instances,vocabulary)
         # make directory to write files to
         # make added directory
-        if add_dir:
-            add = add_dir
-            try:
-                os.mkdir(self.filesdir + add)
-            except:
-                print('added dir already exists')
-        else:
-            add = ''
+#        if add_dir:
+#            add = add_dir
+#            try:
+#                os.mkdir(self.filesdir + add)
+#            except:
+#                print('added dir already exists')
+#        else:
+#            add = ''
+        add = ''
         # make chunks of 25000 from the data
+        index = 0
         data = list(zip(labels,instances_vocabulary))
         if len(data) > 25000:
             chunks = [list(t) for t in zip(*[iter(data)]*25000)]
@@ -92,38 +104,70 @@ class LCS_classifier:
             # make subdirectory
             subpart = add + 'sd' + str(i) + '/'
             subdir = self.filesdir + subpart
-            try:
-                os.mkdir(subdir)
-            except:
-                print('subdirectory already exists')
+#            try:
+#                os.mkdir(subdir)
+#            except:
+#                print('subdirectory already exists')
             for j, instance in enumerate(chunk):
                 zeros = 5 - len(str(j))
                 filename = subpart + ('0' * zeros) + str(j) + '.txt'
+                filename_index.append([filename, index])
+                index += 1
                 label = instance[0]
                 features = instance[1]
-                with open(self.filesdir + filename, 'w', encoding = 'utf-8') as outfile: 
-                    outfile.write('\n'.join(features))
+#                with open(self.filesdir + filename, 'w', encoding = 'utf-8') as outfile: 
+#                    outfile.write('\n'.join(features))
                 parts.append(filename + ' ' + label)
-        return parts
+        return parts, filename_index
 
     def classify(self,expdir):
         self.write_config()
         os.system('lcs --verbose')
-        self.extract_performance()
+        self.docs, self.predictions, self.full_predictions = self.extract_performance('test.rnk')
+        self.model = self.extract_model('data/')
         os.system('mv train ' + expdir)
         os.system('mv data/ ' + expdir)
         os.system('mv test* ' + expdir)
         os.system('mv lcs* ' + expdir)
         os.system('mv index/ ' + expdir)
 
-    def extract_performance(self):
-        with open('test.rnk') as rnk:
-            for line in rnk.readlines():
+    def extract_performance(self,testrnk_file):
+        with open(testrnk_file) as rnk:
+            for i,line in enumerate(rnk.readlines()):
                 tokens = line.strip().split()
                 filename = tokens[0].strip()
-                classification, score = tokens[1].split()[0].split(':')
-                classification = classification.replace('?','')
-                self.classifications.append([classification, score])
+                classifications = tokens[1:]
+                if i == 0:
+                    prediction_cats = [cl.split(':')[0].replace('?','') for cl in classifications]
+                    full_predictions = [prediction_cats]
+                    predictions = []
+                    docs = []
+                # for classification in classifications:
+                prediction = classifications[0].split(':')[0].replace('?','')
+                full_prediction = [0] * len(prediction_cats)
+                for prediction_prob in classifications:
+                    cat, prob = prediction_prob.split(':')
+                    cat = cat.replace('?','')
+                    full_prediction[prediction_cats.index(cat)] = prob
+                docs.append(filename)
+                predictions.append(prediction)
+                full_predictions.append(full_prediction)
+            return docs, predictions, full_predictions
+
+    def extract_model(self,datadir):
+        categories = list(set(self.predictions))
+        all_files = os.listdir(datadir)
+        category_models = [f for f in all_files if f.endswith('mitp')]
+        out_models = {}
+        for category in categories:
+            modelfile = max([f for f in category_models if re.match('^'+category,f)])
+            with open(datadir + modelfile,'r',encoding='utf-8') as mf_in:
+                lines = mf_in.read().strip().split('\n')[6:]
+            clines = [line.strip().split('\t')[:2] for line in lines]
+            clines_f = [[line[0],float(line[1])] for line in clines]
+            clines_f_sorted = sorted(clines_f,key = lambda k : k[1],reverse=True)
+            out_models[category] = clines_f_sorted
+        return out_models              
 
     def write_config(self):
         fileschunks = self.filesdir.split('/')

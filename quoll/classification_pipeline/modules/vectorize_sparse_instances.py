@@ -5,6 +5,49 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.functions import vectorizer
 
+class Balance_instances(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+    in_test = InputSlot() # to separate balanced classifications from normal ones
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.features.npz')
+
+    def out_labels(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels')
+
+    def out_test(self):
+        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.features.npz')
+
+    def run(self):
+
+        # load featurized traininstances
+        loader = numpy.load(self.in_train().path)
+        featurized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load featurized testinstances
+        loader = numpy.load(self.in_test().path)
+        featurized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load trainlabels
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+            trainlabels = infile.read().strip().split('\n')
+
+        # balance instances by label frequency
+        featurized_traininstances_balanced, trainlabels_balanced = vectorizer.balance_data(featurized_traininstances, trainlabels)
+
+        # write traininstances to file
+        numpy.savez(self.out_train().path, data=featurized_traininstances_balanced.data, indices=featurized_traininstances_balanced.indices, indptr=featurized_traininstances_balanced.indptr, shape=featurized_traininstances_balanced.shape)
+
+        # write trainlabels to file
+        with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
+            l_out.write('\n'.join(trainlabels_balanced))
+        
+        # write testinstances to file
+        numpy.savez(self.out_test().path, data=featurized_testinstances.data, indices=featurized_testinstances.indices, indptr=featurized_testinstances.indptr, shape=featurized_testinstances.shape)
+
+
 class Vectorize_traininstances(Task):
 
     in_train = InputSlot()
@@ -13,13 +56,9 @@ class Vectorize_traininstances(Task):
 
     weight = Parameter()
     prune = IntParameter()
-    balance = BoolParameter()
 
     def out_train(self):
-        if self.balance:
-            return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.vectors.npz')
-        else:
-            return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
 
     def out_featureweights(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.feature_weights.txt')
@@ -28,10 +67,7 @@ class Vectorize_traininstances(Task):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.topfeatures.txt')
 
     def out_labels(self):
-        if self.balance:
-            return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.vectorized.labels')
-        else:
-            return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.vectorized.labels')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectorized.labels')
 
     def run(self):
 
@@ -48,10 +84,6 @@ class Vectorize_traininstances(Task):
         # load vocabulary
         with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
             vocabulary = infile.read().strip().split('\n')
-
-        # balance instances by label frequency
-        if self.balance:
-            featurized_instances, trainlabels = vectorizer.balance_data(featurized_instances, trainlabels)
 
         # calculate feature_weight
         feature_weights = weight_functions[self.weight][0](featurized_instances, trainlabels)
@@ -121,7 +153,7 @@ class Vectorize_testinstances(Task):
         # align the test instances to the top features to get the right indices
         with open(self.in_sourcevocabulary().path,'r',encoding='utf-8') as infile:
             sourcevocabulary = infile.read().split('\n')
-        print('Loaded sourcevocabulary of size',len(sourcevocabulary),', now aliging testvectors...')
+        print('Loaded sourcevocabulary of size',len(sourcevocabulary),', now aligning testvectors...')
         testvectors = vectorizer.align_vectors(featurized_instances, topfeatures_vocabulary, sourcevocabulary)
         print('Done. Shape of testvectors:',testvectors.shape,', now setting feature weights...')
 
@@ -288,5 +320,26 @@ class Vectorize_traintest(WorkflowComponent):
         test_vectors.in_test = input_feeds['test']
         test_vectors.in_sourcevocabulary = input_feeds['sourcevocabulary']
         test_vectors.in_topfeatures = train_vectors.out_topfeatures
+
+        return test_vectors
+
+@registercomponent
+class Vectorize_test(WorkflowComponent):
+
+    testfile = Parameter()
+    testvocabulary = Parameter()
+    topfeatures = Parameter()
+
+    weight = Parameter(default = 'frequency')
+
+    def accepts(self):
+        return [ ( InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfile'), InputFormat(self, format_id='testvocabulary', extension='.txt',inputparameter='testvocabulary'), InputFormat(self, format_id='topfeatures', extension='.txt',inputparameter='topfeatures')) ]
+
+    def setup(self, workflow, input_feeds):
+
+        test_vectors = workflow.new_task('vectorize_testinstances', Vectorize_testinstances, autopass=True, weight=self.weight)
+        test_vectors.in_test = input_feeds['test']
+        test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
+        test_vectors.in_topfeatures = input_feeds['topfeatures']
 
         return test_vectors

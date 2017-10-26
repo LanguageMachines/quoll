@@ -31,15 +31,32 @@ class ExperimentComponent(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        train_vectors = workflow.new_task('vectorize_traininstances', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)
-        train_vectors.in_train = input_feeds['train']
-        train_vectors.in_trainlabels = input_feeds['trainlabels']
-        train_vectors.in_vocabulary = input_feeds['trainvocabulary']
+        if self.balance:
+            balancer = workflow.new_task('balance instances', vectorize_sparse_instances.Balance_instances, autopass=True)
+            balancer.in_train = input_feeds['train']
+            balancer.in_trainlabels = input_feeds['trainlabels']
+            balancer.in_test = input_feeds['test']
 
-        test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
-        test_vectors.in_test = input_feeds['test']
-        test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
-        test_vectors.in_topfeatures = train_vectors.out_topfeatures
+            train_vectors = workflow.new_task('vectorize_traininstances_balanced', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune)
+            train_vectors.in_train = balancer.out_train
+            train_vectors.in_trainlabels = balancer.out_labels
+            train_vectors.in_vocabulary = input_feeds['trainvocabulary']
+
+            test_vectors = workflow.new_task('vectorize_testinstances_balanced', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
+            test_vectors.in_test = balancer.out_test
+            test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
+            test_vectors.in_topfeatures = train_vectors.out_topfeatures
+
+        else:
+            train_vectors = workflow.new_task('vectorize_traininstances', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune)
+            train_vectors.in_train = input_feeds['train']
+            train_vectors.in_trainlabels = input_feeds['trainlabels']
+            train_vectors.in_vocabulary = input_feeds['trainvocabulary']
+
+            test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
+            test_vectors.in_test = input_feeds['test']
+            test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
+            test_vectors.in_topfeatures = train_vectors.out_topfeatures
 
         if self.classifier == 'balanced_winnow':
             predictor = workflow.new_task('classify_lcs',  classify_instances.BalancedWinnowClassifier, autopass=True, lcs_path=self.lcs_path)
@@ -61,7 +78,8 @@ class ExperimentComponent(WorkflowComponent):
             predictor.in_model = trainer.out_model
 
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
-        reporter.in_predictions = predictor.out_classifications
+        reporter.in_predictions = predictor.out_predictions
+        reporter.in_full_predictions = predictor.out_full_predictions
         reporter.in_labels = input_feeds['testlabels']
         reporter.in_trainlabels = input_feeds['trainlabels']
         reporter.in_documents = input_feeds['documents']

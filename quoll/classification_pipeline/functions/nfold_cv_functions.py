@@ -1,9 +1,9 @@
 
 
-def return_fold_indices(num_instances, num_folds, steps=1):
+def return_fold_indices(num_instances, num_folds, steps=1, startindex=0):
     folds = []
     for i in range(num_folds):
-        j = i*steps
+        j = startindex + (i*steps)
         fold = []
         while j < num_instances:
             k = 1

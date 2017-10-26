@@ -81,8 +81,11 @@ class ApplyClassifier(Task):
 
     classifier = Parameter()
 
-    def out_classifications(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension=self.classifier + '.classifications.txt')
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension=self.classifier + '.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension=self.classifier + '.full_predictions.txt')
 
     def run(self):
 
@@ -96,7 +99,7 @@ class ApplyClassifier(Task):
 
         # load labels (for the label encoder)
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
-            labels = infile.read().split('\n')
+            labels = infile.read().strip().split('\n')
 
         # inititate classifier
         clf = AbstractSKLearnClassifier()
@@ -105,11 +108,15 @@ class ApplyClassifier(Task):
         clf.set_label_encoder(labels)
 
         # apply classifier
-        classifications = clf.apply_model(model,vectorized_instances)
+        predictions, full_predictions = clf.apply_model(model,vectorized_instances)
 
-        # write classifications to file
-        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
-            cl_out.write('\n'.join(['\t'.join([str(field) for field in classification]) for classification in classifications]))
+        # write predictions to file
+        with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
+            pr_out.write('\n'.join(predictions))
+
+        # write full predictions to file
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as fpr_out:
+            fpr_out.write('\n'.join(['\t'.join([str(prob) for prob in full_prediction]) for full_prediction in full_predictions]))
 
 @registercomponent
 class Train(WorkflowComponent):
@@ -156,6 +163,27 @@ class TrainApply(WorkflowComponent):
         predictor.in_test = input_feeds['testvectors']
         predictor.in_labels = input_feeds['trainlabels']
         predictor.in_model = trainer.out_model
+
+        return predictor
+
+@registercomponent
+class Apply(WorkflowComponent):
+
+    testvectors = Parameter()
+    model = Parameter()
+    trainlabels = Parameter()
+
+    classifier = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self, format_id='labels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='model', extension='.model.pkl',inputparameter='model') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True, classifier=self.classifier)
+        predictor.in_test = input_feeds['testvectors']
+        predictor.in_labels = input_feeds['labels']
+        predictor.in_model = input_feeds['model']
 
         return predictor
 
@@ -370,7 +398,7 @@ class TrainApplyBalancedWinnow(WorkflowComponent):
     lcs_path = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='vocabulary',extension='.vocabulary.txt',inputparameter='vocabulary') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='vocabulary',extension='.txt',inputparameter='vocabulary') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -389,20 +417,37 @@ class BalancedWinnowClassifier(Task):
     in_trainlabels = InputSlot()
     in_test = InputSlot()
     in_testlabels = InputSlot()
+    in_testdocs = InputSlot()
     in_vocabulary = InputSlot()
 
     lcs_path = Parameter()
 
-    def out_classifications(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.classifications.txt')
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.full_predictions.txt')
+    
+    def out_test_indices(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.doc_indices.txt')
+    
+    def out_docs(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.docs.txt')
+
+    def out_labels(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcs.labels')
+
+    def out_model_insights(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='lcs.model_insights')
 
     def out_lcsdir(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lcsdir')
 
     def run(self):
 
-        #Set up the output directory, will create it and tear it down on failure automatically
+        #Set up the output directories, will create it and tear it down on failure automatically
         self.setup_output_dir(self.out_lcsdir().path)
+        self.setup_output_dir(self.out_model_insights().path)
 
         # open train
         loader = numpy.load(self.in_train().path)
@@ -420,39 +465,55 @@ class BalancedWinnowClassifier(Task):
         with open(self.in_testlabels().path) as infile:
             testlabels = infile.read().strip().split('\n')
 
+        # open testdocs
+        with open(self.in_testdocs().path) as infile:
+            testdocs = infile.read().strip().split('\n')
+
         # open vocabulary
         with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
-            vocabulary = infile.read().strip().split('\n')
+            vocabulary = [feature.strip().split('\t')[0] for feature in infile.read().strip().split('\n')]
 
         # train classifier
         lcsc = LCS_classifier(self.out_lcsdir().path)
         lcsc.experiment(sparse_train_instances,trainlabels,vocabulary,sparse_test_instances,testlabels)
-        classifications = lcsc.classifications
+        predictions = lcsc.predictions
+        full_predictions = lcsc.full_predictions
+        docs = lcsc.docs
+        model_insights = lcsc.model
+        with open(self.out_lcsdir().path + '/testfile_index.txt','r',encoding='utf-8') as tfi_in:
+            testfile_index = {}
+            for line in tfi_in.read().strip().split('\n'):
+                tf_i = line.strip().split()
+                testfile_index[tf_i[0]] = tf_i[1]
+        testindices = [testfile_index[d] for d in docs]
 
-        # write classifications to file
-        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
-            cl_out.write('\n'.join(['\t'.join(classification_score) for classification_score in classifications])) 
+        testdocs_lcs = [testdocs[int(ti)] for ti in testindices]
+        testlabels_lcs = [testlabels[int(ti)] for ti in testindices]
 
-
-@registercomponent
-class ApplyBalancedWinnow(WorkflowComponent):
-
+        # write predictions to file
+        with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
+            pr_out.write('\n'.join(predictions))
     
-    testvectors = Parameter()
-    testvocabulary = Parameter()
+        # write full predictions to file
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as fpr_out:
+            fpr_out.write('\n'.join(['\t'.join(full_prediction) for full_prediction in full_predictions]))
 
-    lcs_path = Parameter()
+        # write model insights to files
+        for category in model_insights.keys():
+            outfile = self.out_model_insights().path + '/' + category + '_model.txt'
+            with open(outfile,'w',encoding='utf-8') as out:
+                mi = model_insights[category]
+                out.write('\n'.join(['\t'.join([str(x) for x in line]) for line in mi]))
 
-    def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='vocabulary',extension='.vocabulary.txt',inputparameter='vocabulary') ) ]
+        # write testindices to file
+        with open(self.out_test_indices().path,'w',encoding='utf-8') as ti_out:
+            ti_out.write('\n'.join(testindices))
 
-    def setup(self, workflow, input_feeds):
+        # write succesfully classified test documents to file
+        with open(self.out_docs().path,'w',encoding='utf-8') as td_out:
+            td_out.write('\n'.join(testdocs_lcs))
 
-        bw_classifier = workflow.new_task('bw_classifier', BalancedWinnowClassifier, lcs_path=self.lcs_path, autopass=True)
-        bw_classifier.in_train = input_feeds['trainvectors']
-        bw_classifier.in_trainlabels = input_feeds['trainlabels']
-        bw_classifier.in_test = input_feeds['testvectors']
-        bw_classifier.in_testlabels = input_feeds['testlabels']
-        bw_classifier.in_vocabulary = input_feeds['vocabulary']
+        # write succesfully classified test labels to file
+        with open(self.out_labels().path,'w',encoding='utf-8') as tl_out:
+            tl_out.write('\n'.join(testlabels_lcs))
 
-        return bw_classifier

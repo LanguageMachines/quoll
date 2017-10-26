@@ -25,20 +25,20 @@ class AbstractSKLearnClassifier:
 
     def apply_model(self, clf, testvectors):
         predictions = []
-        probabilities = []
+        full_predictions = [list(self.label_encoder.classes_)]
         for i, instance in enumerate(testvectors):
-            prediction = clf.predict(instance)[0]
+            prediction = self.label_encoder.inverse_transform([clf.predict(instance)[0]])[0]
             predictions.append(prediction)
             try:
-                probabilities.append(clf.predict_proba(instance)[0][prediction])
-            except:
-                probabilities.append('-')
-        try:
-            output = list(zip(list(self.label_encoder.inverse_transform(predictions)),probabilities))
-        except: # might be negatives in there
-            predictions = [int(x) for x in predictions]
-            output = list(zip(list(self.label_encoder.inverse_transform(predictions)),probabilities))
-        return output
+                full_predictions.append([clf.predict_proba(instance)[0][c] for c in self.label_encoder.transform(list(self.label_encoder.classes_))])
+            except: # no probabilities connected to predictions
+                full_predictions.append(['-' for c in self.label_encoder.classes_])
+        # try:
+        #     output = list(zip(list(self.label_encoder.inverse_transform(predictions)),probabilities))
+        # except: # might be negatives in there
+        #     predictions = [int(x) for x in predictions]
+        #     output = list(zip(list(self.label_encoder.inverse_transform(predictions)),probabilities))
+        return predictions, full_predictions
 
 class NaiveBayesClassifier(AbstractSKLearnClassifier):
 
@@ -52,7 +52,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, alpha='default', iterations=10):
+    def train_classifier(self, trainvectors, labels, alpha='default', fit_prior=True, iterations=10):
         if alpha == '':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
             paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
@@ -61,7 +61,11 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
             selected_alpha = 1.0
         else:
             selected_alpha = alpha
-        self.model = naive_bayes.MultinomialNB(alpha=selected_alpha)
+        if fit_prior == 'False':
+            fit_prior = False
+        else:
+            fit_prior = True
+        self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):

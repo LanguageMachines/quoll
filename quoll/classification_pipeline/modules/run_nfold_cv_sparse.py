@@ -27,6 +27,9 @@ class NFoldCVSparse(WorkflowComponent):
     classifier_args = Parameter()
 
     n = IntParameter(default=10)
+    steps = IntParameter(default=1) # useful to increase if closeby instances, for example sets of 2, are dependent
+    teststart = IntParameter(default=0) # give the first index to indicate a range to fix these instances for testing (some instances are then always used in training and not in the testset; this is useful when you want to compare the addition of a certain dataset to train on)
+    testend = IntParameter(default=-1)
     weight = Parameter(default='frequency')
     prune = IntParameter(default=5000)
     balance = BoolParameter(default=False)
@@ -38,7 +41,7 @@ class NFoldCVSparse(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
         fold_runner = workflow.new_task('nfold_cv', RunFolds, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)
@@ -154,12 +157,6 @@ class FoldTask(Task):
     def out_testfeatures(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.features.npz')
 
-    def out_trainvectors(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vectors.npz')
-
-    def out_testvectors(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vectors.npz')
-
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
 
@@ -184,10 +181,20 @@ class FoldTask(Task):
         dr = docreader.Docreader()
         bins_str = dr.parse_csv(self.in_bins().path)
         bins = [[int(x) for x in bin] for bin in bins_str]
+        bin_range = list(set(sum(bins,[])))
+        bin_min = min(bin_range)
+        bin_max = max(bin_range)
 
         # open features
         loader = numpy.load(self.in_features().path)
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # if applicable, set fixed train indices
+        fixed_train_indices = []
+        if bin_min > 0:
+            fixed_train_indices.extend(list(range(bin_min)))
+        if (bin_max+1) < featurized_instances.shape[0]:
+            fixed_train_indices.extend(list(range(bin_max+1,featurized_instances.shape[0])))
 
         # open labels
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
@@ -202,9 +209,9 @@ class FoldTask(Task):
             classifier_args = infile.read().rstrip().split('\n')
 
         # set training and test data
-        train_features = sparse.vstack([featurized_instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
-        train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
-        train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
+        train_features = sparse.vstack([featurized_instances[indices,:] for j,indices in enumerate(bins) if j != self.i] + [featurized_instances[fixed_train_indices,:]])
+        train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i] + [labels[fixed_train_indices]])
+        train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i] + [documents[fixed_train_indices]])
         test_features = featurized_instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
@@ -225,4 +232,4 @@ class FoldTask(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, vocabulary=self.in_vocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)
+        yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, trainvocabulary=self.in_vocabulary().path, testvocabulary=self.in_vocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)

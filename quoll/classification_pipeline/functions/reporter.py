@@ -5,13 +5,14 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, probabilities, labels=False, unique_labels = False, ordinal=False, documents=False):
+    def __init__(self, predictions, full_predictions, label_order, labels=False, unique_labels = False, ordinal=False, documents=False):
         self.predictions = predictions
-        if len(predictions) != len(probabilities):
-            print('The number of probabilities (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
+        if len(predictions) != len(full_predictions):
+            print('The number of full predictions (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
             quit()
         else:
-            self.probabilities = probabilities
+            self.full_predictions = full_predictions
+            self.label_order = label_order
         if labels:
             if len(predictions) != len(labels):
                 print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
@@ -91,19 +92,32 @@ class Reporter:
         return performance
 
     def predictions_by_document(self):
-        docpredictions = [['document', 'target', 'prediction', 'prob']]
+        docpredictions = [['document', 'target', 'prediction'] + ['prediction prob for ' + x for x in self.label_order]] 
         for index in range(len(self.documents)):
-            docpredictions.append([self.documents[index], self.labels[index], self.predictions[index], self.probabilities[index]])
+            docpredictions.append([self.documents[index], self.labels[index], self.predictions[index]] + self.full_predictions[index])
         return docpredictions
 
     def return_confusion_matrix(self):
         confusion_matrix = self.ce.confusionmatrix()
-        return confusion_matrix.__str__()
+        return confusion_matrix.__str__()                
 
     def return_ranked_fps(self, label):
-        ranked_fps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.probabilities[i]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        label_index = self.label_order.index(label)
+        ranked_fps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
         return ranked_fps
 
     def return_ranked_tps(self, label):
-        ranked_tps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.probabilities[i]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        label_index = self.label_order.index(label)
+        ranked_tps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
         return ranked_tps
+
+    def return_ranked_fns(self, label):
+        label_index = self.label_order.index(label)
+        ranked_fns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        return ranked_fns
+
+    def return_ranked_tns(self, label):
+        label_index = self.label_order.index(label)
+        ranked_tns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        return ranked_tns
+
