@@ -4,6 +4,7 @@ import numpy
 from scipy import sparse
 import pickle
 import math
+from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
@@ -15,9 +16,12 @@ class TrainClassifier(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
+    in_vocab = InputSlot()
     in_classifier_args = InputSlot()
 
     classifier = Parameter()
+    no_label_encoding = BoolParameter()
+    ordinal = BoolParameter()
 
     def out_model(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension=self.classifier + '.model.pkl')
@@ -34,7 +38,7 @@ class TrainClassifier(Task):
         self.setup_output_dir(self.out_model_insights().path)
 
         # initiate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
@@ -44,9 +48,16 @@ class TrainClassifier(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
+        if self.ordinal:
+            trainlabels = [float(x) for x in trainlabels]
+
+        # load vocabulary
+        with open(self.in_vocab().path,'r',encoding='utf-8') as infile:
+            vocab = infile.read().strip().split('\n')
 
         # transform trainlabels
-        clf.set_label_encoder(trainlabels)
+        if not self.no_label_encoding:
+            clf.set_label_encoder(sorted(trainlabels))
 
         # load classifier arguments        
         with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
@@ -54,24 +65,25 @@ class TrainClassifier(Task):
             classifier_args = classifier_args_str.split('\n')
 
         # train classifier
-        clf.train_classifier(vectorized_instances, trainlabels, *classifier_args)
+        clf.train_classifier(vectorized_instances, trainlabels, self.no_label_encoding, *classifier_args)
 
         # save classifier and insights
         model = clf.return_classifier()
         with open(self.out_model().path, 'wb') as fid:
             pickle.dump(model, fid)
-        try:
-            model_insights = clf.return_model_insights()
-            for mi in model_insights:
-                with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
-                    outfile.write(mi[1])
-        except:
-            print('No model insights returned.')
+        model_insights = clf.return_model_insights(vocab)
+        for mi in model_insights:
+            with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
+                outfile.write(mi[1])
 
         # save label encoding
-        label_encoding = clf.return_label_encoding(trainlabels)
-        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
+        if not self.no_label_encoding:
+            label_encoding = clf.return_label_encoding(trainlabels)
+            with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+                le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
+        else:
+            with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+                le_out.write('Not applicable')
 
 class ApplyClassifier(Task):
 
@@ -80,6 +92,8 @@ class ApplyClassifier(Task):
     in_model = InputSlot()
 
     classifier = Parameter()
+    no_label_encoding = BoolParameter()
+    ordinal = BoolParameter()
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension=self.classifier + '.predictions.txt')
@@ -100,15 +114,20 @@ class ApplyClassifier(Task):
         # load labels (for the label encoder)
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
             labels = infile.read().strip().split('\n')
+        if self.ordinal:
+            labels = [float(x) for x in labels]
 
         # inititate classifier
         clf = AbstractSKLearnClassifier()
 
         # transform labels
-        clf.set_label_encoder(labels)
+        if not self.no_label_encoding:
+            clf.set_label_encoder(labels)
 
         # apply classifier
-        predictions, full_predictions = clf.apply_model(model,vectorized_instances)
+        predictions, full_predictions = clf.apply_model(model,vectorized_instances,self.no_label_encoding)
+        if self.no_label_encoding and self.ordinal:
+            predictions = [str(x) for x in predictions]
 
         # write predictions to file
         with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
@@ -126,13 +145,15 @@ class Train(WorkflowComponent):
     classifier_args = Parameter()
 
     classifier = Parameter()
+    ordinal = BoolParameter()
+    no_label_encoding = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorized.labels', inputparameter='trainlabels'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, classifier_args=self.classifier_args)
+        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, label_encoding=self.label_encoding)
         trainer.in_train = input_feeds['trainvectors']
         trainer.in_trainlabels = input_feeds['trainlabels']
         trainer.in_classifier_args = input_feeds['classifier_args']
@@ -144,22 +165,26 @@ class TrainApply(WorkflowComponent):
 
     trainvectors = Parameter()
     trainlabels = Parameter()
+    vocab = Parameter()
     classifier_args = Parameter()
     testvectors = Parameter()
 
     classifier = Parameter()
+    ordinal = BoolParameter()
+    no_label_encoding = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorlabels', inputparameter='trainlabels'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.vectorized.labels', inputparameter='trainlabels'), InputFormat(self, format_id='vocab', extension='.topfeatures.txt', inputparameter='vocab'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier)
+        trainer = workflow.new_task('train_classifier', TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         trainer.in_train = input_feeds['trainvectors']
         trainer.in_trainlabels = input_feeds['trainlabels']
+        trainer.in_vocab = input_feeds['vocab']
         trainer.in_classifier_args = input_feeds['classifier_args']
 
-        predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True)
+        predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         predictor.in_test = input_feeds['testvectors']
         predictor.in_labels = input_feeds['trainlabels']
         predictor.in_model = trainer.out_model
@@ -173,19 +198,104 @@ class Apply(WorkflowComponent):
     model = Parameter()
     trainlabels = Parameter()
 
-    classifier = Parameter()
+    ordinal = BoolParameter()
+    no_label_encoding = BoolParameter()
 
     def accepts(self):
         return [ ( InputFormat(self, format_id='labels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='model', extension='.model.pkl',inputparameter='model') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True, classifier=self.classifier)
+        predictor = workflow.new_task('apply_classifier', ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         predictor.in_test = input_feeds['testvectors']
         predictor.in_labels = input_feeds['labels']
         predictor.in_model = input_feeds['model']
 
         return predictor
+
+
+#################################################
+######## Raw label transformation
+#################################################
+
+class Transform_labels_pre_ml(Task):
+
+    in_labels = InputSlot()
+    
+    raw_labels = Parameter()
+
+    def out_raw(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.raw.labels')
+
+    def out_translator(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.labeltranslator.txt')
+
+    def run(self):
+        
+        # open labels
+        with open(self.in_labels().path,'r',encoding='utf-8') as labels_in:
+            labels = labels_in.read().strip().split('\n')
+            
+        # open raw labels
+        with open(self.raw_labels,'r',encoding='utf-8') as raw_labels_in:
+            raw_labels = raw_labels_in.read().strip().split('\n')
+
+        # check if both lists have the same length
+        if len(labels) != len(raw_labels):
+            print('Labels (',len(labels),') and raw labels (',len(raw_labels),') do not have the same length; exiting program...')
+            quit()
+
+        # generate dictionary (1 0 14.4\n2 14.4 15.6)
+        transformed_labels = []
+        for label in sorted(list(set(labels))):
+            raw_labels = [float(x) for i,x in enumerate(raw_labels) if labels[i] == label]
+            transformed_labels.append([label,str(min(raw_labels)),str(max(raw_labels))])
+
+        # write output
+        with open(self.out_raw().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(raw_labels))
+
+        with open(self.out_translator().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join([' '.join(line) for line in transformed_labels]))
+
+class Transform_labels_post_ml(Task):
+
+    in_translator = InputSlot()
+    in_predictions = InputSlot()
+
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.txt', addextension='.translated.predictions.txt')
+
+    def run(self):
+        
+        # open translator
+        with open(self.in_translator().path,'r',encoding='utf-8') as translator_in:
+            translator = []
+            for line in translator_in.strip().split('\n'):
+                tokens = line.split()
+                translator.append([tokens[0],float(tokens[1]),float(tokens[2])])
+            
+        # open predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as predictions_in:
+            predictions = [float(x) for x in predictions_in.read().strip().split('\n')]
+
+        # translate predictions
+        translated_predictions = []
+        for prediction in predictions:
+            options = []
+            for candidate in translator:
+                if prediction > candidate[1] and prediction < candidate[2]:
+                    options.append(candidate[0])
+            if len(options) == 1:
+                translated_predictions.append(options[0])
+            else:
+                print('multiple translations possible for prediction',prediction,':',options,'exiting program...')
+                quit()
+                
+        # write translated predictions to file
+        with open(self.out_predictions().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(translated_predictions))
+            
 
 #################################################
 ######## Svorim classification (command line tool)
@@ -197,19 +307,18 @@ class TrainApplySvorim(WorkflowComponent):
     trainvectors = Parameter()
     trainlabels = Parameter()
     testvectors = Parameter()
-
-    svorim_path = Parameter()
-    ga_catch = BoolParameter()
+    classifier_args = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors') ) ]
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='classifier_args', extension='.txt',inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True, svorim_path=self.svorim_path, ga_catch=self.ga_catch)
+        classifier = workflow.new_task('svorim_classifier', SvorimClassifier, autopass=True, ga_catch=self.ga_catch)
         classifier.in_train = input_feeds['trainvectors']
         classifier.in_labels = input_feeds['trainlabels']
         classifier.in_test = input_feeds['testvectors']
+        classifier.in_classifier_args = input_feeds['classifier_args']
 
         return classifier
 
@@ -218,12 +327,15 @@ class SvorimClassifier(Task):
     in_train = InputSlot()
     in_labels = InputSlot()
     in_test = InputSlot()
+    in_classifier_args = InputSlot()
 
-    svorim_path = Parameter()
     ga_catch = BoolParameter()
 
-    def out_classifications(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.classifications.txt')
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='svorim.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='svorim.full_predictions.txt')
 
     def run(self):
 
@@ -243,6 +355,10 @@ class SvorimClassifier(Task):
         array_test_instances = sparse_test_instances.toarray()
         list_test_instances = array_test_instances.tolist()
 
+        # open svorim path
+        with open(self.in_classifier_args().path) as infile:
+            svorim_path = infile.read().strip()
+
         # set files
         train_instances_labels = []
         for i,instance in enumerate(list_train_instances):
@@ -252,11 +368,9 @@ class SvorimClassifier(Task):
             out.write('\n'.join([' '.join([str(x) for x in instance]) for instance in train_instances_labels]))
         with open(expdir+'svorim_test.0','w',encoding='utf-8') as out:
             out.write('\n'.join([' '.join([str(x) for x in instance]) + ' ' for instance in list_test_instances]))
-        #with open(self.ou,'w',encoding='utf-8') as out:
-        #    out.write('\n'.join(['1' for instance in list_test_instances]))
 
         # perform classification
-        os.system(self.svorim_path + ' -i ' + expdir+'svorim_train.0')
+        os.system(svorim_path + ' -i ' + expdir+'svorim_train.0')
 
         # read in predictions and probabilities
         try:
@@ -266,17 +380,161 @@ class SvorimClassifier(Task):
                 predictions = infile.read().strip().split('\n')
             with open(probfile) as infile:
                 probs = infile.read().strip().split('\n')
+                full_predictions = [sorted(list(set(labels)))]
+                for i,prob in enumerate(probs):
+                    template = ['0'] * len(full_predictions[0])
+                    index = full_predictions[0].index(predictions[i])
+                    template[index] = str(prob)
+                    full_predictions.append(template)
         except:
-            # if self.ga_catch:
             predictions = ['0'] * len(list_test_instances)
             probs = ['0'] * len(list_test_instances)
-            # else:
-            #     predictions = ['0']
-            #     probs = ['0']
 
-        # write classifications to file
-        with open(self.out_classifications().path,'w',encoding='utf-8') as cl_out:
-            cl_out.write('\n'.join(['\t'.join([prediction,probs[i]]) for i,prediction in enumerate(predictions)])) 
+        # write predictions to file
+        with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
+            pr_out.write('\n'.join(predictions))
+
+        # write full predictions to file
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as fpr_out:
+            fpr_out.write('\n'.join(['\t'.join(full_prediction) for full_prediction in full_predictions]))
+
+
+#####################################################################
+######## Linear regression (continuous labels)
+#####################################################################
+
+@registercomponent
+class TrainApplyLinearRegression(WorkflowComponent):
+
+    trainvectors = Parameter()
+    trainlabels_raw = Parameter()
+    trainlabels = Parameter()
+    testvectors = Parameter()
+    testlabels_raw = Parameter()
+    testlabels = Parameter()
+    classifier_args = Parameter()
+    featurenames = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='trainvectors',extension='.vectors.npz',inputparameter='trainvectors'), InputFormat(self, format_id='trainlabels_raw', extension='.txt', inputparameter='trainlabels_raw'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='testvectors', extension='.vectors.npz',inputparameter='testvectors'), InputFormat(self, format_id='testlabels_raw', extension='.txt', inputparameter='testlabels_raw'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'),InputFormat(self, format_id='featurenames',extension='.txt',inputparameter='featurenames'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        classifier = workflow.new_task('linreg_classifier', LinearRegression, autopass=True)
+        classifier.in_train = input_feeds['trainvectors']
+        classifier.in_trainlabels_raw = input_feeds['trainlabels_raw']
+        classifier.in_trainlabels = input_feeds['trainlabels']
+        classifier.in_test = input_feeds['testvectors']
+        classifier.in_testlabels_raw = input_feeds['trainlabels_raw']
+        classifier.in_testlabels = input_feeds['trainlabels']
+        classifier.in_featurenames = input_feeds['featurenames']
+        classifier.in_classifier_args = input_feeds['classier_args']
+
+        return classifier
+
+class LinearRegression(Task):
+
+    in_train = InputSlot()
+    in_trainlabels_raw = InputSlot()
+    in_trainlabels = InputSlot()
+    in_test = InputSlot()
+    in_testlabels_raw = InputSlot()
+    in_testlabels = InputSlot()
+    in_featurenames = InputSlot()
+    in_classifier_args = InputSlot()
+
+    def out_raw_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lreg.raw_predictions.txt')       
+
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lreg.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.lreg.full_predictions.txt')
+
+    def out_model(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.lreg.model.pkl')
+
+    def out_model_insights(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.lreg.model_insights')
+
+    def out_label_encoding(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.lreg.le')
+
+    def run(self):
+
+        # initiate directory with model insights
+        self.setup_output_dir(self.out_model_insights().path)
+
+        # load vectorized train instances
+        loader = numpy.load(self.in_train().path)
+        vectorized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load vectorized test instances
+        loader = numpy.load(self.in_test().path)
+        vectorized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # load raw trainlabels
+        with open(self.in_trainlabels_raw().path,'r',encoding='utf-8') as infile:
+            trainlabels_raw = [float(x) for x in infile.read().strip().split('\n')]
+
+        # load raw testlabels
+        with open(self.in_testlabels_raw().path,'r',encoding='utf-8') as infile:
+            testlabels_raw = [float(x) for x in infile.read().strip().split('\n')]
+
+        # load trainlabels
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+            trainlabels = infile.read().strip().split('\n')
+
+        # load testlabels
+        with open(self.in_testlabels().path,'r',encoding='utf-8') as infile:
+            testlabels = infile.read().strip().split('\n')
+
+        # concatenate labelfiles
+        raw_labels = trainlabels_raw + testlabels_raw
+        nominal_labels = trainlabels + testlabels
+
+        # load vocabulary
+        with open(self.in_featurenames().path,'r',encoding='utf-8') as infile:
+            vocab = infile.read().strip().split('\n')
+
+        # load classifier arguments        
+        with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
+            classifier_args_str = infile.read().rstrip()
+            classifier_args = classifier_args_str.split('\n')
+
+        # train classifier
+        lreg = LinearRegressionClassifier(raw_labels,nominal_labels)
+        lreg.train_classifier(vectorized_traininstances,trainlabels_raw,classifier_args)
+
+        # apply classifier
+        predictions_raw, predictions, full_predictions = lreg.apply_classifier(vectorized_testinstances)
+
+        # save classifier and insights
+        model = clf.return_classifier()
+        with open(self.out_model().path, 'wb') as fid:
+            pickle.dump(model, fid)
+        model_insights = clf.return_model_insights(vocab)
+        for mi in model_insights:
+            with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
+                outfile.write(mi[1])
+
+        # save label encoding
+        label_encoding = clf.return_label_encoding(trainlabels)
+        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
+            le_out.write('\n'.join([' '.join(le) for le in label_encoding.items()]))
+
+        # write predictions to file
+        with open(self.out_predictions().path,'w',encoding='utf-8') as rpr_out:
+            rpr_out.write('\n'.join(predictions_raw))
+
+        # write predictions to file
+        with open(self.out_raw_predictions().path,'w',encoding='utf-8') as pr_out:
+            pr_out.write('\n'.join(predictions))
+
+        # write full predictions to file
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as fpr_out:
+            fpr_out.write('\n'.join(['\t'.join([str(prob) for prob in full_prediction]) for full_prediction in full_predictions]))
 
 
 #####################################################################

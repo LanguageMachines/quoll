@@ -95,22 +95,22 @@ class ReportPerformance(Task):
         # report fns per label
         self.setup_output_dir(self.out_fns_dir().path)
         for label in list(set(unique_labels)):
-            ranked_tps = rp.return_ranked_tps(label)
-            outfile = self.out_tps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_tps)
+            ranked_fns = rp.return_ranked_fns(label)
+            outfile = self.out_fns_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_fns)
             lw.write_csv(outfile)
 
         # report tns per label
         self.setup_output_dir(self.out_tns_dir().path)
         for label in list(set(unique_labels)):
-            ranked_tps = rp.return_ranked_tps(label)
-            outfile = self.out_tps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_tps)
+            ranked_tns = rp.return_ranked_tns(label)
+            outfile = self.out_tns_dir().path + '/' + label + '.csv'
+            lw = linewriter.Linewriter(ranked_tns)
             lw.write_csv(outfile)
 
         # report confusion matrix
         if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
-            rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
+            rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, False, documents)
         confusion_matrix = rp.return_confusion_matrix()
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)

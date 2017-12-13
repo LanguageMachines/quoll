@@ -13,6 +13,7 @@ import quoll.classification_pipeline.functions.reporter as reporter
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
 from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentFilter
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
+from quoll.classification_pipeline.modules.run_nfold_cv_vectors import ReportFolds
 
 ################################################################################
 ###Component to thread the tasks together
@@ -25,27 +26,32 @@ class NFoldCVFilter(WorkflowComponent):
     labels = Parameter()
     documents = Parameter()
     featurenames = Parameter()
+    classifier_args = Parameter()
 
     threshold_strength = Parameter()
     threshold_correlation = Parameter()
-    svorim_path = Parameter()
     n = IntParameter(default=10)
     stepsize = IntParameter(default=1)
+    teststart = IntParameter(default=0) # give the first index to indicate a range to fix these instances for testing (some instances are then always used in training and not in the testset; this is useful when you want to compare the addition of a certain dataset to train on)
+    testend = IntParameter(default=-1)
+    classifier = Parameter(default='naive_bayes')
+    ordinal = BoolParameter(default=False)
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames') ) ]
+        return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args') ) ]
     
     def setup(self, workflow, input_feeds):
 
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_filter', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, svorim_path=self.svorim_path)
+        fold_runner = workflow.new_task('run_folds_filter', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
         fold_runner.in_documents = input_feeds['documents']        
         fold_runner.in_featurenames = input_feeds['featurenames']
+        fold_runner.in_classifier_args = input_feeds['classifier_args']
 
         folds_reporter = workflow.new_task('report_folds', ReportFolds, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
@@ -64,14 +70,18 @@ class RunFoldsFilter(Task):
     in_labels = InputSlot()
     in_documents = InputSlot()
     in_featurenames = InputSlot()
+    in_classifier_args = InputSlot()
 
     threshold_strength = Parameter()
     threshold_correlation = Parameter()
     n = IntParameter()
-    svorim_path = Parameter()
+    teststart = IntParameter()
+    testend = IntParameter()
+    classifier = Parameter()
+    ordinal = BoolParameter()
 
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.filter_' + self.threshold_strength + '_' + self.threshold_correlation + '.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.filter_' + self.threshold_strength + '_' + self.threshold_correlation + '.' + self.classifier + '.exp')
         
     def run(self):
 
@@ -80,7 +90,7 @@ class RunFoldsFilter(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldFilter(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, featurenames=self.in_featurenames().path, i=fold, svorim_path=self.svorim_path, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
+            yield FoldFilter(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, featurenames=self.in_featurenames().path, classifier_args=self.in_classifier_args().path, i=fold, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
 
 
 ################################################################################
@@ -96,24 +106,29 @@ class FoldFilter(WorkflowComponent):
     documents = Parameter()
     featurenames = Parameter()
     bins = Parameter()
+    classifier_args = Parameter()
 
     i = IntParameter()
-    svorim_path = Parameter()
     threshold_strength = Parameter()
     threshold_correlation = Parameter()
+    teststart = IntParameter()
+    testend = IntParameter()
+    classifier = Parameter()
+    ordinal = BoolParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args')  ) ]
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldFilterTask, autopass=False, i=self.i, svorim_path=self.svorim_path, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
+        fold = workflow.new_task('run_fold', FoldFilterTask, autopass=False, i=self.i, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
         fold.in_documents = input_feeds['documents']
         fold.in_featurenames = input_feeds['featurenames']
         fold.in_bins = input_feeds['bins']   
+        fold.in_classifier_args = input_feeds['classifier_args']
 
         return fold
 
@@ -125,11 +140,15 @@ class FoldFilterTask(Task):
     in_documents = InputSlot()
     in_featurenames = InputSlot()
     in_bins = InputSlot()
+    in_classifier_args = InputSlot()
     
     i = IntParameter()
-    svorim_path = Parameter()
     threshold_strength = Parameter()
     threshold_correlation = Parameter()
+    teststart = IntParameter()
+    testend = IntParameter()
+    classifier = Parameter()
+    ordinal = BoolParameter()
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
@@ -202,133 +221,5 @@ class FoldFilterTask(Task):
             outfile.write('\n'.join(featurenames))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, svorim_path=self.svorim_path)
+        yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal)
 
-################################################################################
-###Reporter
-################################################################################
-
-@registercomponent
-class ReportFoldsComponent(StandardWorkflowComponent):
-
-    def accepts(self):
-        return InputFormat(self, format_id='expdirectory', extension='.exp')
-                    
-    def autosetup(self):
-        return ReportFolds
-
-class ReportFolds(Task):
-
-    in_expdirectory = InputSlot()
-
-    ordinal = BoolParameter()
-
-    def out_macro_performance(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.macro_performance.csv')  
-
-    def out_performance(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.performance.csv')    
-
-    def out_docpredictions(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.docpredictions.csv')
-
-    def out_confusionmatrix(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.confusion_matrix.csv')
-
-    def out_fps_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_fps')
-
-    def out_tps_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_tps')
- 
-    def run(self):
-
-        # gather fold reports
-        print('gathering fold reports')
-        performance_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/*.performance.csv') ]
-        docprediction_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/*.docpredictions.csv') ]
-
-        # calculate average performance
-        dr = docreader.Docreader()
-        performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
-        all_performance = [performance_combined[0][0]] # headers
-        label_performance = defaultdict(list)
-        for p in performance_combined:
-            for i in range(1,len(p)): # labels  
-                no_float = []
-                performance = []
-                label = p[i][0] # name of label
-                for j in range(1,len(p[i])): # report values
-                    if j not in no_float:
-                        try:
-                            performance.append(float(p[i][j]))
-                        except:
-                            no_float.append(j)
-                            performance.append('nan')
-                            for lp in label_performance[label]:
-                                lp[j] = 'nan'
-                    else:
-                        performance.append('nan')
-                label_performance[label].append(performance)
-
-        # compute mean and sum per label
-        if 'micro' in label_performance.keys():
-            labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
-        else:
-            labels_order = sorted(label_performance.keys())
-
-        for label in labels_order:
-            average_performance = [label]
-            for j in range(0,len(label_performance[label][0])-3):
-                if label_performance[label][0][j] != 'nan':
-                    average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
-                else:
-                    average_performance.append('nan')
-            for j in range(len(label_performance[label][0])-3,len(label_performance[label][0])):
-                average_performance.append(str(sum([int(p[j]) for p in label_performance[label]])))
-            all_performance.append(average_performance)
-
-        lw = linewriter.Linewriter(all_performance)
-        lw.write_csv(self.out_macro_performance().path)
-
-        # write predictions per document
-        docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
-        documents = [line[0] for line in docpredictions]
-        labels = [line[1] for line in docpredictions]
-        unique_labels = sorted(list(set(labels)))
-        predictions = [line[2] for line in docpredictions]
-        probabilities = [line[3] for line in docpredictions]
-
-        # initiate reporter
-        rp = reporter.Reporter(predictions, probabilities, labels, unique_labels, True, documents)
-
-        # report performance
-        performance = rp.assess_ordinal_performance()
-
-        lw = linewriter.Linewriter(performance)
-        lw.write_csv(self.out_performance().path)
-
-        # report fps per label
-        self.setup_output_dir(self.out_fps_dir().path)
-        for label in list(set(labels)):
-            ranked_fps = rp.return_ranked_fps(label)
-            outfile = self.out_fps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_fps)
-            lw.write_csv(outfile)
-
-        # report fps per label
-        self.setup_output_dir(self.out_tps_dir().path)
-        for label in list(set(labels)):
-            ranked_tps = rp.return_ranked_tps(label)
-            outfile = self.out_tps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_tps)
-            lw.write_csv(outfile)
-
-        # report confusion matrix
-        rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
-        confusion_matrix = rp.return_confusion_matrix()
-        with open(self.out_confusionmatrix().path,'w') as cm_out:
-            cm_out.write(confusion_matrix)
-
-        lw = linewriter.Linewriter(docpredictions)
-        lw.write_csv(self.out_docpredictions().path)

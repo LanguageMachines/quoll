@@ -8,7 +8,7 @@ class Reporter:
     def __init__(self, predictions, full_predictions, label_order, labels=False, unique_labels = False, ordinal=False, documents=False):
         self.predictions = predictions
         if len(predictions) != len(full_predictions):
-            print('The number of full predictions (', len(probabilities), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
+            print('The number of full predictions (', len(full_predictions), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
             quit()
         else:
             self.full_predictions = full_predictions
@@ -23,9 +23,9 @@ class Reporter:
                 self.unique_labels = list(set(self.labels))
             if ordinal:
                 self.ce = evaluation.OrdinalEvaluation()
-                self.labels = [int(label) for label in labels]
-                self.unique_labels = [int(label) for label in unique_labels]
-                self.predictions = [int(prediction) for prediction in predictions]
+                self.labels = [float(label) for label in labels]
+                self.unique_labels = [float(label) for label in unique_labels]
+                self.predictions = [float(prediction) for prediction in predictions]
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
@@ -87,7 +87,7 @@ class Reporter:
             if label in self.labels or label in self.predictions:
                 performance.append(self.assess_label_performance(label))
             else:
-                performance.append([label,0,0,0,0,0,0,0,0,0,0,0,0])
+                performance.append([label,0,0,0,0,0,0,0,0,0])
         performance.append(self.assess_micro_performance())
         return performance
 

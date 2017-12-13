@@ -11,7 +11,7 @@ import quoll.classification_pipeline.functions.docreader as docreader
 import quoll.classification_pipeline.functions.reporter as reporter
 
 from quoll.classification_pipeline.modules.select_features import SelectFeatures
-from quoll.classification_pipeline.modules.run_experiment import ExperimentComponentVector, ExperimentComponentSvorimVector, ExperimentComponentDTCVector 
+from quoll.classification_pipeline.modules.run_experiment import * 
 from quoll.classification_pipeline.modules.make_bins import MakeBins 
 
 ################################################################################
@@ -31,6 +31,7 @@ class NFoldCV(WorkflowComponent):
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
     stepsize = IntParameter(default=1)
+    raw_labels = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
@@ -40,7 +41,7 @@ class NFoldCV(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, ordinal=self.ordinal)
+        fold_runner = workflow.new_task('run_folds_vectors', RunFoldsVectors, autopass=True, n=self.n, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -70,6 +71,7 @@ class RunFoldsVectors(Task):
     n = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
+    raw_labels = Parameter()
 
     def out_exp(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.exp')
@@ -81,7 +83,7 @@ class RunFoldsVectors(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, featurenames=self.in_featurenames().path, i=fold, classifier=self.classifier, ordinal=self.ordinal)
+            yield FoldVectors(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, featurenames=self.in_featurenames().path, i=fold, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
 
 
 ################################################################################
@@ -102,13 +104,14 @@ class FoldVectors(WorkflowComponent):
     i = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
+    raw_labels = Parameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='featurenames',extension='.txt',inputparameter='featurenames') ) ]
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, ordinal=self.ordinal)
+        fold = workflow.new_task('run_fold', FoldVectorsTask, autopass=False, i=self.i, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -132,7 +135,7 @@ class FoldVectorsTask(Task):
     i = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    raw_labels = Parameter()
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
@@ -176,6 +179,11 @@ class FoldVectorsTask(Task):
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
             labels = numpy.array(infile.read().strip().split('\n'))
 
+        # check for raw labels
+        if self.raw_labels:
+            with open(self.raw_labels,'r',encoding='utf-8') as infile:
+                raw_labels = numpy.array(infile.read().strip().split('\n'))
+
         # open documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
             documents = numpy.array(infile.read().strip().split('\n'))
@@ -187,6 +195,8 @@ class FoldVectorsTask(Task):
         # write data to files in fold directory
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
+        if raw_labels:
+            train_labels_raw = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
         train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
         test_vectors = instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
@@ -195,6 +205,9 @@ class FoldVectorsTask(Task):
         numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(train_labels))
+        if raw_labels:
+            with open(self.out_fold().path + '/train.labels_raw.txt','w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(raw_labels))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
         with open(self.out_traindocuments().path,'w',encoding='utf-8') as outfile:
@@ -205,15 +218,10 @@ class FoldVectorsTask(Task):
             outfile.write('\n'.join(classifier_args))
 
         print('Running experiment for fold',self.i)
-        if self.classifier == 'svorim':
-            svorim_path = classifier_args[0]
-            yield ExperimentComponentSvorimVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, svorim_path=svorim_path)
-        elif self.classifier == 'dtc':
-            minimum_per_class = int(classifier_args[0])
-            minimum_IG = classifier_args[1]
-            yield ExperimentComponentDTCVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.in_featurenames().path, ordinal=self.ordinal, minimum_per_class=minimum_per_class, minimum_IG=minimum_IG)
+        if self.raw_labels:
+            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, featurenames=self.in_featurenames().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.out_fold().path + '/train.labels_raw.txt') 
         else:
-            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal) 
+            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, featurenames=self.in_featurenames().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels) 
 
 
 ################################################################################
@@ -366,7 +374,7 @@ class ReportFolds(Task):
 
         # report confusion matrix
         if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
-            rp = reporter.Reporter([str(x) for x in predictions], probabilities, [str(x) for x in labels], [str(x) for x in unique_labels], False, documents)
+            rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, False, documents)
         confusion_matrix = rp.return_confusion_matrix()
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)
