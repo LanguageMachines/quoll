@@ -195,8 +195,6 @@ class FoldVectorsTask(Task):
         # write data to files in fold directory
         train_vectors = sparse.vstack([instances[indices,:] for j,indices in enumerate(bins) if j != self.i])
         train_labels = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
-        if raw_labels:
-            train_labels_raw = numpy.concatenate([labels[indices] for j,indices in enumerate(bins) if j != self.i])
         train_documents = numpy.concatenate([documents[indices] for j,indices in enumerate(bins) if j != self.i])
         test_vectors = instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
@@ -205,9 +203,11 @@ class FoldVectorsTask(Task):
         numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(train_labels))
-        if raw_labels:
-            with open(self.out_fold().path + '/train.labels_raw.txt','w',encoding='utf-8') as outfile:
-                outfile.write('\n'.join(raw_labels))
+        if self.raw_labels:
+            train_labels_raw = numpy.concatenate([raw_labels[indices] for j,indices in enumerate(bins) if j != self.i])
+            raw_labels_out = self.out_fold().path + '/train.labels_raw.txt' 
+            with open(raw_labels_out,'w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(train_labels_raw))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
         with open(self.out_traindocuments().path,'w',encoding='utf-8') as outfile:
@@ -219,7 +219,7 @@ class FoldVectorsTask(Task):
 
         print('Running experiment for fold',self.i)
         if self.raw_labels:
-            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, featurenames=self.in_featurenames().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.out_fold().path + '/train.labels_raw.txt') 
+            yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, featurenames=self.in_featurenames().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal, raw_labels=raw_labels_out) 
         else:
             yield ExperimentComponentVector(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, featurenames=self.in_featurenames().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels) 
 

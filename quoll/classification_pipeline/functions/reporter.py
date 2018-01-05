@@ -23,9 +23,10 @@ class Reporter:
                 self.unique_labels = list(set(self.labels))
             if ordinal:
                 self.ce = evaluation.OrdinalEvaluation()
-                self.labels = [float(label) for label in labels]
-                self.unique_labels = [float(label) for label in unique_labels]
-                self.predictions = [float(prediction) for prediction in predictions]
+                self.labels = [int(label) for label in labels]
+                self.unique_labels = [int(label) for label in unique_labels]
+                self.predictions = [int(prediction) for prediction in predictions]
+                # self.label_order = [int(label) for label in label_order]
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels

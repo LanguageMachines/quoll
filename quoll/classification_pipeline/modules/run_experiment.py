@@ -123,19 +123,19 @@ class ExperimentComponentVector(WorkflowComponent):
             predictor.in_vocabulary = input_feeds['featurenames']
             predictor.in_classifier_args = input_feeds['classifier_args']
         else:
-            if self.raw_labels:
+            if self.raw_labels != 'false':
                 pre_ml_label_transformer = workflow.new_task('Tranform labels pre ML', classify_instances.Transform_labels_pre_ml, autopass=True, raw_labels=self.raw_labels)
                 pre_ml_label_transformer.in_labels = input_feeds['trainlabels']
                 
                 trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=True)
                 trainer.in_train = input_feeds['train']
-                trainer.in_trainlabels = pre_ml_label_translator.out_raw
+                trainer.in_trainlabels = pre_ml_label_transformer.out_raw
                 trainer.in_vocab = input_feeds['featurenames']
                 trainer.in_classifier_args = input_feeds['classifier_args']
 
                 predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=True)
                 predictor.in_test = input_feeds['test']
-                predictor.in_labels = pre_ml_label_translator.out_raw
+                predictor.in_labels = pre_ml_label_transformer.out_raw
                 predictor.in_model = trainer.out_model
             else:
                 trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
@@ -149,14 +149,14 @@ class ExperimentComponentVector(WorkflowComponent):
                 predictor.in_labels = input_feeds['trainlabels']
                 predictor.in_model = trainer.out_model
 
-        if self.raw_labels:
+        if self.raw_labels != 'false':
             post_ml_label_transformer = workflow.new_task('transform labels post ML', classify_instances.Transform_labels_post_ml, autopass=True)
             post_ml_label_transformer.in_translator = pre_ml_label_transformer.out_translator
             post_ml_label_transformer.in_predictions = predictor.out_predictions
 
             reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
             reporter.in_predictions = post_ml_label_transformer.out_predictions
-            reporter.in_full_predictions = predictor.out_full_predictions
+            reporter.in_full_predictions = post_ml_label_transformer.out_full_predictions
             reporter.in_labels = input_feeds['testlabels']
             reporter.in_trainlabels = input_feeds['trainlabels']
             reporter.in_documents = input_feeds['documents']
@@ -355,66 +355,117 @@ class ExperimentComponentFilter(WorkflowComponent):
     threshold_correlation = Parameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    raw_labels = Parameter()
+    
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.vectors.npz',inputparameter='train'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.vectors.npz',inputparameter='test'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
-        feature_ranker.in_vectors = input_feeds['train']
-        feature_ranker.in_labels = input_feeds['trainlabels']
-        feature_ranker.in_featurenames = input_feeds['featurenames']
+        if self.raw_labels != 'false':
+            pre_ml_label_transformer = workflow.new_task('Tranform labels pre ML', classify_instances.Transform_labels_pre_ml, autopass=True, raw_labels=self.raw_labels)
+            pre_ml_label_transformer.in_labels = input_feeds['trainlabels']
 
-        feature_correlation = workflow.new_task('feature_correlation',rank_features_ordinal_correlation.CalculateFeatureCorrelationTask,autopass=True)
-        feature_correlation.in_vectors = input_feeds['train']
-        feature_correlation.in_featurenames = input_feeds['featurenames']
+            feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
+            feature_ranker.in_vectors = input_feeds['train']
+            feature_ranker.in_labels = pre_ml_label_transformer.out_raw
+            feature_ranker.in_featurenames = input_feeds['featurenames']
 
-        feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesFTask,autopass=True, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
-        feature_filter.in_featurenames = input_feeds['featurenames']
-        feature_filter.in_featstrength = feature_ranker.out_ranked_features
-        feature_filter.in_featcorr = feature_correlation.out_feature_correlation
+            feature_correlation = workflow.new_task('feature_correlation',rank_features_ordinal_correlation.CalculateFeatureCorrelationTask,autopass=True)
+            feature_correlation.in_vectors = input_feeds['train']
+            feature_correlation.in_featurenames = input_feeds['featurenames']
 
-        train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
-        train_vector_transformer.in_vectors = input_feeds['train']
-        train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+            feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesFTask,autopass=True, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
+            feature_filter.in_featurenames = input_feeds['featurenames']
+            feature_filter.in_featstrength = feature_ranker.out_ranked_features
+            feature_filter.in_featcorr = feature_correlation.out_feature_correlation
 
-        test_vector_transformer = workflow.new_task('transform_test_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
-        test_vector_transformer.in_vectors = input_feeds['test']
-        test_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+            train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+            train_vector_transformer.in_vectors = input_feeds['train']
+            train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
 
-        if self.classifier == 'svorim':
-            predictor = workflow.new_task('classifier', classify_instances.SvorimClassifier, autopass=False)
-            predictor.in_train = train_vector_transformer.out_vectors
-            predictor.in_labels = input_feeds['trainlabels']
-            predictor.in_test = test_vector_transformer.out_vectors
-            predictor.in_classifier_args = input_feeds['classifier_args']
-        elif self.classifier == 'balanced_winnow':
-            predictor = workflow.new_task('classify_lcs',  classify_instances.BalancedWinnowClassifier, autopass=True)
-            predictor.in_train = train_vector_transformer.out_vectors
-            predictor.in_trainlabels = input_feeds['trainlabels']
-            predictor.in_test = test_vector_transformer.out_vectors
-            predictor.in_testlabels = input_feeds['testlabels']
-            predictor.in_vocabulary = input_feeds['featurenames']
-            predictor.in_classifier_args = input_feeds['classifier_args']
-        else:
-            trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
+            test_vector_transformer = workflow.new_task('transform_test_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+            test_vector_transformer.in_vectors = input_feeds['test']
+            test_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+                
+            trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=True)
             trainer.in_train = train_vector_transformer.out_vectors
-            trainer.in_trainlabels = input_feeds['trainlabels']
+            trainer.in_trainlabels = pre_ml_label_transformer.out_raw
             trainer.in_vocab = input_feeds['featurenames']
             trainer.in_classifier_args = input_feeds['classifier_args']
 
-            predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True)
+            predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=True)
             predictor.in_test = test_vector_transformer.out_vectors
-            predictor.in_labels = input_feeds['trainlabels']
+            predictor.in_labels = pre_ml_label_transformer.out_raw
             predictor.in_model = trainer.out_model
 
-        reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
-        reporter.in_predictions = predictor.out_predictions
-        reporter.in_full_predictions = predictor.out_full_predictions
-        reporter.in_labels = input_feeds['testlabels']
-        reporter.in_trainlabels = input_feeds['trainlabels']
-        reporter.in_documents = input_feeds['documents']
+            post_ml_label_transformer = workflow.new_task('transform labels post ML', classify_instances.Transform_labels_post_ml, autopass=True)
+            post_ml_label_transformer.in_translator = pre_ml_label_transformer.out_translator
+            post_ml_label_transformer.in_predictions = predictor.out_predictions
+
+            reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal)
+            reporter.in_predictions = post_ml_label_transformer.out_predictions
+            reporter.in_full_predictions = post_ml_label_transformer.out_full_predictions
+            reporter.in_labels = input_feeds['testlabels']
+            reporter.in_trainlabels = input_feeds['trainlabels']
+            reporter.in_documents = input_feeds['documents']
+        
+        else:
+
+            feature_ranker = workflow.new_task('rank_features',rank_features_ordinal_correlation.RankFeaturesOrdinalTask,autopass=True)
+            feature_ranker.in_vectors = input_feeds['train']
+            feature_ranker.in_labels = input_feeds['trainlabels']
+            feature_ranker.in_featurenames = input_feeds['featurenames']
+
+            feature_correlation = workflow.new_task('feature_correlation',rank_features_ordinal_correlation.CalculateFeatureCorrelationTask,autopass=True)
+            feature_correlation.in_vectors = input_feeds['train']
+            feature_correlation.in_featurenames = input_feeds['featurenames']
+
+            feature_filter = workflow.new_task('filter_features',filter_features_correlation.FilterFeaturesFTask,autopass=True, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation)
+            feature_filter.in_featurenames = input_feeds['featurenames']
+            feature_filter.in_featstrength = feature_ranker.out_ranked_features
+            feature_filter.in_featcorr = feature_correlation.out_feature_correlation
+
+            train_vector_transformer = workflow.new_task('transform_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+            train_vector_transformer.in_vectors = input_feeds['train']
+            train_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+
+            test_vector_transformer = workflow.new_task('transform_test_vectors',vectorize_instances.TransformVectorsTask,autopass=True)
+            test_vector_transformer.in_vectors = input_feeds['test']
+            test_vector_transformer.in_selection = feature_filter.out_filtered_features_index
+
+            if self.classifier == 'svorim':
+                predictor = workflow.new_task('classifier', classify_instances.SvorimClassifier, autopass=False)
+                predictor.in_train = train_vector_transformer.out_vectors
+                predictor.in_labels = input_feeds['trainlabels']
+                predictor.in_test = test_vector_transformer.out_vectors
+                predictor.in_classifier_args = input_feeds['classifier_args']
+            elif self.classifier == 'balanced_winnow':
+                predictor = workflow.new_task('classify_lcs',  classify_instances.BalancedWinnowClassifier, autopass=True)
+                predictor.in_train = train_vector_transformer.out_vectors
+                predictor.in_trainlabels = input_feeds['trainlabels']
+                predictor.in_test = test_vector_transformer.out_vectors
+                predictor.in_testlabels = input_feeds['testlabels']
+                predictor.in_vocabulary = input_feeds['featurenames']
+                predictor.in_classifier_args = input_feeds['classifier_args']
+            else:
+                trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier)
+                trainer.in_train = train_vector_transformer.out_vectors
+                trainer.in_trainlabels = input_feeds['trainlabels']
+                trainer.in_vocab = input_feeds['featurenames']
+                trainer.in_classifier_args = input_feeds['classifier_args']
+
+                predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True)
+                predictor.in_test = test_vector_transformer.out_vectors
+                predictor.in_labels = input_feeds['trainlabels']
+                predictor.in_model = trainer.out_model
+
+            reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=True)
+            reporter.in_predictions = predictor.out_predictions
+            reporter.in_full_predictions = predictor.out_full_predictions
+            reporter.in_labels = input_feeds['testlabels']
+            reporter.in_trainlabels = input_feeds['trainlabels']
+            reporter.in_documents = input_feeds['documents']
 
         return reporter
 

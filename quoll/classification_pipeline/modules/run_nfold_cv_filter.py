@@ -36,7 +36,8 @@ class NFoldCVFilter(WorkflowComponent):
     testend = IntParameter(default=-1)
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
-
+    raw_labels = Parameter(default=False)
+    
     def accepts(self):
         return [ ( InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self, format_id='classifier_args', extension='.txt', inputparameter='classifier_args') ) ]
     
@@ -45,7 +46,7 @@ class NFoldCVFilter(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.stepsize)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('run_folds_filter', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
+        fold_runner = workflow.new_task('run_folds_filter', RunFoldsFilter, autopass=True, n=self.n, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_vectors = input_feeds['vectors']
         fold_runner.in_labels = input_feeds['labels']
@@ -79,6 +80,7 @@ class RunFoldsFilter(Task):
     testend = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
+    raw_labels = Parameter()
 
     def out_exp(self):
         return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.filter_' + self.threshold_strength + '_' + self.threshold_correlation + '.' + self.classifier + '.exp')
@@ -90,7 +92,7 @@ class RunFoldsFilter(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield FoldFilter(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, featurenames=self.in_featurenames().path, classifier_args=self.in_classifier_args().path, i=fold, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
+            yield FoldFilter(directory=self.out_exp().path, vectors=self.in_vectors().path, labels=self.in_labels().path, bins=self.in_bins().path, documents=self.in_documents().path, featurenames=self.in_featurenames().path, classifier_args=self.in_classifier_args().path, i=fold, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
 
 
 ################################################################################
@@ -115,13 +117,14 @@ class FoldFilter(WorkflowComponent):
     testend = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    raw_labels = Parameter()
+    
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='vectors',extension='.vectors.npz',inputparameter='vectors'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='featurenames', extension='.txt', inputparameter='featurenames'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args')  ) ]
     
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldFilterTask, autopass=False, i=self.i, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal)
+        fold = workflow.new_task('run_fold', FoldFilterTask, autopass=False, i=self.i, threshold_strength=self.threshold_strength,threshold_correlation=self.threshold_correlation, teststart=self.teststart, testend=self.testend, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
         fold.in_directory = input_feeds['directory']
         fold.in_vectors = input_feeds['vectors']
         fold.in_labels = input_feeds['labels']
@@ -149,7 +152,8 @@ class FoldFilterTask(Task):
     testend = IntParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    raw_labels = Parameter()
+    
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
 
@@ -192,6 +196,11 @@ class FoldFilterTask(Task):
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
             labels = numpy.array(infile.read().strip().split('\n'))
 
+        # check for raw labels
+        if not self.raw_labels == 'false':
+            with open(self.raw_labels,'r',encoding='utf-8') as infile:
+                raw_labels = numpy.array(infile.read().strip().split('\n'))
+            
         # open documents
         with open(self.in_documents().path,'r',encoding='utf-8') as infile:
             documents = numpy.array(infile.read().strip().split('\n'))
@@ -207,6 +216,11 @@ class FoldFilterTask(Task):
         test_vectors = instances[bins[self.i]]
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
+        if not self.raw_labels == 'false':
+            train_labels_raw = numpy.concatenate([raw_labels[indices] for j,indices in enumerate(bins) if j != self.i])
+            raw_labels_out = self.out_fold().path + '/train.labels_raw.txt'
+            with open(raw_labels_out,'w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(train_labels_raw))
         numpy.savez(self.out_trainvectors().path, data=train_vectors.data, indices=train_vectors.indices, indptr=train_vectors.indptr, shape=train_vectors.shape)
         numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
@@ -221,5 +235,8 @@ class FoldFilterTask(Task):
             outfile.write('\n'.join(featurenames))
 
         print('Running experiment for fold',self.i)
-        yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal)
+        if self.raw_labels != 'false':
+            yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal, raw_labels=raw_labels_out)
+        else:
+            yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
 

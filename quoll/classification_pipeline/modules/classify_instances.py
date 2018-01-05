@@ -38,7 +38,8 @@ class TrainClassifier(Task):
         self.setup_output_dir(self.out_model_insights().path)
 
         # initiate classifier
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        # classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
@@ -248,15 +249,29 @@ class Transform_labels_pre_ml(Task):
         # generate dictionary (1 0 14.4\n2 14.4 15.6)
         transformed_labels = []
         for label in sorted(list(set(labels))):
-            raw_labels = [float(x) for i,x in enumerate(raw_labels) if labels[i] == label]
-            transformed_labels.append([label,str(min(raw_labels)),str(max(raw_labels))])
+            fitting_raw_labels = [float(x) for i,x in enumerate(raw_labels) if labels[i] == label]
+            transformed_labels.append([label,min(fitting_raw_labels),max(fitting_raw_labels)])
+        # sort dictionary
+        transformed_labels_sorted = sorted(transformed_labels,key = lambda k : k[1])
+        transformed_labels_final = []
+        for i,tl in enumerate(transformed_labels_sorted):
+            if i == 0:
+                new_min = transformed_labels_sorted[i][1] - 5000
+            else:
+                new_min = transformed_labels_sorted[i-1][2]
+            if i == len(transformed_labels_sorted)-1:
+                new_max = transformed_labels_sorted[i][2] * 50
+            else:
+                new_max = transformed_labels_sorted[i][2]
+            new_tl = [str(transformed_labels_sorted[i][0]),str(new_min),str(new_max)]
+            transformed_labels_final.append(new_tl)
 
         # write output
         with open(self.out_raw().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(raw_labels))
 
         with open(self.out_translator().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join([' '.join(line) for line in transformed_labels]))
+            out.write('\n'.join([' '.join(line) for line in transformed_labels_final]))
 
 class Transform_labels_post_ml(Task):
 
@@ -264,14 +279,17 @@ class Transform_labels_post_ml(Task):
     in_predictions = InputSlot()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.txt', addextension='.translated.predictions.txt')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.full_predictions.txt')
 
     def run(self):
         
         # open translator
         with open(self.in_translator().path,'r',encoding='utf-8') as translator_in:
             translator = []
-            for line in translator_in.strip().split('\n'):
+            for line in translator_in.read().strip().split('\n'):
                 tokens = line.split()
                 translator.append([tokens[0],float(tokens[1]),float(tokens[2])])
             
@@ -295,7 +313,13 @@ class Transform_labels_post_ml(Task):
         # write translated predictions to file
         with open(self.out_predictions().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(translated_predictions))
-            
+
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as out:
+            classes = sorted([x[0] for x in translator])
+            full_predictions = [classes]
+            for i,x in enumerate(translated_predictions):
+                full_predictions.append(['-'] * len(classes))
+            out.write('\n'.join(['\t'.join([prob for prob in full_prediction]) for full_prediction in full_predictions]))
 
 #################################################
 ######## Svorim classification (command line tool)
