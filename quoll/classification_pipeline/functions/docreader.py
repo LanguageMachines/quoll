@@ -1,6 +1,6 @@
 
 import sys
-from openpyxl import load_workbook
+import openpyxl
 import csv
 import json
 import copy
@@ -86,7 +86,7 @@ class Docreader:
         return rows
 
     def parse_xlsx(self, doc, sh=False):
-        workbook = load_workbook(filename = doc)
+        workbook = openpyxl.load_workbook(filename = doc)
         if sh:
             sheet = workbook[sh]
         else:

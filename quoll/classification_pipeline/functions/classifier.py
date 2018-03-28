@@ -2,6 +2,7 @@
 from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
 from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegression
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
 #import mord
@@ -539,94 +540,31 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
-# class OrdinalRidge(AbstractSKLearnClassifier):
+class KNNClassifier(AbstractSKLearnClassifier):
 
-#     def __init__(self):
-#         AbstractSKLearnClassifier.__init__(self)
-#         self.model = False
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
 
-#     def set_label_encoder(self, labels):
-#         AbstractSKLearnClassifier.set_label_encoder(self, labels)
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
 
-#     def return_label_encoding(self, labels):
-#         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-#     def train_classifier(self, trainvectors, labels):
-#         self.model = mord.OrdinalRidge()
-#         self.model.fit(trainvectors,self.label_encoder.transform(labels))
+    def train_classifier(self, trainvectors, labels, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
+        jobs = int(jobs)
+        if weights == 'default' or weights == '':
+            weights = 'uniform'
+        # train
+        self.model = KNeighborsClassifier(n_neighbors=n_neighbors,weights=weights,algorithm=algorithm,n_jobs=jobs)
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
-#     def return_classifier(self):
-#         return self.model
+    def return_classifier(self):
+        return self.model
 
-#     def apply_classifier(self, testvectors):
-#         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-#         return classifications
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
 
-# class OrdinalLogisticAT(AbstractSKLearnClassifier):
 
-#     def __init__(self):
-#         AbstractSKLearnClassifier.__init__(self)
-#         self.model = False
-
-#     def set_label_encoder(self, labels):
-#         AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-#     def return_label_encoding(self, labels):
-#         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-#     def train_classifier(self, trainvectors, labels):
-#         self.model = mord.LogisticAT(alpha=1.,max_iter=50000)
-#         self.model.fit(trainvectors,self.label_encoder.transform(labels))
-
-#     def return_classifier(self):
-#         return self.model
-
-#     def apply_classifier(self, testvectors):
-#         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-#         return classifications
-
-# class OrdinalLogisticIT(AbstractSKLearnClassifier):
-
-#     def __init__(self):
-#         AbstractSKLearnClassifier.__init__(self)
-#         self.model = False
-
-#     def set_label_encoder(self, labels):
-#         AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-#     def return_label_encoding(self, labels):
-#         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-#     def train_classifier(self, trainvectors, labels):
-#         self.model = mord.LogisticIT(alpha=1.,max_iter=50000)
-#         self.model.fit(trainvectors,self.label_encoder.transform(labels))
-
-#     def return_classifier(self):
-#         return self.model
-
-#     def apply_classifier(self, testvectors):
-#         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-#         return classifications
-
-# class OrdinalLogisticSE(AbstractSKLearnClassifier):
-
-#     def __init__(self):
-#         AbstractSKLearnClassifier.__init__(self)
-#         self.model = False
-
-#     def set_label_encoder(self, labels):
-#         AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-#     def return_label_encoding(self, labels):
-#         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-#     def train_classifier(self, trainvectors, labels):
-#         self.model = mord.LogisticSE(alpha=1.,max_iter=50000)
-#         self.model.fit(trainvectors,self.label_encoder.transform(labels))
-
-#     def return_classifier(self):
-#         return self.model
-
-#     def apply_classifier(self, testvectors):
-#         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-#         return classifications

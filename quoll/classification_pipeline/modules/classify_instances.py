@@ -39,7 +39,7 @@ class TrainClassifier(Task):
 
         # initiate classifier
         # classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier(), 'ordinal_ridge':OrdinalRidge(), 'ordinal_at':OrdinalLogisticAT(), 'ordinal_se':OrdinalLogisticSE(), 'ordinal_it':OrdinalLogisticIT()}
-        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier()}
+        classifierdict = {'naive_bayes':NaiveBayesClassifier(), 'knn':KNNClassifier(), 'svm':SVMClassifier(), 'tree':TreeClassifier(), 'continuous_tree':DecisionTreeContinuous(), 'perceptron':PerceptronLClassifier(), 'logistic_regression':LogisticRegressionClassifier(), 'lreg':LinearRegressionClassifier()}
         clf = classifierdict[self.classifier]
 
         # load vectorized instances
