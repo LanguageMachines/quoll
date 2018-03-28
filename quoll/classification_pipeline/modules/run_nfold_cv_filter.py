@@ -218,9 +218,13 @@ class FoldFilterTask(Task):
         test_documents = documents[bins[self.i]]
         if not self.raw_labels == 'false':
             train_labels_raw = numpy.concatenate([raw_labels[indices] for j,indices in enumerate(bins) if j != self.i])
-            raw_labels_out = self.out_fold().path + '/train.labels_raw.txt'
-            with open(raw_labels_out,'w',encoding='utf-8') as outfile:
+            raw_trainlabels_out = self.out_fold().path + '/train.labels_raw.txt'
+            with open(raw_trainlabels_out,'w',encoding='utf-8') as outfile:
                 outfile.write('\n'.join(train_labels_raw))
+            test_labels_raw = numpy.concatenate([raw_labels[indices] for j,indices in enumerate(bins) if j == self.i])
+            raw_testlabels_out = self.out_fold().path + '/test.labels_raw.txt'
+            with open(raw_testlabels_out,'w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(test_labels_raw))
         numpy.savez(self.out_trainvectors().path, data=train_vectors.data, indices=train_vectors.indices, indptr=train_vectors.indptr, shape=train_vectors.shape)
         numpy.savez(self.out_testvectors().path, data=test_vectors.data, indices=test_vectors.indices, indptr=test_vectors.indptr, shape=test_vectors.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
@@ -236,7 +240,6 @@ class FoldFilterTask(Task):
 
         print('Running experiment for fold',self.i)
         if self.raw_labels != 'false':
-            yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal, raw_labels=raw_labels_out)
+            yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal, raw_labels=raw_trainlabels_out)
         else:
             yield ExperimentComponentFilter(train=self.out_trainvectors().path, trainlabels=self.out_trainlabels().path, test=self.out_testvectors().path, testlabels=self.out_testlabels().path, documents=self.out_testdocuments().path, featurenames=self.out_featurenames().path, classifier_args=self.in_classifier_args().path, threshold_strength=self.threshold_strength, threshold_correlation=self.threshold_correlation, classifier=self.classifier, ordinal=self.ordinal, raw_labels=self.raw_labels)
-

@@ -84,15 +84,14 @@ class LCS_classifier:
         instances_vocabulary = self.instances_2_ngrams(instances,vocabulary)
         # make directory to write files to
         # make added directory
-#        if add_dir:
-#            add = add_dir
-#            try:
-#                os.mkdir(self.filesdir + add)
-#            except:
-#                print('added dir already exists')
-#        else:
-#            add = ''
-        add = ''
+        if add_dir:
+            add = add_dir
+            try:
+                os.mkdir(self.filesdir + add)
+            except:
+                print('added dir already exists')
+        else:
+            add = ''
         # make chunks of 25000 from the data
         index = 0
         data = list(zip(labels,instances_vocabulary))
@@ -104,10 +103,10 @@ class LCS_classifier:
             # make subdirectory
             subpart = add + 'sd' + str(i) + '/'
             subdir = self.filesdir + subpart
-#            try:
-#                os.mkdir(subdir)
-#            except:
-#                print('subdirectory already exists')
+            try:
+                os.mkdir(subdir)
+            except:
+                print('subdirectory already exists')
             for j, instance in enumerate(chunk):
                 zeros = 5 - len(str(j))
                 filename = subpart + ('0' * zeros) + str(j) + '.txt'
@@ -115,8 +114,8 @@ class LCS_classifier:
                 index += 1
                 label = instance[0]
                 features = instance[1]
-#                with open(self.filesdir + filename, 'w', encoding = 'utf-8') as outfile: 
-#                    outfile.write('\n'.join(features))
+                with open(self.filesdir + filename, 'w', encoding = 'utf-8') as outfile: 
+                    outfile.write('\n'.join(features))
                 parts.append(filename + ' ' + label)
         return parts, filename_index
 

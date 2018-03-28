@@ -20,7 +20,7 @@ class Linewriter:
 
     def write_xlsx(self, headers, header_style, outfile, sheetname=False,encoding='utf-8'):
         if not self.current_workbook:
-            self.current_workbook = Workbook(encoding = encoding)
+            self.current_workbook = Workbook()
             ws = self.current_workbook.active
             if sheetname:
                 ws.title = sheetname

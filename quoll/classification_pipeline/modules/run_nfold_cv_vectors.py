@@ -378,3 +378,41 @@ class ReportFolds(Task):
         confusion_matrix = rp.return_confusion_matrix()
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)
+
+################################################################################
+###Regression Reporter
+################################################################################
+
+@registercomponent
+class ReportFoldsRegressionComponent(StandardWorkflowComponent):
+
+    def accepts(self):
+        return InputFormat(self, format_id='expdirectory', extension='.exp')
+                    
+    def autosetup(self):
+        return ReportFoldsRegression
+
+class ReportFoldsRegression(Task):
+
+    in_expdirectory = InputSlot()
+
+    def out_macro_performance(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.macro_performance_regression.txt')  
+
+    def run(self):
+
+        # gather fold reports
+        print('gathering fold reports')
+        performance_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/*.regression_performance.csv') ]
+        
+        # calculate average performance
+        performance_combined = []
+        for pf in performance_files:
+            with open(pf) as file_in:
+                performance_combined.append(float(file_in.read().strip()))
+        avg_performance = numpy.mean(performance_combined)
+
+        # write to file
+        with open(self.out_macro_performance().path,'w',encoding='utf-8') as file_out:
+            file_out.write(str(avg_performance))
+    

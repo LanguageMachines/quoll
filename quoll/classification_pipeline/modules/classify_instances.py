@@ -748,7 +748,7 @@ class BalancedWinnowClassifier(Task):
             testlabels = infile.read().strip().split('\n')
 
         # open testdocs
-        with open(self.in_testdocs().path) as infile:
+        with open(self.in_testdocs().path,'r',encoding='utf-8') as infile:
             testdocs = infile.read().strip().split('\n')
 
         # open vocabulary

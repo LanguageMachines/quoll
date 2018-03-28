@@ -2,7 +2,7 @@
 from luiginlp.engine import WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
 from quoll.classification_pipeline.modules.tokenize_instances import Tokenize_instances
-from quoll.classification_pipeline.modules.featurize_instances import Featurize_tokens
+from quoll.classification_pipeline.modules.featurize_instances import Featurize
 from quoll.classification_pipeline.modules.vectorize_sparse_instances import Vectorize_traininstances, Vectorize_testinstances, Vectorize_mutually
 from quoll.classification_pipeline.modules.classify_instances import BalancedWinnowClassifier
 from quoll.classification_pipeline.modules.report_performance import ReportPerformance
@@ -37,10 +37,10 @@ class LCSPipeline_traintest(WorkflowComponent):
         testtokenizer = workflow.new_task('tokenize_testinstances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
         testtokenizer.in_txt = input_feeds['testinstances']
 
-        trainfeaturizer = workflow.new_task('featurize_traininstances', Featurize_tokens, autopass=True, token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase)
+        trainfeaturizer = workflow.new_task('featurize_traininstances', Featurize, autopass=True, featuretypes='tokens', token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, inputfile=traintokenizer.out_tokenized)
         trainfeaturizer.in_tokenized = traintokenizer.out_tokenized
 
-        testfeaturizer = workflow.new_task('featurize_testinstances', Featurize_tokens, autopass=True, token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase)
+        testfeaturizer = workflow.new_task('featurize_testinstances', Featurize, autopass=True, featuretypes='tokens', token_ngrams=self.token_ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, inputfile=testtokenizer.out_tokenized)
         testfeaturizer.in_tokenized = testtokenizer.out_tokenized
 
         # trainvectorizer = workflow.new_task('vectorize_traininstances', Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune, balance=self.balance)

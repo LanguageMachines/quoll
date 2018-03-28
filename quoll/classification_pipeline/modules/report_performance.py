@@ -5,6 +5,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 import quoll.classification_pipeline.functions.reporter as reporter
 import quoll.classification_pipeline.functions.linewriter as linewriter
+import quoll.classification_pipeline.functions.regression_reporter as regression_reporter
 
 class ReportPerformance(Task):
 
@@ -115,6 +116,30 @@ class ReportPerformance(Task):
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)
 
+
+class ReportRegressionPerformance(Task):
+
+    in_predictions = InputSlot()
+    in_labels = InputSlot()
+
+    def out_performance(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.regression_performance.csv')
+
+    def run(self):
+
+        # load predictions and full_predictions
+        with open(self.in_predictions().path) as infile:
+            predictions = [float(x) for x in infile.read().strip().split('\n')]
+            
+        # load labels
+        with open(self.in_labels().path) as infile:
+            labels = [float(x) for x in infile.read().strip().split('\n')]
+
+        # report performance
+        performance = regression_reporter.assess_performance(labels,predictions)
+        with open(self.out_performance().path,'w',encoding='utf-8') as out:
+            out.write(str(performance))
+            
 class ReportDocpredictions(Task):
 
     in_predictions = InputSlot()
@@ -147,6 +172,11 @@ class ReportDocpredictions(Task):
         lw = linewriter.Linewriter(predictions_by_document)
         lw.write_csv(self.out_docpredictions().path)
 
+
+#################################################################
+### Components ##################################################
+#################################################################
+
 @registercomponent
 class ReporterComponent(WorkflowComponent):
 
@@ -172,6 +202,23 @@ class ReporterComponent(WorkflowComponent):
 
         return reporter
 
+@registercomponent
+class RegressionReporterComponent(WorkflowComponent):
+
+    predictions = Parameter()
+    labels = Parameter()
+
+    def accepts(self):
+        return [ ( InputFormat(self, format_id='predictions', extension='.predictions.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.txt', inputparameter='labels') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        regreporter = workflow.new_task('report_regression_performance', ReportRegressionPerformance, autopass=True)
+        regreporter.in_predictions = input_feeds['predictions']
+        regreporter.in_labels = input_feeds['labels']
+
+        return regreporter
+    
 class ReportDocpredictionsComponent(WorkflowComponent):
 
     predictions = Parameter()
