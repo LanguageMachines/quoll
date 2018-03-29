@@ -24,13 +24,15 @@ class AbstractSKLearnClassifier:
         label_encoding = list(zip(labels,encoding))
         return label_encoding
 
-    def apply_model(self, clf, testvectors, no_label_encoding=False):
+    def apply_model(self, clf, testvectors, no_label_encoding=False, array=False):
         predictions = []
         if no_label_encoding:
             full_predictions = [['-']]
         else:
             full_predictions = [list(self.label_encoder.classes_)]
         for i, instance in enumerate(testvectors):
+            if array:
+                instance = instance.toarray()
             if no_label_encoding:
                 prediction = clf.predict(instance)[0]
             else:
@@ -408,14 +410,14 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='', solver='', dual='', penalty='', multiclass='', max_iterations=1000, iterations=10):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, c='', solver='', dual='', penalty='', multiclass='', max_iterations=1000, iterations=10):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__solver', 'estimator__penalty', 'estimator__dual', 'estimator__multi_class']
-            # multi = True
+            multi = True
         else: # only two classes to distinguish
             parameters = ['C', 'solver', 'penalty', 'dual', 'multi_class']
-            # multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(x) for x in c.split()]
+            multi = False
+        c_values = [0.001, 0.005, 0.01, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0] if c == '' else [float(x) for x in c.split()]
         solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == '' else [s for  s in solver.split()]
         if penalty == '':
             if not set(['newton-cg','lbfgs','sag']) & set(solver_values):
@@ -430,6 +432,8 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
                     dual_values = [True,False]
             else:
                 dual_values = [False]
+        elif dual == 'False':
+            dual_values = [False]
         else:
             dual_values = [int(dual)] # 1 or 0
         if multiclass == '':
@@ -451,10 +455,13 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
             model = LogisticRegression(max_iter=max_iterations)
-            # if multi:
-            #     model = OutputCodeClassifier(model)
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
-            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            if multi:
+                model = OutputCodeClassifier(model)
+                paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
+                paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
+            else:              
+                paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
+                paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train a logistic regression classifier with the settings that led to the best performance
         self.model = LogisticRegression(
@@ -466,16 +473,19 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             max_iter = max_iterations,
             verbose = 2
         )
-        # if multi:
-        #     self.model = OutputCodeClassifier(self.model)
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        if multi:
+            self.model = OutputCodeClassifier(self.model)
+            self.model.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
+        else:
+            self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):
         return self.model
 
-    def return_model_insights(self):
-        return [['feature_weights.txt','\n'.join([str(l) for l in self.model.coef_.T.tolist()])]]
-
+    def return_model_insights(self,vocab=False):
+        #return [['feature_weights.txt','\n'.join([str(l) for l in self.model.coef_.T.tolist()])]]
+        return []
+        
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
@@ -492,7 +502,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, class_weight=None):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, class_weight=None):
         self.model = tree.DecisionTreeClassifier(class_weight=class_weight)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
@@ -518,7 +528,7 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, alpha='', iterations=50, jobs=10):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='', iterations=50, jobs=10):
         iterations = int(iterations)
         jobs = int(jobs)
         if alpha == '':
@@ -540,6 +550,11 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
+    def return_model_insights(self,vocab):
+        model_insights = []
+        # model_insights = [['coef.txt',self.return_coef(vocab)]]
+        return model_insights
+    
 class KNNClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
@@ -552,10 +567,14 @@ class KNNClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
         jobs = int(jobs)
+        if n_neighbors == 'default' or n_neighbors == '':
+            n_neighbors = 3
         if weights == 'default' or weights == '':
             weights = 'uniform'
+        if algorithm == 'default' or algorithm == '':
+            algorithm = 'auto'
         # train
         self.model = KNeighborsClassifier(n_neighbors=n_neighbors,weights=weights,algorithm=algorithm,n_jobs=jobs)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
@@ -567,4 +586,8 @@ class KNNClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
+    def return_model_insights(self,vocab):
+        model_insights = []
+        # model_insights = [['coef.txt',self.return_coef(vocab)]]
+        return model_insights
 

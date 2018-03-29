@@ -58,8 +58,8 @@ class TrainClassifier(Task):
 
         # transform trainlabels
         if not self.no_label_encoding:
-            clf.set_label_encoder(sorted(trainlabels))
-
+            clf.set_label_encoder(sorted(list(set(trainlabels))))
+            
         # load classifier arguments        
         with open(self.in_classifier_args().path,'r',encoding='utf-8') as infile:
             classifier_args_str = infile.read().rstrip()
@@ -79,7 +79,7 @@ class TrainClassifier(Task):
 
         # save label encoding
         if not self.no_label_encoding:
-            label_encoding = clf.return_label_encoding(trainlabels)
+            label_encoding = clf.return_label_encoding(sorted(list(set(trainlabels))))
             with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
                 le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
         else:
@@ -126,7 +126,10 @@ class ApplyClassifier(Task):
             clf.set_label_encoder(labels)
 
         # apply classifier
-        predictions, full_predictions = clf.apply_model(model,vectorized_instances,self.no_label_encoding)
+        array = False
+        if self.classifier == 'logistic_regression' and len(clf.label_encoder.classes_) > 2:
+            array = True
+        predictions, full_predictions = clf.apply_model(model,vectorized_instances,self.no_label_encoding,array)
         if self.no_label_encoding and self.ordinal:
             predictions = [str(x) for x in predictions]
 

@@ -79,7 +79,7 @@ class RunFolds(Task):
     ordinal = BoolParameter()
 
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.args_' + self.in_classifier_args().path.split('/')[-1][:-4] + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.balance_' + self.balance.__str__() + '.exp')
         
     def run(self):
 

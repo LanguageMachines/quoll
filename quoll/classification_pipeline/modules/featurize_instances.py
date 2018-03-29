@@ -51,10 +51,10 @@ class Tokenized2Features(Task):
     lowercase = BoolParameter()
 
     def out_features(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.features.npz')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + self.ngrams + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + self.ngrams + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.vocabulary.txt')
 
     def run(self):
         

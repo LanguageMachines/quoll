@@ -322,7 +322,7 @@ class ReportFolds(Task):
         docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
         documents = [line[0] for line in docpredictions]
         labels = [line[1] for line in docpredictions]
-        unique_labels = sorted(list(set(labels)))
+        unique_labels = labels_order
         predictions = [line[2] for line in docpredictions]
         full_predictions = [line[3:] for line in docpredictions]
 
@@ -342,36 +342,48 @@ class ReportFolds(Task):
 
         # report fps per label
         self.setup_output_dir(self.out_fps_dir().path)
-        for label in list(set(labels)):
-            ranked_fps = rp.return_ranked_fps(label)
-            outfile = self.out_fps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_fps)
-            lw.write_csv(outfile)
+        for label in unique_labels:
+            try:
+                ranked_fps = rp.return_ranked_fps(label)
+                outfile = self.out_fps_dir().path + '/' + label + '.csv'
+                lw = linewriter.Linewriter(ranked_fps)
+                lw.write_csv(outfile)
+            except:
+                continue
 
         # report fps per label
         self.setup_output_dir(self.out_tps_dir().path)
-        for label in list(set(labels)):
-            ranked_tps = rp.return_ranked_tps(label)
-            outfile = self.out_tps_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_tps)
-            lw.write_csv(outfile)
-
+        for label in unique_labels:
+            try:
+                ranked_tps = rp.return_ranked_tps(label)
+                outfile = self.out_tps_dir().path + '/' + label + '.csv'
+                lw = linewriter.Linewriter(ranked_tps)
+                lw.write_csv(outfile)
+            except:
+                continue
+                
         # report fns per label
         self.setup_output_dir(self.out_fns_dir().path)
-        for label in list(set(labels)):
-            ranked_fns = rp.return_ranked_fns(label)
-            outfile = self.out_fns_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_fns)
-            lw.write_csv(outfile)
-
+        for label in unique_labels:
+            try:
+                ranked_fns = rp.return_ranked_fns(label)
+                outfile = self.out_fns_dir().path + '/' + label + '.csv'
+                lw = linewriter.Linewriter(ranked_fns)
+                lw.write_csv(outfile)
+            except:
+                continue
+                
         # report tns per label
         self.setup_output_dir(self.out_tns_dir().path)
-        for label in list(set(labels)):
-            ranked_tns = rp.return_ranked_tns(label)
-            outfile = self.out_tns_dir().path + '/' + label + '.csv'
-            lw = linewriter.Linewriter(ranked_tns)
-            lw.write_csv(outfile)
-
+        for label in unique_labels:
+            try:
+                ranked_tns = rp.return_ranked_tns(label)
+                outfile = self.out_tns_dir().path + '/' + label + '.csv'
+                lw = linewriter.Linewriter(ranked_tns)
+                lw.write_csv(outfile)
+            except:
+                continue
+                
         # report confusion matrix
         if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
             rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, False, documents)
