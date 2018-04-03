@@ -35,7 +35,8 @@ class NFoldCVSparse(WorkflowComponent):
     balance = BoolParameter(default=False)
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
-
+    pca = BoolParameter(default=False)
+    
     def accepts(self):
         return [ ( InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
 
@@ -44,7 +45,7 @@ class NFoldCVSparse(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
-        fold_runner = workflow.new_task('nfold_cv', RunFolds, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)
+        fold_runner = workflow.new_task('nfold_cv', RunFolds, autopass=True, n = self.n, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal, pca=self.pca)
         fold_runner.in_bins = bin_maker.out_bins
         fold_runner.in_features = input_feeds['features']
         fold_runner.in_labels = input_feeds['labels']
@@ -77,9 +78,10 @@ class RunFolds(Task):
     balance = BoolParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    pca = BoolParameter()
+    
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.args_' + self.in_classifier_args().path.split('/')[-1][:-4] + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.balance_' + self.balance.__str__() + '.exp')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.' + self.classifier + '.args_' + self.in_classifier_args().path.split('/')[-1][:-4] + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.balance_' + self.balance.__str__() + '.pca_' + self.pca.__str__() + '.exp')
         
     def run(self):
 
@@ -88,7 +90,7 @@ class RunFolds(Task):
 
         # for each fold
         for fold in range(self.n):
-            yield Fold(directory=self.out_exp().path, features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)
+            yield Fold(directory=self.out_exp().path, features=self.in_features().path, labels=self.in_labels().path, vocabulary=self.in_vocabulary().path, bins=self.in_bins().path, documents=self.in_documents().path, classifier_args=self.in_classifier_args().path, i=fold, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal, pca=self.pca)
 
 
 ################################################################################
@@ -112,13 +114,14 @@ class Fold(WorkflowComponent):
     balance = BoolParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    pca = BoolParameter()
+    
     def accepts(self):
         return [ ( InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
  
     def setup(self, workflow, input_feeds):
 
-        fold = workflow.new_task('run_fold', FoldTask, autopass=False, i=self.i, classifier=self.classifier, weight=self.weight, prune=self.prune, balance=self.balance, ordinal=self.ordinal)
+        fold = workflow.new_task('run_fold', FoldTask, autopass=False, i=self.i, classifier=self.classifier, weight=self.weight, prune=self.prune, balance=self.balance, ordinal=self.ordinal, pca=self.pca)
         fold.in_directory = input_feeds['directory']
         fold.in_features = input_feeds['features']
         fold.in_vocabulary = input_feeds['vocabulary']
@@ -146,7 +149,7 @@ class FoldTask(Task):
     balance = BoolParameter()
     classifier = Parameter()
     ordinal = BoolParameter()
-
+    pca = BoolParameter()
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
@@ -232,4 +235,4 @@ class FoldTask(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, trainvocabulary=self.in_vocabulary().path, testvocabulary=self.in_vocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal)
+        yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, trainvocabulary=self.in_vocabulary().path, testvocabulary=self.in_vocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal, pca=self.pca)

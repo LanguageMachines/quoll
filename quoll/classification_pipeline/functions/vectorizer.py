@@ -9,7 +9,7 @@ import copy
 import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
-
+from sklearn.decomposition import SparsePCA
 
 class Counts:
     """
@@ -373,3 +373,11 @@ def filter_features_correlation_f(feature_strength,feature_feature_correlation,s
     out_log = '\n'.join(out_log_list)
     return selected_features, out_log
 
+def trainapply_pca(train, test):
+
+    pca = SparsePCA()
+    model = pca.fit(train)
+    train_pca = model.transform(train)
+    test_pca = model.transform(test)
+    components = pca.components_
+    return train_pca, test_pca, model, components

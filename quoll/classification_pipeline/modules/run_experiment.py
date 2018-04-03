@@ -25,6 +25,7 @@ class ExperimentComponent(WorkflowComponent):
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter(default=False)
     no_label_encoding = BoolParameter(default=False)
+    pca = BoolParameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='train',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self, format_id='trainlabels', extension='.labels', inputparameter='trainlabels'), InputFormat(self, format_id='test', extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='testlabels', extension='.labels', inputparameter='testlabels'), InputFormat(self, format_id='trainvocabulary', extension='.vocabulary.txt', inputparameter='trainvocabulary'), InputFormat(self, format_id='testvocabulary', extension='.vocabulary.txt', inputparameter='testvocabulary'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
@@ -35,29 +36,23 @@ class ExperimentComponent(WorkflowComponent):
             balancer = workflow.new_task('balance instances', vectorize_sparse_instances.Balance_instances, autopass=True)
             balancer.in_train = input_feeds['train']
             balancer.in_trainlabels = input_feeds['trainlabels']
-            balancer.in_test = input_feeds['test']
 
             train_vectors = workflow.new_task('vectorize_traininstances_balanced', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune)
             train_vectors.in_train = balancer.out_train
             train_vectors.in_trainlabels = balancer.out_labels
             train_vectors.in_vocabulary = input_feeds['trainvocabulary']
-
-            test_vectors = workflow.new_task('vectorize_testinstances_balanced', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
-            test_vectors.in_test = balancer.out_test
-            test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
-            test_vectors.in_topfeatures = train_vectors.out_topfeatures
-
+            
         else:
             train_vectors = workflow.new_task('vectorize_traininstances', vectorize_sparse_instances.Vectorize_traininstances, autopass=True, weight=self.weight, prune=self.prune)
             train_vectors.in_train = input_feeds['train']
             train_vectors.in_trainlabels = input_feeds['trainlabels']
             train_vectors.in_vocabulary = input_feeds['trainvocabulary']
 
-            test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
-            test_vectors.in_test = input_feeds['test']
-            test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
-            test_vectors.in_topfeatures = train_vectors.out_topfeatures
-
+        test_vectors = workflow.new_task('vectorize_testinstances', vectorize_sparse_instances.Vectorize_testinstances, autopass=True, weight=self.weight)
+        test_vectors.in_test = input_feeds['test']
+        test_vectors.in_sourcevocabulary = input_feeds['testvocabulary']
+        test_vectors.in_topfeatures = train_vectors.out_topfeatures
+       
         if self.classifier == 'balanced_winnow':
             predictor = workflow.new_task('classify_lcs',  classify_instances.BalancedWinnowClassifier, autopass=True)
             predictor.in_train = train_vectors.out_train
@@ -68,16 +63,34 @@ class ExperimentComponent(WorkflowComponent):
             predictor.in_classifier_args = input_feeds['classifier_args']
 
         else:
-            trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
-            trainer.in_train = train_vectors.out_train
-            trainer.in_trainlabels = train_vectors.out_labels
-            trainer.in_vocab = train_vectors.out_topfeatures
-            trainer.in_classifier_args = input_feeds['classifier_args']
 
-            predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
-            predictor.in_test = test_vectors.out_test
-            predictor.in_labels = train_vectors.out_labels
-            predictor.in_model = trainer.out_model
+            if self.pca:
+                dimensionality_reducer = workflow.new_task('train_apply_pca', vectorize_sparse_instances.TrainApply_PCA, autopass=True)
+                dimensionality_reducer.in_train = train_vectors.out_train
+                dimensionality_reducer.in_test = test_vectors.out_test
+
+                trainer = workflow.new_task('train_classifier_pca', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+                trainer.in_train = dimensionality_reducer.out_train
+                trainer.in_trainlabels = train_vectors.out_labels
+                trainer.in_vocab = dimensionality_reducer.out_vocab
+                trainer.in_classifier_args = input_feeds['classifier_args']
+
+                predictor = workflow.new_task('apply_classifier_pca', classify_instances.ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+                predictor.in_test = dimensionality_reducer.out_test
+                predictor.in_labels = train_vectors.out_labels
+                predictor.in_model = trainer.out_model
+                
+            else:
+                trainer = workflow.new_task('train_classifier', classify_instances.TrainClassifier, autopass=True, classifier=self.classifier, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+                trainer.in_train = train_vectors.out_train
+                trainer.in_trainlabels = train_vectors.out_labels
+                trainer.in_vocab = train_vectors.out_topfeatures
+                trainer.in_classifier_args = input_feeds['classifier_args']
+
+                predictor = workflow.new_task('apply_classifier', classify_instances.ApplyClassifier, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+                predictor.in_test = test_vectors.out_test
+                predictor.in_labels = train_vectors.out_labels
+                predictor.in_model = trainer.out_model
 
         reporter = workflow.new_task('report_performance', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         reporter.in_predictions = predictor.out_predictions

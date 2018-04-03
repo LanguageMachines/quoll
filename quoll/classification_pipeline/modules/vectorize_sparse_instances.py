@@ -1,6 +1,7 @@
 
 import numpy
 from scipy import sparse
+import pickle
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions import vectorizer
@@ -9,16 +10,12 @@ class Balance_instances(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
-    in_test = InputSlot() # to separate balanced classifications from normal ones
 
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.features.npz')
 
     def out_labels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels')
-
-    def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.features.npz')
 
     def run(self):
 
@@ -43,11 +40,54 @@ class Balance_instances(Task):
         # write trainlabels to file
         with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
             l_out.write('\n'.join(trainlabels_balanced))
-        
+
+class TrainApply_PCA(Task):
+
+    in_train = InputSlot()
+    in_test = InputSlot()
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.vectors.npz')
+
+    def out_test(self):
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.pca.vectors.npz')
+
+    def out_pca(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.model.pkl')
+    
+    def out_vocab(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.vocabulary.txt')
+    
+    def run(self):
+
+        # load vectorized traininstances
+        loader = numpy.load(self.in_train().path)
+        vectorized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']).toarray()
+
+        # load vectorized testinstances
+        loader = numpy.load(self.in_test().path)
+        vectorized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']).toarray()
+
+        # reduce dimensions using sklearn PCA
+        vectorized_traininstances_pca, vectorized_testinstances_pca, pca_model, pca_vocab = vectorizer.trainapply_pca(vectorized_traininstances, vectorized_testinstances)
+
+        # write traininstances to file
+        vectorized_traininstances_pca = sparse.csr_matrix(vectorized_traininstances_pca)
+        numpy.savez(self.out_train().path, data=vectorized_traininstances_pca.data, indices=vectorized_traininstances_pca.indices, indptr=vectorized_traininstances_pca.indptr, shape=vectorized_traininstances_pca.shape)
+
         # write testinstances to file
-        numpy.savez(self.out_test().path, data=featurized_testinstances.data, indices=featurized_testinstances.indices, indptr=featurized_testinstances.indptr, shape=featurized_testinstances.shape)
-
-
+        vectorized_testinstances_pca = sparse.csr_matrix(vectorized_testinstances_pca)
+        numpy.savez(self.out_test().path, data=vectorized_testinstances_pca.data, indices=vectorized_testinstances_pca.indices, indptr=vectorized_testinstances_pca.indptr, shape=vectorized_testinstances_pca.shape)
+        
+        # write pca model to file
+        with open(self.out_pca().path, 'wb') as fid:
+            pickle.dump(pca_model, fid)
+        
+        # write pca components to file
+        with open(self.out_vocab().path, 'w', encoding='utf-8') as v_out:
+            for feats in pca_vocab:
+                v_out.write(' '.join([str(x) for x in feats]) + '\n')
+            
 class Vectorize_traininstances(Task):
 
     in_train = InputSlot()
@@ -56,6 +96,7 @@ class Vectorize_traininstances(Task):
 
     weight = Parameter()
     prune = IntParameter()
+    pca = BoolParameter()
 
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')

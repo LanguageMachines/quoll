@@ -20,6 +20,9 @@ class ReportPerformance(Task):
     def out_performance(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.performance.csv')
 
+    def out_precision_at(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.precision_at.csv')
+
     def out_docpredictions(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.docpredictions.csv')
 
@@ -71,6 +74,11 @@ class ReportPerformance(Task):
             performance = rp.assess_performance()
         lw = linewriter.Linewriter(performance)
         lw.write_csv(self.out_performance().path)
+
+        # report precision-at performance
+        precision_at = rp.precision_at()
+        lw = linewriter.Linewriter(precision_at)
+        lw.write_csv(self.out_precision_at().path)
 
         # report predictions by document
         predictions_by_document = rp.predictions_by_document()

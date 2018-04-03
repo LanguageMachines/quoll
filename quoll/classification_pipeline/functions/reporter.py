@@ -5,7 +5,7 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, full_predictions, label_order, labels=False, unique_labels = False, ordinal=False, documents=False):
+    def __init__(self, predictions, full_predictions, label_order, labels=False, unique_labels = False, ordinal=False, documents=False, strictness=1):
         self.predictions = predictions
         if len(predictions) != len(full_predictions):
             print('The number of full predictions (', len(full_predictions), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -26,7 +26,6 @@ class Reporter:
                 self.labels = [int(label) for label in labels]
                 self.unique_labels = [int(label) for label in unique_labels]
                 self.predictions = [int(prediction) for prediction in predictions]
-                # self.label_order = [int(label) for label in label_order]
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
@@ -43,8 +42,11 @@ class Reporter:
         else:
             self.documents = ['-'] * len(labels)
 
+#    def save_classifier_output(self, labels, predictions, full_predictions, strictness=1):
     def save_classifier_output(self, labels, predictions):
         for i, instance in enumerate(labels):
+            #if strictness>1 and full_predictions[i][0] != '-':
+                
             self.ce.append(labels[i], predictions[i])
 
     def assess_ordinal_label_performance(self, label):
@@ -98,6 +100,8 @@ class Reporter:
             docpredictions.append([self.documents[index], self.labels[index], self.predictions[index]] + self.full_predictions[index])
         return docpredictions
 
+    
+    
     def return_confusion_matrix(self):
         confusion_matrix = self.ce.confusionmatrix()
         return confusion_matrix.__str__()                

@@ -243,37 +243,19 @@ class ReportFolds(Task):
 
     ordinal = BoolParameter()
 
-    def out_macro_performance(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.macro_performance.csv')  
-
-    def out_performance(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.performance.csv')    
-
-    def out_docpredictions(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.docpredictions.csv')
-
-    def out_confusionmatrix(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.confusion_matrix.csv')
-
-    def out_fps_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_fps')
-
-    def out_tps_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_tps')
-
-    def out_fns_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_fns')
-
-    def out_tns_dir(self):
-        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.ranked_tns')
+    def out_report(self):
+        return self.outputfrominput(inputformat='expdirectory', stripextension='.exp', addextension='.report')  
  
     def run(self):
 
+        # make report directory
+        self.setup_output_dir(self.out_report().path)
+        
         # gather fold reports
         print('gathering fold reports')
         performance_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/*.performance.csv') ]
         docprediction_files = [ filename for filename in glob.glob(self.in_expdirectory().path + '/fold*/*.docpredictions.csv') ]
-
+        
         # calculate average performance
         dr = docreader.Docreader()
         performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
@@ -315,7 +297,7 @@ class ReportFolds(Task):
             all_performance.append(average_performance)
 
         lw = linewriter.Linewriter(all_performance)
-        lw.write_csv(self.out_macro_performance().path)
+        lw.write_csv(self.out_report().path + '/macro_performance.csv')
 
         # write predictions per document
         label_order = [x.split('prediction prob for ')[1] for x in dr.parse_csv(docprediction_files[0])[0][3:]]
@@ -330,7 +312,7 @@ class ReportFolds(Task):
         rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, self.ordinal, documents)
         predictions_by_document = rp.predictions_by_document()
         lw = linewriter.Linewriter(predictions_by_document)
-        lw.write_csv(self.out_docpredictions().path)
+        lw.write_csv(self.out_report().path + '/docpredictions.csv')
 
         # report performance
         if self.ordinal:
@@ -338,47 +320,47 @@ class ReportFolds(Task):
         else:
             performance = rp.assess_performance()
         lw = linewriter.Linewriter(performance)
-        lw.write_csv(self.out_performance().path)
+        lw.write_csv(self.out_report().path + '/performance.csv')
 
         # report fps per label
-        self.setup_output_dir(self.out_fps_dir().path)
+        self.setup_output_dir(self.out_report().path + '/ranked_fps')
         for label in unique_labels:
             try:
                 ranked_fps = rp.return_ranked_fps(label)
-                outfile = self.out_fps_dir().path + '/' + label + '.csv'
+                outfile = self.out_report().path + '/ranked_fps/' + label + '.csv'
                 lw = linewriter.Linewriter(ranked_fps)
                 lw.write_csv(outfile)
             except:
                 continue
 
-        # report fps per label
-        self.setup_output_dir(self.out_tps_dir().path)
+        # report tps per label
+        self.setup_output_dir(self.out_report().path + '/ranked_tps')
         for label in unique_labels:
             try:
                 ranked_tps = rp.return_ranked_tps(label)
-                outfile = self.out_tps_dir().path + '/' + label + '.csv'
+                outfile = self.out_report().path + '/ranked_tps/' + label + '.csv'
                 lw = linewriter.Linewriter(ranked_tps)
                 lw.write_csv(outfile)
             except:
                 continue
-                
+            
         # report fns per label
-        self.setup_output_dir(self.out_fns_dir().path)
+        self.setup_output_dir(self.out_report().path + '/ranked_fns')
         for label in unique_labels:
             try:
                 ranked_fns = rp.return_ranked_fns(label)
-                outfile = self.out_fns_dir().path + '/' + label + '.csv'
+                outfile = self.out_report().path + '/ranked_fns/' + label + '.csv'
                 lw = linewriter.Linewriter(ranked_fns)
                 lw.write_csv(outfile)
             except:
                 continue
                 
         # report tns per label
-        self.setup_output_dir(self.out_tns_dir().path)
+        self.setup_output_dir(self.out_report().path + '/ranked_tns')
         for label in unique_labels:
             try:
                 ranked_tns = rp.return_ranked_tns(label)
-                outfile = self.out_tns_dir().path + '/' + label + '.csv'
+                outfile = self.out_report().path + '/ranked_tns/' + label + '.csv'
                 lw = linewriter.Linewriter(ranked_tns)
                 lw.write_csv(outfile)
             except:
@@ -388,9 +370,10 @@ class ReportFolds(Task):
         if self.ordinal: # to make a confusion matrix, the labels should be formatted as string
             rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, False, documents)
         confusion_matrix = rp.return_confusion_matrix()
-        with open(self.out_confusionmatrix().path,'w') as cm_out:
+        with open(self.out_report().path + '/confusion_matrix.csv','w') as cm_out:
             cm_out.write(confusion_matrix)
 
+            
 ################################################################################
 ###Regression Reporter
 ################################################################################
