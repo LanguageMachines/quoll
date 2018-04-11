@@ -28,11 +28,11 @@ class SetupSecondLayerBins(Task):
 
         # read trainlabels layer 1
         with open(in_trainlabels_layer1().path,'r',encoding='utf-8') as file_in:
-        	trainlabels_layer1 = file_in.read().strip().split('\n')
+            trainlabels_layer1 = file_in.read().strip().split('\n')
 
         # read testpredictions layer 1
         with open(in_testpredictions_layer1().path,'r',encoding='utf-8') as file_in:
-        	testpredictions_layer1 = file_in.read().strip().split('\n')
+            testpredictions_layer1 = file_in.read().strip().split('\n')
 
         # generate data for second layer experiment directory
         second_layer_dict = hierarchical_classification_functions.setup_second_layer(trainlabels_layer1,testpredictions_layer1)
@@ -40,12 +40,12 @@ class SetupSecondLayerBins(Task):
         # setup lines for each train and test bin
         bins = []
         for label in second_layer_dict.keys():
-        	trainlabel_indices = second_layer_dict[label]['testindices']
-        	testlabel_indices = second_layer_dict[label]['testindices']
-        	bins.append([label + '_train'] + trainlabel_indices)
-        	bins.append([label + '_test'] + testlabel_indices)
+            trainlabel_indices = second_layer_dict[label]['testindices']
+            testlabel_indices = second_layer_dict[label]['testindices']
+            bins.append([label + '_train'] + trainlabel_indices)
+            bins.append([label + '_test'] + testlabel_indices)
 
-	    # write bins to file
+        # write bins to file
         lw = linewriter.Linewriter(bins)
         lw.write_csv(self.out_layer2_bins().path)
 
@@ -79,8 +79,8 @@ class RunSecondLayer(Task):
 
         # read first layer labels to setup classification by label bin
         with open(in_trainlabels_first_layer().path,'r',encoding='utf-8') as file_in:
-        	trainlabels_first_layer = file_in.read().strip().split('\n')
-        	unique_labels = list(set(trainlabels_first_layer))
+            trainlabels_first_layer = file_in.read().strip().split('\n')
+            unique_labels = list(set(trainlabels_first_layer))
 
         # for each fold
         for label in unique_labels:
@@ -182,10 +182,10 @@ class SecondLayerBinTask(Task):
         dr = docreader.Docreader()
         bins = dr.parse_csv(self.in_bins().path)
         for line in bins:
-        	if line[0] == self.first_layer_label + '_train':
-        		trainindices = [int(col) for col in line[1:]]
-        	elif line[0] == self.first_layer_label + '_test':
-        		testindices = [int(col) for col in line[1:]]
+            if line[0] == self.first_layer_label + '_train':
+               trainindices = [int(col) for col in line[1:]]
+            elif line[0] == self.first_layer_label + '_test':
+               testindices = [int(col) for col in line[1:]]
 
         # open trainfeatures
         loader = numpy.load(self.in_train_features().path)
@@ -237,38 +237,38 @@ class SecondLayerBinTask(Task):
 
 class SecondLayerClassifications2Predictions(Task):
 
-	in_exp_layer2 = InputSlot()
-	in_bins = InputSlot()
-	in_testlabels_layer2 = InputSlot()
-	
-	def out_predictions(self):
-	    return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.predictions.txt')
-	    
-	def out_full_predictions(self):
-	    return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.full_predictions.txt')
-	    
-	def run(self):
-	
-	    # read bins
-	    dr = docreader.Docreader()
-	    bins = dr.parse_csv(self.in_bins().path)
-	    bins_dict = defaultdict(lambda : defaultdict(list))
-	    for line in bins:
-        	label_cat = line[0]
-        	label = line[0].split('_')[0]
-        	cat = line[0].split('_')[1]
-        	indices = [int(x) for x in line[1:]]
-        	bins_dict[label][cat] = indices
+    in_exp_layer2 = InputSlot()
+    in_bins = InputSlot()
+    in_testlabels_layer2 = InputSlot()
+    
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.predictions.txt')
+        
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.full_predictions.txt')
+        
+    def run(self):
+    
+        # read bins
+        dr = docreader.Docreader()
+        bins = dr.parse_csv(self.in_bins().path)
+        bins_dict = defaultdict(lambda : defaultdict(list))
+        for line in bins:
+            label_cat = line[0]
+            label = line[0].split('_')[0]
+            cat = line[0].split('_')[1]
+            indices = [int(x) for x in line[1:]]
+            bins_dict[label][cat] = indices
         unique_labels_sorted = sorted(bins_dict.keys())
         
         # read testlabels
         with open(in_testlabels_layer2().path,'r',encoding='utf-8') as file_in:
-    		testlabels_layer2 = file_in.read().strip().split('\n')
-    		
-    	# initialize testpredictions and testpredictions_full based on the length of the testlabels
-    	testpredictions = ['-'] * len(testlabels_layer2)
-    	testpredictions_full = [unique_labels_sorted] + [['0.0'] * len(unique_labels_sorted)] * len(testlabels_layer2)
-    	print('testpredictions_full_template:',testpredictions_full)
+           testlabels_layer2 = file_in.read().strip().split('\n')
+           
+        # initialize testpredictions and testpredictions_full based on the length of the testlabels
+        testpredictions = ['-'] * len(testlabels_layer2)
+        testpredictions_full = [unique_labels_sorted] + [['0.0'] * len(unique_labels_sorted)] * len(testlabels_layer2)
+        print('testpredictions_full_template:',testpredictions_full)
 
         # gather predictions - instances pairs
         prediction_files = sorted([ filename for filename in glob.glob(self.in_exp_layer2().path + '/*/*.predictions.txt') ])
@@ -276,32 +276,32 @@ class SecondLayerClassifications2Predictions(Task):
         
         # combine predictions with the right order
         for i,prediction_file in enumerate(prediction_files):
-        	full_prediction_file = full_prediction_files[i]
-        	# extract label
-        	predictions_label = prediction_file.split('/')[-2]
-        	full_predictions_label = full_prediction_file.split('/')[-2]
-        	# assert that labels are the same
-        	print('Predictions_label:',predictions_label,'Full_predictions_label:',full_predictions_label)
-        	# read in predictions for label
-        	with open(prediction_file,'r',encoding='utf-8') as file_in:
-        		predictions = file_in.read().strip().split('\n')
-        	# read in full predictions for label, and set in right format
-        	with open(full_prediction_file,'r',encoding='utf-8') as file_in:
-            	lines = [line.split('\t') for line in file_in.read().strip().split('\n')]
-        	full_prediction_label_order = lines[0]
-        	full_prediction_line_template = ['0.0'] * len(unique_labels_sorted)
-        	full_prediction_indices = [unique_labels_sorted.index(label) for label in full_prediction_label_order]
-        	full_predictions = []
-        	for fp in lines[1:]:
-        		full_predictions_line = full_prediction_line_template
-        		for j,value in enumerate(fp):
-        			full_predictions_line[full_prediction_indices[i]] = str(value)
-        		full_predictions.append(full_predictions_line)
-        	# fill in predictions and full predictions in appropriate position give the label indices
-        	for j,prediction in enumerate(predictions):
-        		testpredictions[bins_dict[predictions_label]['test'][j]] = prediction
-        	for j,full_prediction in enumerate(full_predictions):
-        		testpredictions_full[bins_dict[full_predictions_label]['test'][j]+1] = full_prediction
+            full_prediction_file = full_prediction_files[i]
+            # extract label
+            predictions_label = prediction_file.split('/')[-2]
+            full_predictions_label = full_prediction_file.split('/')[-2]
+            # assert that labels are the same
+            print('Predictions_label:',predictions_label,'Full_predictions_label:',full_predictions_label)
+            # read in predictions for label
+            with open(prediction_file,'r',encoding='utf-8') as file_in:
+               predictions = file_in.read().strip().split('\n')
+            # read in full predictions for label, and set in right format
+            with open(full_prediction_file,'r',encoding='utf-8') as file_in:
+                lines = [line.split('\t') for line in file_in.read().strip().split('\n')]
+            full_prediction_label_order = lines[0]
+            full_prediction_line_template = ['0.0'] * len(unique_labels_sorted)
+            full_prediction_indices = [unique_labels_sorted.index(label) for label in full_prediction_label_order]
+            full_predictions = []
+            for fp in lines[1:]:
+               full_predictions_line = full_prediction_line_template
+               for j,value in enumerate(fp):
+                 full_predictions_line[full_prediction_indices[i]] = str(value)
+               full_predictions.append(full_predictions_line)
+            # fill in predictions and full predictions in appropriate position give the label indices
+            for j,prediction in enumerate(predictions):
+               testpredictions[bins_dict[predictions_label]['test'][j]] = prediction
+            for j,full_prediction in enumerate(full_predictions):
+               testpredictions_full[bins_dict[full_predictions_label]['test'][j]+1] = full_prediction
 
         # write predictions to file
         with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
