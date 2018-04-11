@@ -9,7 +9,7 @@ import copy
 import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
-from sklearn.decomposition import SparsePCA
+from sklearn.decomposition import IncrementalPCA
 
 class Counts:
     """
@@ -375,9 +375,17 @@ def filter_features_correlation_f(feature_strength,feature_feature_correlation,s
 
 def trainapply_pca(train, test):
 
-    pca = SparsePCA()
-    model = pca.fit(train)
-    train_pca = model.transform(train)
-    test_pca = model.transform(test)
+    pca = IncrementalPCA()
+    chunksize = 150000
+    cursor = 0
+    counter = 1
+    while cursor+chunksize <= train.shape[0]:
+        print('PCA Chunk nr. ',counter)
+        counter += 1
+        pca.partial_fit(train[list(range(cursor,cursor+chunksize)),:])
+        cursor += chunksize
+    pca.partial_fit(train[list(range(cursor,train.shape[0])),:])
+    train_pca = pca.transform(train)
+    test_pca = pca.transform(test)
     components = pca.components_
-    return train_pca, test_pca, model, components
+    return train_pca, test_pca, pca, components

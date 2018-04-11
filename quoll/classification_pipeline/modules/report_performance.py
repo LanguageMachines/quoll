@@ -20,8 +20,8 @@ class ReportPerformance(Task):
     def out_performance(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.performance.csv')
 
-    def out_precision_at(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.precision_at.csv')
+    def out_performance_at_dir(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.performance_at_dir')
 
     def out_docpredictions(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.docpredictions.csv')
@@ -75,11 +75,6 @@ class ReportPerformance(Task):
         lw = linewriter.Linewriter(performance)
         lw.write_csv(self.out_performance().path)
 
-        # report precision-at performance
-        precision_at = rp.precision_at()
-        lw = linewriter.Linewriter(precision_at)
-        lw.write_csv(self.out_precision_at().path)
-
         # report predictions by document
         predictions_by_document = rp.predictions_by_document()
         lw = linewriter.Linewriter(predictions_by_document)
@@ -123,6 +118,28 @@ class ReportPerformance(Task):
         confusion_matrix = rp.return_confusion_matrix()
         with open(self.out_confusionmatrix().path,'w') as cm_out:
             cm_out.write(confusion_matrix)
+
+        # report performance-at
+        self.setup_output_dir(self.out_performance_at_dir().path)
+        if len(unique_labels) >= 9:
+            prat_opts = [3,5,7,9]
+        elif len(unique_labels) >= 7:
+            prat_opts = [3,5,7]
+        elif len(unique_labels) >= 5:
+            prat_opts = [3,5]
+        elif len(unique_labels) >= 3:
+            prat_opts = [3]
+        else:
+            prat_opts = []
+        for po in prat_opts:
+            outfile = self.out_performance_at_dir().path + '/performance_at_' + str(po) + '.txt'
+            rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, self.ordinal, documents, po)
+            if self.ordinal:
+                performance = rp.assess_ordinal_performance()
+            else:
+                performance = rp.assess_performance()
+            lw = linewriter.Linewriter(performance)
+            lw.write_csv(outfile)
 
 
 class ReportRegressionPerformance(Task):

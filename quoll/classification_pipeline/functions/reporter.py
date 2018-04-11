@@ -29,7 +29,7 @@ class Reporter:
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
-            self.save_classifier_output(self.labels, self.predictions)
+            self.save_classifier_output(self.labels, self.predictions, self.full_predictions, strictness)
         else:
             self.labels = ['-'] * len(self.predictions)
             self.unique_labels = ['-']
@@ -42,12 +42,18 @@ class Reporter:
         else:
             self.documents = ['-'] * len(labels)
 
-#    def save_classifier_output(self, labels, predictions, full_predictions, strictness=1):
-    def save_classifier_output(self, labels, predictions):
+    def save_classifier_output(self, labels, predictions, full_predictions, strictness=1):
         for i, instance in enumerate(labels):
-            #if strictness>1 and full_predictions[i][0] != '-':
-                
-            self.ce.append(labels[i], predictions[i])
+            if strictness>1 and full_predictions[i][0] != '-':
+                fp_numbered = [[j,x] for j,x in enumerate(full_predictions[i])]
+                fp_sorted = sorted(fp_numbered,key = lambda k : k[1],reverse=True)
+                top_n_predictions = [self.label_order[fp_sorted[j][0]] for j in list(range(strictness))]
+                if labels[i] in top_n_predictions:
+                    self.ce.append(labels[i],labels[i])
+                else:
+                    self.ce.append(labels[i],predictions[i])
+            else:
+                self.ce.append(labels[i], predictions[i])
 
     def assess_ordinal_label_performance(self, label):
         self.ce.compute()

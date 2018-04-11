@@ -373,7 +373,28 @@ class ReportFolds(Task):
         with open(self.out_report().path + '/confusion_matrix.csv','w') as cm_out:
             cm_out.write(confusion_matrix)
 
-            
+        # report performance-at
+        self.setup_output_dir(self.out_report().path + '/performance_at_dir')
+        if len(unique_labels) >= 9:
+            prat_opts = [3,5,7,9]
+        elif len(unique_labels) >= 7:
+            prat_opts = [3,5,7]
+        elif len(unique_labels) >= 5:
+            prat_opts = [3,5]
+        elif len(unique_labels) >= 3:
+            prat_opts = [3]
+        else:
+            prat_opts = []
+        for po in prat_opts:
+            outfile = self.out_report().path + '/performance_at_dir/performance_at_' + str(po) + '.txt'
+            rp = reporter.Reporter(predictions, full_predictions, label_order, labels, unique_labels, self.ordinal, documents, po)
+            if self.ordinal:
+                performance = rp.assess_ordinal_performance()
+            else:
+                performance = rp.assess_performance()
+            lw = linewriter.Linewriter(performance)
+            lw.write_csv(outfile)
+
 ################################################################################
 ###Regression Reporter
 ################################################################################

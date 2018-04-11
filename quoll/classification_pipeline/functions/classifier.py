@@ -411,12 +411,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, no_label_encoding=False, c='', solver='', dual='', penalty='', multiclass='', max_iterations=1000, iterations=10):
-        # if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
-        #     parameters = ['estimator__C', 'estimator__solver', 'estimator__penalty', 'estimator__dual', 'estimator__multi_class']
-        #     multi = True
-        # else: # only two classes to distinguish
         parameters = ['C', 'solver', 'penalty', 'dual', 'multi_class']
-        # multi = False
         c_values = [0.001, 0.005, 0.01, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0] if c == '' else [float(x) for x in c.split()]
         solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == '' else [s for  s in solver.split()]
         if penalty == '':
@@ -455,13 +450,8 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
             model = LogisticRegression(max_iter=max_iterations)
-            # if multi:
-            #     model = OutputCodeClassifier(model)
             paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
             paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
-            # else:              
-            #     paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
-            #     paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train a logistic regression classifier with the settings that led to the best performance
         self.model = LogisticRegression(
@@ -473,18 +463,25 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             max_iter = max_iterations,
             verbose = 2
         )
-        # if multi:
-        #     self.model = OutputCodeClassifier(self.model)
-        #     self.model.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
-        # else:
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):
         return self.model
 
+    def return_feature_coef(self,vocab=False):
+        feature_coef = []
+        feature_coef.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de names of the classes
+        if vocab:
+            for i,vals in enumerate(self.model.coef_.T.tolist()):
+                feature_coef.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
+        else:
+            for i,vals in enumerate(self.model.coef_.T.tolist()):
+                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
+        return '\n'.join(feature_coef) + '\n'
+    
     def return_model_insights(self,vocab=False):
-        #return [['feature_weights.txt','\n'.join([str(l) for l in self.model.coef_.T.tolist()])]]
-        return []
+        model_insights = [['coef.txt',self.return_feature_coef(vocab)]]
+        return model_insights
         
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)

@@ -17,10 +17,10 @@ class SetupSecondLayerBins(Task):
 
     in_trainlabels_layer1 = InputSlot()
     in_testpredictions_layer1 = InputSlot()
-    
+
     def out_layer2_bins(self):
         return self.outputfrominput(inputformat='in_testpredictions_layer1', stripextension='.txt', addextension='.bins.csv')
-        
+
     def run(self):
 
         # make second layer experiment directory
@@ -28,11 +28,11 @@ class SetupSecondLayerBins(Task):
 
         # read trainlabels layer 1
         with open(in_trainlabels_layer1().path,'r',encoding='utf-8') as file_in:
-        	trainlabels_layer1 = file_in.read().strip().split('\n') 
+        	trainlabels_layer1 = file_in.read().strip().split('\n')
 
         # read testpredictions layer 1
         with open(in_testpredictions_layer1().path,'r',encoding='utf-8') as file_in:
-        	testpredictions_layer1 = file_in.read().strip().split('\n') 
+        	testpredictions_layer1 = file_in.read().strip().split('\n')
 
         # generate data for second layer experiment directory
         second_layer_dict = hierarchical_classification_functions.setup_second_layer(trainlabels_layer1,testpredictions_layer1)
@@ -41,11 +41,11 @@ class SetupSecondLayerBins(Task):
         bins = []
         for label in second_layer_dict.keys():
         	trainlabel_indices = second_layer_dict[label]['testindices']
-			testlabel_indices = second_layer_dict[label]['testindices']
-			bins.append([label + '_train'] + trainlabel_indices)
-			bins.append([label + '_test'] + testlabel_indices)
+        	testlabel_indices = second_layer_dict[label]['testindices']
+        	bins.append([label + '_train'] + trainlabel_indices)
+        	bins.append([label + '_test'] + testlabel_indices)
 
-		# write bins to file
+	    # write bins to file
         lw = linewriter.Linewriter(bins)
         lw.write_csv(self.out_layer2_bins().path)
 
@@ -68,10 +68,10 @@ class RunSecondLayer(Task):
     classifier = Parameter()
     ordinal = BoolParameter()
     pca = BoolParameter()
-    
+
     def out_exp_layer2(self):
         return self.outputfrominput(inputformat='in_bins', stripextension='.bins.csv', addextension='.exp_second_layer')
-        
+
     def run(self):
 
         # make experiment directory
@@ -240,31 +240,31 @@ class SecondLayerClassifications2Predictions(Task):
 	in_exp_layer2 = InputSlot()
 	in_bins = InputSlot()
 	in_testlabels_layer2 = InputSlot()
-
-    def out_predictions(self):
-        return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.predictions.txt')
-
-    def out_full_predictions(self):
-        return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.full_predictions.txt')     
-
-    def run(self):
-
-    	# read bins
-        dr = docreader.Docreader()
-        bins = dr.parse_csv(self.in_bins().path)
-        bins_dict = defaultdict(lambda : defaultdict(list))
-        for line in bins:
+	
+	def out_predictions(self):
+	    return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.predictions.txt')
+	    
+	def out_full_predictions(self):
+	    return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.full_predictions.txt')
+	    
+	def run(self):
+	
+	    # read bins
+	    dr = docreader.Docreader()
+	    bins = dr.parse_csv(self.in_bins().path)
+	    bins_dict = defaultdict(lambda : defaultdict(list))
+	    for line in bins:
         	label_cat = line[0]
         	label = line[0].split('_')[0]
         	cat = line[0].split('_')[1]
         	indices = [int(x) for x in line[1:]]
         	bins_dict[label][cat] = indices
         unique_labels_sorted = sorted(bins_dict.keys())
-
-    	# read testlabels
-    	with open(in_testlabels_layer2().path,'r',encoding='utf-8') as file_in:
+        
+        # read testlabels
+        with open(in_testlabels_layer2().path,'r',encoding='utf-8') as file_in:
     		testlabels_layer2 = file_in.read().strip().split('\n')
-
+    		
     	# initialize testpredictions and testpredictions_full based on the length of the testlabels
     	testpredictions = ['-'] * len(testlabels_layer2)
     	testpredictions_full = [unique_labels_sorted] + [['0.0'] * len(unique_labels_sorted)] * len(testlabels_layer2)

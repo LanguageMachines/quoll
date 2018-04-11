@@ -1,5 +1,5 @@
 
-from luiginlp.engine import Task, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
+from luiginlp.engine import Task, WorkflowComponent, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 import numpy
 from scipy import sparse
 from collections import defaultdict
@@ -40,7 +40,7 @@ class NFoldCVSparseHierarchical(WorkflowComponent):
     pca = BoolParameter(default=False)
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels_layer1', extension='.labels', inputparameter='labels_layer1'), InputFormat(self,format_id='labels_layer2', extension='.labels', inputparameter='labels_layer2') InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
+        return [ ( InputFormat(self,format_id='features',extension='.features.npz',inputparameter='features'), InputFormat(self, format_id='labels_layer1', extension='.labels', inputparameter='labels_layer1'), InputFormat(self,format_id='labels_layer2', extension='.labels', inputparameter='labels_layer2'), InputFormat(self,format_id='documents',extension='.txt',inputparameter='documents'), InputFormat(self, format_id='vocabulary', extension='.vocabulary.txt', inputparameter='vocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -56,7 +56,7 @@ class NFoldCVSparseHierarchical(WorkflowComponent):
         fold_runner.in_documents = input_feeds['documents']        
         fold_runner.in_classifier_args = input_feeds['classifier_args']
 
-        folds_reporter = workflow.new_task('report_folds_hierarchical', ReportFoldsHierarchical, autopass = False)
+        folds_reporter = workflow.new_task('report_folds_hierarchical', ReportHierarchicalFolds, autopass = False)
         folds_reporter.in_expdirectory = fold_runner.out_exp
 
         return folds_reporter

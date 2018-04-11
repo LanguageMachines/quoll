@@ -235,7 +235,7 @@ class Frogdir2Features(Task):
 class Featurize(StandardWorkflowComponent):
     ngrams = Parameter(default='1 2 3')
     blackfeats = Parameter(default=False)
-    lowercase = BoolParameter(default=True)    
+    lowercase = BoolParameter()    
     minimum_token_frequency = IntParameter(default=1)
 
     featuretypes = Parameter(default=False)
