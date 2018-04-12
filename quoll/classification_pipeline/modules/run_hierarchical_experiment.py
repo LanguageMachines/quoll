@@ -94,7 +94,7 @@ class HierarchicalExperimentComponent(WorkflowComponent):
                 predictor.in_labels = train_vectors.out_labels
                 predictor.in_model = trainer.out_model
 
-        reporter1 = workflow.new_task('report_performance1', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+        reporter1 = workflow.new_task('report_performance1', report_performance.ReportPerformance, autopass=False, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         reporter1.in_predictions = predictor.out_predictions
         reporter1.in_full_predictions = predictor.out_full_predictions
         reporter1.in_labels = input_feeds['testlabels_layer1']
@@ -106,7 +106,8 @@ class HierarchicalExperimentComponent(WorkflowComponent):
         # prepare label-bins for second layer based on predictions after layer one
         layer2_bin_maker = workflow.new_task('setup_second_layer_bins', run_second_layer_classification.SetupSecondLayerBins, autopass=True, weight=self.weight, prune=self.prune, classifier=self.classifier, pca=self.pca, ordinal=self.ordinal, balance=self.balance, no_label_encoing=self.no_label_encoding)
         layer2_bin_maker.in_trainlabels_layer1 = input_feeds['trainlabels_layer1']
-        layer2_bin_maker.in_testpredictions_layer1 = predictor.out_predictions
+        layer2_bin_maker.in_docpredictions_layer1 = reporter1.out_docpredictions
+        
 
         # run second layer
         second_layer = workflow.new_task('run_second_layer', run_second_layer_classification.RunSecondLayer, autopass=True, weight=self.weight, prune=self.prune, classifier=self.classifier, pca=self.pca, ordinal=self.ordinal, balance=self.balance, no_label_encoing=self.no_label_encoding)
@@ -125,10 +126,11 @@ class HierarchicalExperimentComponent(WorkflowComponent):
         layer2_classifications_2_predictions = workflow.new_task('classifications_2_predictions', run_second_layer_classification.SecondLayerClassifications2Predictions, autopass=True)
         layer2_classifications_2_predictions.in_exp_layer2 = second_layer.out_exp_layer2
         layer2_classifications_2_predictions.in_bins = layer2_bin_maker.out_layer2_bins
+        layer2_classifications_2_predictions.in_trainlabels_layer2 = input_feeds['trainlabels_layer2']
         layer2_classifications_2_predictions.in_testlabels_layer2 = input_feeds['testlabels_layer2']
 
         # report performance
-        reporter2 = workflow.new_task('report_performance2', report_performance.ReportPerformance, autopass=True, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
+        reporter2 = workflow.new_task('report_performance2', report_performance.ReportPerformance, autopass=False, ordinal=self.ordinal, no_label_encoding=self.no_label_encoding)
         reporter2.in_predictions = layer2_classifications_2_predictions.out_predictions
         reporter2.in_full_predictions = layer2_classifications_2_predictions.out_full_predictions
         reporter2.in_labels = input_feeds['testlabels_layer2']

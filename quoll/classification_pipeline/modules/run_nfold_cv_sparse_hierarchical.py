@@ -8,6 +8,7 @@ import glob
 import quoll.classification_pipeline.functions.nfold_cv_functions as nfold_cv_functions
 import quoll.classification_pipeline.functions.linewriter as linewriter
 import quoll.classification_pipeline.functions.docreader as docreader
+import quoll.classification_pipeline.functions.reporter as reporter
 
 from quoll.classification_pipeline.modules.run_hierarchical_experiment import HierarchicalExperimentComponent
 from quoll.classification_pipeline.modules.make_bins import MakeBins 

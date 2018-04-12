@@ -113,22 +113,34 @@ class Reporter:
         return confusion_matrix.__str__()                
 
     def return_ranked_fps(self, label):
-        label_index = self.label_order.index(label)
-        ranked_fps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        try:
+            label_index = self.label_order.index(label)
+            ranked_fps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        except:
+            ranked_fps = []
         return ranked_fps
 
     def return_ranked_tps(self, label):
-        label_index = self.label_order.index(label)
-        ranked_tps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        try:
+            label_index = self.label_order.index(label)
+            ranked_tps = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] == label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        except:
+            ranked_tps = []
         return ranked_tps
 
     def return_ranked_fns(self, label):
-        label_index = self.label_order.index(label)
-        ranked_fns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        try:
+            label_index = self.label_order.index(label)
+            ranked_fns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] == label], key=lambda k : k[3], reverse = True)
+        except:
+            ranked_fns = []
         return ranked_fns
 
     def return_ranked_tns(self, label):
-        label_index = self.label_order.index(label)
-        ranked_tns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        try:
+            label_index = self.label_order.index(label)
+            ranked_tns = sorted([[self.documents[i], self.labels[i], self.predictions[i], self.full_predictions[i][label_index]] for i in range(len(self.labels)) if self.predictions[i] != label and self.labels[i] != label], key=lambda k : k[3], reverse = True)
+        except:
+            ranked_tns = []
         return ranked_tns
 

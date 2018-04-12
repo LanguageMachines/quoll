@@ -3,6 +3,7 @@ import numpy
 from scipy import sparse
 from collections import defaultdict
 import glob
+from copy import deepcopy
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
@@ -16,23 +17,21 @@ from quoll.classification_pipeline.modules.run_experiment import ExperimentCompo
 class SetupSecondLayerBins(Task):
 
     in_trainlabels_layer1 = InputSlot()
-    in_testpredictions_layer1 = InputSlot()
+    in_docpredictions_layer1 = InputSlot()
 
     def out_layer2_bins(self):
-        return self.outputfrominput(inputformat='in_testpredictions_layer1', stripextension='.txt', addextension='.bins.csv')
+        return self.outputfrominput(inputformat='docpredictions_layer1', stripextension='.csv', addextension='.bins.csv')
 
     def run(self):
 
-        # make second layer experiment directory
-        self.setup_output_dir(self.out_exp_layer2().path)
-
         # read trainlabels layer 1
-        with open(in_trainlabels_layer1().path,'r',encoding='utf-8') as file_in:
+        with open(self.in_trainlabels_layer1().path,'r',encoding='utf-8') as file_in:
             trainlabels_layer1 = file_in.read().strip().split('\n')
 
-        # read testpredictions layer 1
-        with open(in_testpredictions_layer1().path,'r',encoding='utf-8') as file_in:
-            testpredictions_layer1 = file_in.read().strip().split('\n')
+        # read docpredictions layer 1
+        dr = docreader.Docreader()
+        docpredictions = dr.parse_csv(self.in_docpredictions_layer1().path)
+        testpredictions_layer1 = [line[2] for line in docpredictions[1:]]
 
         # generate data for second layer experiment directory
         second_layer_dict = hierarchical_classification_functions.setup_second_layer(trainlabels_layer1,testpredictions_layer1)
@@ -40,7 +39,7 @@ class SetupSecondLayerBins(Task):
         # setup lines for each train and test bin
         bins = []
         for label in second_layer_dict.keys():
-            trainlabel_indices = second_layer_dict[label]['testindices']
+            trainlabel_indices = second_layer_dict[label]['trainindices']
             testlabel_indices = second_layer_dict[label]['testindices']
             bins.append([label + '_train'] + trainlabel_indices)
             bins.append([label + '_test'] + testlabel_indices)
@@ -70,7 +69,7 @@ class RunSecondLayer(Task):
     pca = BoolParameter()
 
     def out_exp_layer2(self):
-        return self.outputfrominput(inputformat='in_bins', stripextension='.bins.csv', addextension='.exp_second_layer')
+        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension='.exp_second_layer')
 
     def run(self):
 
@@ -78,7 +77,7 @@ class RunSecondLayer(Task):
         self.setup_output_dir(self.out_exp_layer2().path)
 
         # read first layer labels to setup classification by label bin
-        with open(in_trainlabels_first_layer().path,'r',encoding='utf-8') as file_in:
+        with open(self.in_trainlabels_first_layer().path,'r',encoding='utf-8') as file_in:
             trainlabels_first_layer = file_in.read().strip().split('\n')
             unique_labels = list(set(trainlabels_first_layer))
 
@@ -111,7 +110,7 @@ class SecondLayerBin(WorkflowComponent):
     no_label_encoding = BoolParameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='second_layer_directory',extension='.exp_second_layer',inputparameter='second_layer_directory'), InputFormat(self,format_id='trainfeatures',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self,format_id='testfeatures',extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='trainlabels_second_layer', extension='.labels', inputparameter='trainlabels_second_layer'), InputFormat(self, format_id='testlabels_second_layer', extension='.labels', inputparameter='testlabels_second_layer'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments'), InputFormat(self, format_id='trainvocabulary', extension='.vocabulary.txt', inputparameter='trainvocabulary'), InputFormat(self, format_id='testvocabulary', extension='.vocabbulary.txt', inputparameter='testvocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
+        return [ ( InputFormat(self,format_id='second_layer_directory',extension='.exp_second_layer',inputparameter='second_layer_directory'), InputFormat(self,format_id='trainfeatures',extension='.features.npz',inputparameter='trainfeatures'), InputFormat(self,format_id='testfeatures',extension='.features.npz',inputparameter='testfeatures'), InputFormat(self, format_id='trainlabels_second_layer', extension='.labels', inputparameter='trainlabels_second_layer'), InputFormat(self, format_id='testlabels_second_layer', extension='.labels', inputparameter='testlabels_second_layer'), InputFormat(self,format_id='testdocuments',extension='.txt',inputparameter='testdocuments'), InputFormat(self, format_id='trainvocabulary', extension='.vocabulary.txt', inputparameter='trainvocabulary'), InputFormat(self, format_id='testvocabulary', extension='.vocabulary.txt', inputparameter='testvocabulary'), InputFormat(self,format_id='classifier_args',extension='.txt',inputparameter='classifier_args'), InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') ) ]
  
     def setup(self, workflow, input_feeds):
 
@@ -127,7 +126,7 @@ class SecondLayerBin(WorkflowComponent):
         layer2_bin.in_classifier_args = input_feeds['classifier_args']  
         layer2_bin.in_bins = input_feeds['bins']   
 
-        return layer2
+        return layer2_bin
 
 
 class SecondLayerBinTask(Task):
@@ -188,11 +187,11 @@ class SecondLayerBinTask(Task):
                testindices = [int(col) for col in line[1:]]
 
         # open trainfeatures
-        loader = numpy.load(self.in_train_features().path)
+        loader = numpy.load(self.in_trainfeatures().path)
         featurized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # open testfeatures
-        loader = numpy.load(self.in_test_features().path)
+        loader = numpy.load(self.in_testfeatures().path)
         featurized_testinstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # open trainlabels
@@ -219,20 +218,43 @@ class SecondLayerBinTask(Task):
         test_documents_second_layer_bin = testdocuments[testindices]
 
         # write experiment data to files in fold directory
-        numpy.savez(self.out_trainfeatures().path, data=train_features.data, indices=train_features.indices, indptr=train_features.indptr, shape=train_features.shape)
-        numpy.savez(self.out_testfeatures().path, data=test_features.data, indices=test_features.indices, indptr=test_features.indptr, shape=test_features.shape)
+        numpy.savez(self.out_trainfeatures().path, data=train_features_second_layer_bin.data, indices=train_features_second_layer_bin.indices, indptr=train_features_second_layer_bin.indptr, shape=train_features_second_layer_bin.shape)
+        numpy.savez(self.out_testfeatures().path, data=test_features_second_layer_bin.data, indices=test_features_second_layer_bin.indices, indptr=test_features_second_layer_bin.indptr, shape=test_features_second_layer_bin.shape)
         with open(self.out_trainlabels().path,'w',encoding='utf-8') as outfile:
-            outfile.write('\n'.join(train_labels))
+            outfile.write('\n'.join(train_labels_second_layer_bin))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
-            outfile.write('\n'.join(test_labels))
+            outfile.write('\n'.join(test_labels_second_layer_bin))
         with open(self.out_testdocuments().path,'w',encoding='utf-8') as outfile:
-            outfile.write('\n'.join(test_documents))
+            outfile.write('\n'.join(test_documents_second_layer_bin))
         with open(self.out_classifier_args().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(classifier_args))
 
         print('Running experiment for label',self.first_layer_label)
 
-        yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, trainvocabulary=self.in_trainvocabulary().path, testvocabulary=self.in_testvocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal, pca=self.pca, no_label_encoding=self.no_label_encoding)
+        if len(trainindices) > 10 and len(testindices) > 4 and not len(list(set(train_labels_second_layer_bin))) == 1:
+            yield ExperimentComponent(trainfeatures=self.out_trainfeatures().path, trainlabels=self.out_trainlabels().path, testfeatures=self.out_testfeatures().path, testlabels=self.out_testlabels().path, trainvocabulary=self.in_trainvocabulary().path, testvocabulary=self.in_testvocabulary().path, classifier_args=self.out_classifier_args().path, documents=self.out_testdocuments().path, weight=self.weight, prune=self.prune, balance=self.balance, classifier=self.classifier, ordinal=self.ordinal, pca=self.pca, no_label_encoding=self.no_label_encoding)
+        elif len(testindices) == 0:
+            pass
+        else: # predict majority class for all
+            majority_class = max(train_labels_second_layer_bin)
+            predictions = [majority_class] * len(testindices)
+            full_predictions = [sorted(list(set(train_labels_second_layer_bin)))]
+            template_predictions = ['0.0'] * len(full_predictions[0])
+            majority_class_index = full_predictions[0].index(majority_class)
+            for x in predictions:
+                fp = deepcopy(template_predictions)
+                fp[majority_class_index] = '1.0'
+                full_predictions.append(fp)
+
+            # write predictions to file
+            with open(self.in_second_layer_directory().path + '/' + self.first_layer_label + '/test.predictions.txt','w',encoding='utf-8') as pr_out:
+                pr_out.write('\n'.join(predictions))
+
+            # write full predictions to file
+            with open(self.in_second_layer_directory().path + '/' + self.first_layer_label + '/test.full_predictions.txt','w',encoding='utf-8') as fpr_out:
+                fpr_out.write('\n'.join(['\t'.join([prob for prob in full_prediction]) for full_prediction in full_predictions]))
+            
+            
 
 
 class SecondLayerClassifications2Predictions(Task):
@@ -240,6 +262,7 @@ class SecondLayerClassifications2Predictions(Task):
     in_exp_layer2 = InputSlot()
     in_bins = InputSlot()
     in_testlabels_layer2 = InputSlot()
+    in_trainlabels_layer2 = InputSlot()
     
     def out_predictions(self):
         return self.outputfrominput(inputformat='exp_layer2', stripextension='.exp_second_layer', addextension='.exp_second_layer.predictions.txt')
@@ -259,16 +282,19 @@ class SecondLayerClassifications2Predictions(Task):
             cat = line[0].split('_')[1]
             indices = [int(x) for x in line[1:]]
             bins_dict[label][cat] = indices
-        unique_labels_sorted = sorted(bins_dict.keys())
         
+        # read trainlabels
+        with open(self.in_trainlabels_layer2().path,'r',encoding='utf-8') as file_in:
+           trainlabels_layer2 = file_in.read().strip().split('\n')
+
         # read testlabels
-        with open(in_testlabels_layer2().path,'r',encoding='utf-8') as file_in:
+        with open(self.in_testlabels_layer2().path,'r',encoding='utf-8') as file_in:
            testlabels_layer2 = file_in.read().strip().split('\n')
            
         # initialize testpredictions and testpredictions_full based on the length of the testlabels
+        unique_trainlabels = sorted(list(set(trainlabels_layer2)))
         testpredictions = ['-'] * len(testlabels_layer2)
-        testpredictions_full = [unique_labels_sorted] + [['0.0'] * len(unique_labels_sorted)] * len(testlabels_layer2)
-        print('testpredictions_full_template:',testpredictions_full)
+        testpredictions_full = [unique_trainlabels] + [['0.0'] * len(unique_trainlabels)] * len(testlabels_layer2)
 
         # gather predictions - instances pairs
         prediction_files = sorted([ filename for filename in glob.glob(self.in_exp_layer2().path + '/*/*.predictions.txt') ])
@@ -281,7 +307,6 @@ class SecondLayerClassifications2Predictions(Task):
             predictions_label = prediction_file.split('/')[-2]
             full_predictions_label = full_prediction_file.split('/')[-2]
             # assert that labels are the same
-            print('Predictions_label:',predictions_label,'Full_predictions_label:',full_predictions_label)
             # read in predictions for label
             with open(prediction_file,'r',encoding='utf-8') as file_in:
                predictions = file_in.read().strip().split('\n')
@@ -289,13 +314,13 @@ class SecondLayerClassifications2Predictions(Task):
             with open(full_prediction_file,'r',encoding='utf-8') as file_in:
                 lines = [line.split('\t') for line in file_in.read().strip().split('\n')]
             full_prediction_label_order = lines[0]
-            full_prediction_line_template = ['0.0'] * len(unique_labels_sorted)
-            full_prediction_indices = [unique_labels_sorted.index(label) for label in full_prediction_label_order]
+            full_prediction_line_template = ['0.0'] * len(unique_trainlabels)
+            full_prediction_indices = [unique_trainlabels.index(label) for label in full_prediction_label_order]
             full_predictions = []
             for fp in lines[1:]:
-               full_predictions_line = full_prediction_line_template
+               full_predictions_line = deepcopy(full_prediction_line_template)
                for j,value in enumerate(fp):
-                 full_predictions_line[full_prediction_indices[i]] = str(value)
+                   full_predictions_line[full_prediction_indices[j]] = str(value)
                full_predictions.append(full_predictions_line)
             # fill in predictions and full predictions in appropriate position give the label indices
             for j,prediction in enumerate(predictions):
