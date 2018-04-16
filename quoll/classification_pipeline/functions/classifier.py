@@ -233,7 +233,7 @@ class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, alpha='default', fit_prior=True, iterations=10):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='default', fit_prior=True, iterations=10):
         if alpha == '':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
             paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
@@ -328,7 +328,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='', kernel='', gamma='', degree='', class_weight='', iterations=10):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, c='', kernel='', gamma='', degree='', class_weight='', iterations=10):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
@@ -461,7 +461,8 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             dual = settings[parameters[3]],
             multi_class = settings[parameters[4]],
             max_iter = max_iterations,
-            verbose = 2
+            verbose = 2,
+            n_jobs = 10
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
