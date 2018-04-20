@@ -184,8 +184,8 @@ class Tokenize_doc(StandardWorkflowComponent): # connection between Tokenize_txt
 @registercomponent
 class Preprocess(StandardWorkflowComponent):
 
-    tokconfig = Parameter()
-    frogconfig = Parameter(default=False)
+    tokconfig = Parameter(default=False)
+    frogconfig = Parameter(default=False) # both should be set to False to be able to pick one of them
     strip_punctuation = BoolParameter()
 
     def accepts(self):
