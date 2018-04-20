@@ -28,8 +28,6 @@ class Tokenize_instances(Task):
                 for token in tokenizer:
                     if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
                         tokens.append(token.text)
-#                print(len(' '.join(tokens).split('\n')))
-#                    print('Too long!! Inputline',line,'\nTokens',tokens)
                 file_out.write(' '.join(tokens) + '\n')
                 c += 1
             print(len(lines),c)
