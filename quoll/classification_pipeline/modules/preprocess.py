@@ -166,8 +166,20 @@ class Frog_txtdir(Task):
         yield [ Frog_component(inputfile=inputfile,outputdir=self.out_frogjsondir().path,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
 
 #################################################################
-### Component
+### Components
 #################################################################
+
+@registercomponent
+class Tokenize_doc(StandardWorkflowComponent): # connection between Tokenize_txtdir and Tokenize_document
+
+    tokconfig = Parameter()
+    strip_punctuation = BoolParameter()
+
+    def autosetup(self):
+        return Tokenize_document
+
+    def accepts(self):
+        return InputFormat(self, format_id='txt', extension='.txt')
 
 @registercomponent
 class Preprocess(StandardWorkflowComponent):
