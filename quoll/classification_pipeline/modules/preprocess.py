@@ -179,7 +179,7 @@ class Preprocess(StandardWorkflowComponent):
     def accepts(self):
         return InputFormat(self, format_id='txt', extension='.txt'), InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
 
-    def setup(self):
+    def setup(self, workflow, input_feeds):
 
         if 'txt' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
