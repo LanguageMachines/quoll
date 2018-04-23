@@ -178,8 +178,7 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
     num_instances = instances.shape[0]
     columns = []
-    lt = len(target_vocabulary)
-    for i,index in enumerate(range(lt)):
+    for i,index in enumerate(range(len(target_vocabulary))):
         try:
             columns.append(instances.getcol(transform_dict[index]))
         except:
