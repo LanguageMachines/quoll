@@ -148,63 +148,8 @@ def return_idf(instances, labels):
     idf = cnt.count_idf()
     return idf
 
-def return_infogain(instances, labels):
-    """
-    Infogain calculator
-    =====
-    Function to calculate the information gain of each feature
-
-    Transforms
-    -----
-    self.feature_infogain : dict
-        key : feature index, int
-        value : information gain, float
-    """
-    # some initial calculations
-    infogain = dict.fromkeys(range(instances.shape[1]), 0)
-    cnt = Counts(instances, labels)
-    len_instances = instances.shape[0]
-    feature_frequency = cnt.count_document_frequency()
-    label_frequency = cnt.count_label_frequency()
-    label_feature_frequency = cnt.count_label_feature_frequency()
-    label_probability = [(label_frequency[label] / len_instances) for label in label_frequency.keys()]
-    initial_entropy = -sum([prob * math.log(prob, 2) for prob in label_probability if prob != 0])
-    # assign infogain values to each feature
-    for feature in feature_frequency.keys():
-        # calculate positive entropy
-        frequency = feature_frequency[feature]
-        if frequency > 0:
-            feature_probability = frequency / len_instances
-            positive_label_probabilities = []
-            for label in labels:
-                if label_feature_frequency[label][feature] > 0:
-                    positive_label_probabilities.append(label_feature_frequency[label][feature] / frequency)
-                else:
-                    positive_label_probabilities.append(0)
-            positive_entropy = -sum([prob * math.log(prob, 2) for prob in positive_label_probabilities if prob != 0])
-        else:
-            positive_entropy = 0
-        # calculate negative entropy
-        inverse_frequency = len_instances - feature_frequency[feature]
-        negative_probability = inverse_frequency / len_instances
-        negative_label_probabilities = [((label_frequency[label] - label_feature_frequency[label][feature]) / inverse_frequency) for label in labels]
-        negative_entropy = -sum([prob * math.log(prob, 2) for prob in negative_label_probabilities if not prob <= 0])
-        # based on positive and negative entropy, calculate final entropy
-        final_entropy = positive_entropy - negative_entropy
-        infogain[feature] = initial_entropy - final_entropy
-    return infogain
-
-def return_correlations(instances, labels):
-    feature_correlation = {}
-    nplabels = numpy.array(labels)
-    for i in range(instances.shape[1]):
-        feature_vals = instances[:,i].toarray()
-        corr,p = stats.pearsonr(feature_vals,nplabels)
-        feature_correlation[i] = [corr,p]
-    return feature_correlation[i]
-
 def return_binary_vectors(instances, feature_weights):
-
+    
     binary_values = numpy.array([1 for cell in instances.data])
     binary_vectors = sparse.csr_matrix((binary_values, instances.indices, instances.indptr), shape = instances.shape)
     return binary_vectors
@@ -215,22 +160,13 @@ def return_tfidf_vectors(instances, idfs):
     tfidf_vectors = instances.multiply(feature_idf_ordered)
     return tfidf_vectors
 
-def return_infogain_vectors(instances, infogain):
-
-    try:
-        infogain_ordered = sparse.csr_matrix([infogain[feature] for feature in sorted(infogain.keys())])
-        instances_binary = return_binary_vectors(instances)
-        infogain_vectors = instances_binary.multiply(infogain_ordered)
-        return infogain_vectors
-    except:
-        return instances
-
 def return_top_features(feature_weights, prune):
 
     top_features = sorted(feature_weights, key = feature_weights.get, reverse = True)[:prune]
     return top_features
 
 def compress_vectors(instances, top_features):
+
     compressed_vectors = instances[:, top_features]
     return compressed_vectors
 
@@ -251,141 +187,26 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     aligned_vectors = sparse.hstack(columns).tocsr()
     return aligned_vectors
 
-def align_vectors_mutually(instances_train, instances_test, target_vocabulary, source_vocabulary):
-
-    source_feature_indices = dict([(feature, i) for i, feature in enumerate(source_vocabulary)])
-    target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
-    keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
-    transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
-    traincolumns = []
-    testcolumns = []
-    for index in range(len(target_vocabulary)):
-        try:
-            testcolumns.append(transform_dict[index])
-            traincolumns.append(index)
-        except:
-            continue
-    aligned_trainvectors = instances_train[:, traincolumns]
-    aligned_testvectors = instances_test[:, testcolumns]
-    vocabulary_intersect = list(numpy.array(target_vocabulary)[traincolumns])
-    return aligned_trainvectors, aligned_testvectors, vocabulary_intersect
-
 def normalize_features(instances):
+
     normalized = normalize(instances,norm='l1')
     return normalized
 
-def calculate_ordinal_correlation_feature_labels(instances,labels):
-    # calculate correlation by feature
-    feature_correlation = []
-    for i in range(instances.shape[1]):
-        feature_vals = instances[:,i].transpose().toarray()[0]
-        try:
-            corr,p = stats.pearsonr(feature_vals,labels)
-            if math.isnan(corr):
-                corr = 0
-        except:
-            corr = 0
-        feature_correlation.append([i,abs(corr),corr,p])
-    sorted_feature_correlation = sorted(feature_correlation,key=lambda k : k[1],reverse=True)
-    return sorted_feature_correlation
-
-def calculate_feature_correlation(instances):
-    # calculate correlation by feature
-    feature_correlation = []
-    for i in range(instances.shape[1]):
-        feature_vals_i = instances[:,i].transpose().toarray()[0]
-        for j in range(i+1,instances.shape[1]):
-            feature_vals_j = instances[:,j].transpose().toarray()[0]
-            try:
-                corr,p = stats.pearsonr(feature_vals_i,feature_vals_j)
-                if math.isnan(corr):
-                    corr = 0
-            except:
-                corr = 0
-            feature_correlation.append([i,j,abs(corr),corr,p])
-    return feature_correlation
-
-def filter_features_correlation(featureranks,featurecorr,featuresub):
-    selected_features = []
-    featurecorrs = set(featurecorr.keys()) 
-    featuresubs = set(featuresub.keys())
-    # for each feature
-    i = 0
-    while i < len(featureranks):
-        feature = featureranks[i] 
-        # add to selected features
-        selected_features.append(feature)
-        # strip correlating features
-        if set([feature]) & featurecorrs:
-            for corrfeat in featurecorr[feature]:
-                if set([corrfeat]) & set(featureranks):
-                    featureranks.remove(corrfeat)
-        if set([feature]) & featuresubs:
-            for subfeat in featuresub[feature]:
-                if set([subfeat]) & set(featureranks):
-                    if featureranks.index(subfeat) > i:
-                        featureranks.remove(subfeat)
-        i += 1
-    return selected_features
-
-def filter_features_groups(ranked_features,feature_group):
-    selected_features = []
-    discarded = []
-    for feature in ranked_features:
-        if not feature in discarded:
-            # add to selected features
-            selected_features.append(feature)
-            # discard other features in group
-            group_features = feature_group[feature]
-            discarded.extend(group_features)
-    return selected_features
-
+def train_pca(instances):
     
-def filter_features_correlation_f(feature_strength,feature_feature_correlation,strength_threshold,correlation_threshold):
-    selected_features = []
-    out_log_list = []
-    out_log_list.append('Starting feature filter with strength threshold ' + str(strength_threshold) + ' and correlation_threshold ' + str(correlation_threshold))
-    out_log_list.append('')
-    sorted_keys = [kv[0] for kv in sorted(feature_strength.items(), key=operator.itemgetter(1), reverse=True)]
-    discarded = []
-    for feature_index in sorted_keys:
-        try:
-            out_log_list.append('Inspecting feature ' + str(feature_index))
-            if not feature_index in discarded:
-                strength = feature_strength[feature_index]
-                out_log_list.append('Strength = ' + str(strength))
-                if strength > strength_threshold:
-                    out_log_list.append('Threshold met, adding to selected features.')
-                    selected_features.append(feature_index)
-                    correlating_features = [feature[0] for feature in list(feature_feature_correlation[feature_index].items()) if feature[1] > correlation_threshold]
-                    out_log_list.append('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
-                    discarded.extend(correlating_features)
-                    out_log_list.append('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
-                    # for cf in correlating_features:
-                    #     del feature_strength[cf]
-                else:
-                    out_log_list.append('Feature did not meet threshold, moving on to next feature')
-            else:
-                out_log_list.append('Feature was discarded, moving on to next feature')
-            out_log_list.append('')
-        except: # feature index already deleted
-            continue
-    out_log = '\n'.join(out_log_list)
-    return selected_features, out_log
-
-def trainapply_pca(train, test):
-
     pca = IncrementalPCA()
     chunksize = 150000
     cursor = 0
     counter = 1
-    while cursor+chunksize <= train.shape[0]:
+    while cursor+chunksize <= instances.shape[0]:
         print('PCA Chunk nr. ',counter)
         counter += 1
-        pca.partial_fit(train[list(range(cursor,cursor+chunksize)),:])
+        pca.partial_fit(instances[list(range(cursor,cursor+chunksize)),:])
         cursor += chunksize
-    pca.partial_fit(train[list(range(cursor,train.shape[0])),:])
-    train_pca = pca.transform(train)
-    test_pca = pca.transform(test)
-    components = pca.components_
-    return train_pca, test_pca, pca, components
+    pca.partial_fit(instances[list(range(cursor,instances.shape[0])),:])
+    return pca
+
+def apply_pca(instances,pca):
+
+    instances_pca = pca.transform(instances)
+    return instances_pca
