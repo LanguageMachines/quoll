@@ -175,6 +175,8 @@ def align_vectors(instances, target_vocabulary, source_vocabulary):
     source_feature_indices = dict([(feature, i) for i, feature in enumerate(source_vocabulary)])
     indices = []
     columns = []
+    num_instances = instances.shape[0]
+
     for feature in target_vocabulary:
         try:
             indices.append(source_feature_indices[feature])
