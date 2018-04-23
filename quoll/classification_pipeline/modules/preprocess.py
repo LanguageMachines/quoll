@@ -129,7 +129,7 @@ class Frog_instances(Task):
             # add each token to the sentence...
             for token in frogged:
                 if not (self.strip_punctuation and token['pos'] == 'LET()'):
-                    sentence.append({'text':token['text'], 'lemma':token['lemma'], 'pos':token['pos']})
+                    sentence.append({'text':token['text'], 'lemma':token['lemma'], 'pos':token['pos'].split('(')[0]})
                 # ...until the sentence ends
                 if 'eos' in token:
                     sentences.append(sentence)

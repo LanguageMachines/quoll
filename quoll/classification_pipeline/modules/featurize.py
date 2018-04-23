@@ -1,4 +1,4 @@
--*
+
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions import featurizer
@@ -49,10 +49,10 @@ class Tokenized2Features(Task):
     lowercase = BoolParameter()
 
     def out_features(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + self.ngrams + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.features.npz')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + self.ngrams + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + self.blackfeats + '.vocabulary.txt')
 
     def run(self):
         
@@ -235,8 +235,8 @@ class Featurize(StandardWorkflowComponent):
     blackfeats = Parameter(default=False)
     lowercase = BoolParameter()    
     minimum_token_frequency = IntParameter(default=1)
+    featuretypes = Parameter(default='tokens')
 
-    featuretypes = Parameter(default=False)
     tokconfig = Parameter(default=False)
     frogconfig = Parameter(default=False)
     strip_punctuation = BoolParameter(default=True)
@@ -246,19 +246,19 @@ class Featurize(StandardWorkflowComponent):
                     
     def setup(self, workflow, input_feeds):
         if 'tokenized' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_tokens', autopass=True, Tokenized2Features, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask = workflow.new_task('FeaturizerTask_tokens', Tokenized2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
             featurizertask.in_tokenized = input_feeds['tokenized']
 
         elif 'frogged' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_frogged', autopass=True, Frog2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask = workflow.new_task('FeaturizerTask_frogged', Frog2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
             featurizertask.in_frogged = input_feeds['frogged']            
 
         elif 'toktxtdir' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_tokdir', autopass=True, Tokdir2Features, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask = workflow.new_task('FeaturizerTask_tokdir', Tokdir2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
             featurizertask.in_tokdir = input_feeds['toktxtdir']
 
         elif 'frogjsondir' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_frogdir', autopass=True, Frogdir2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask = workflow.new_task('FeaturizerTask_frogdir', Frogdir2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
             featurizertask.in_frogdir = input_feeds['frogjsondir']
 
         elif 'txt' in input_feeds.keys():
@@ -279,13 +279,13 @@ class Featurize(StandardWorkflowComponent):
             if self.tokconfig:
                 tokenizer = workflow.new_task('tokenize_dir', Tokenize_txtdir, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
                 tokenizer.in_txtdir = input_feeds['txtdir']
-                featurizertask = workflow.new_task('FeaturizerTask_txtdir', autopass=True, Tokdir2Features, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+                featurizertask = workflow.new_task('FeaturizerTask_txtdir', Tokdir2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                 featurizertask.in_tokdir = tokenizer.out_toktxtdir
 
             elif self.frogconfig:
                 frogger = workflow.new_task('frog_dir', Frog_txtdir, autopass=True, frogconfig=self.frogconfig, strip_punctuation=self.strip_punctuation)
                 frogger.in_txtdir = input_feeds['txtdir']
-                featurizertask = workflow.new_task('FeaturizerTask_txtdir', autopass=True, Frogdir2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+                featurizertask = workflow.new_task('FeaturizerTask_txtdir', Frogdir2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                 featurizertask.in_frogdir = frogger.out_frogjsondir
 
         return featurizertask
