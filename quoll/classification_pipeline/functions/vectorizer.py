@@ -191,22 +191,3 @@ def normalize_features(instances):
 
     normalized = normalize(instances,norm='l1')
     return normalized
-
-def train_pca(instances):
-    
-    pca = IncrementalPCA()
-    chunksize = 150000
-    cursor = 0
-    counter = 1
-    while cursor+chunksize <= instances.shape[0]:
-        print('PCA Chunk nr. ',counter)
-        counter += 1
-        pca.partial_fit(instances[list(range(cursor,cursor+chunksize)),:])
-        cursor += chunksize
-    pca.partial_fit(instances[list(range(cursor,instances.shape[0])),:])
-    return pca
-
-def apply_pca(instances,pca):
-
-    instances_pca = pca.transform(instances)
-    return instances_pca
