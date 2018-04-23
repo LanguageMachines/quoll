@@ -142,6 +142,12 @@ def return_document_frequency(instances, labels):
     document_frequency = cnt.count_document_frequency()
     return document_frequency
 
+def return_infogain(instances, labels):
+    pass
+
+def return_infogain_vectors(instances, weights):
+    pass
+
 def return_idf(instances, labels):
 
     cnt = Counts(instances, labels)
