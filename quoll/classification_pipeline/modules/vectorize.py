@@ -61,70 +61,6 @@ class Balance(Task):
         # write vocabulary to file
         with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
             v_out.write('\n'.join(vocabulary))
-
-class PCATrain(Task):
-
-    in_train = InputSlot()
-
-    def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.vectors.npz')
-
-    def out_pca(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.model.pkl')
-    
-    def out_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.pca.vocabulary.txt')
-    
-    def run(self):
-
-        # load vectorized traininstances
-        loader = numpy.load(self.in_train().path)
-        vectorized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']).toarray()
-
-        # fit sklearn PCA
-        pca_model = vectorizer.train_pca(vectorized_traininstances)
-
-        # reduce dimensions of train instances using the fitted pca model
-        vectorized_traininstances_pca = sparse.csr_matrix(vectorizer.apply_pca(vectorized_traininstances,pca_model)) 
-
-        # extract fitted pca components as new vocabulary
-        pca_vocab = pca_model.components_
-
-        # write traininstances to file
-        numpy.savez(self.out_train().path, data=vectorized_traininstances_pca.data, indices=vectorized_traininstances_pca.indices, indptr=vectorized_traininstances_pca.indptr, shape=vectorized_traininstances_pca.shape)
-        
-        # write pca model to file
-        with open(self.out_pca().path, 'wb') as fid:
-            pickle.dump(pca_model, fid)
-        
-        # write pca components to file
-        with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
-            for feats in pca_vocab:
-                v_out.write(' '.join([str(x) for x in feats]) + '\n')
-
-class PCATest(Task): # TODO: PCA test function
-
-    in_vectors = InputSlot()
-    in_pca = InputSlot()
-
-    def out_vectors(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.pca.vectors.npz')
-
-    def run(self):
-
-        # load vectors
-        loader = numpy.load(self.in_vectors().path)
-        vectorized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']).toarray()
-
-        # load pca
-        with open(self.in_pca().path, 'rb') as fid:
-            model = pickle.load(fid)
-
-        # reduce dimensions using sklearn PCA
-        vectorized_instances_pca = sparse.csr_matrix(vectorizer.apply_pca(vectorized_instances,model))
-
-        # write instances to file
-        numpy.savez(self.out_vectors().path, data=vectorized_instances_pca.data, indices=vectorized_instances_pca.indices, indptr=vectorized_instances_pca.indptr, shape=vectorized_instances_pca.shape)
         
 class VectorizeTrain(Task):
 
@@ -318,7 +254,6 @@ class Vectorize(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    pca = BoolParameter()
     normalize = BoolParameter()
     delimiter = Parameter(default=' ')
 
@@ -407,12 +342,7 @@ class Vectorize(WorkflowComponent):
                 balancetask.in_trainlabels = labels
                 instances = balancetask.out_train
                 labels = balancetask.out_labels
-                
-            if self.pca:
-                pca_train = workflow.new_task('PCA_train',PCATrain,autopass=True)
-                pca_train.in_train = instances
-                instances = pca_train.out_train
-                
+                                
             vectorizer = workflow.new_task('vectorizer',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune)
             vectorizer.in_train = instances
             vectorizer.in_trainlabels = labels
