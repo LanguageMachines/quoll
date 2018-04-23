@@ -288,9 +288,9 @@ class Vectorize(WorkflowComponent):
     
     train_instances = Parameter()
     train_labels = Parameter()
-    test_instances = Parameter()
-    train_vocabulary = Parameter()
-    test_vocabulary = Parameter()
+    test_instances = Parameter(default=False) # default set to 'False' to enable only vectorizing train instances
+    train_vocabulary = Parameter(default=False) # default set to 'False' to enable starting from a non-featurized input
+    test_vocabulary = Parameter(default=False) # default set to 'False' to enable starting from a non-featurized input
 
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
@@ -305,9 +305,9 @@ class Vectorize(WorkflowComponent):
     blackfeats = Parameter(default=False)
     lowercase = BoolParameter()    
     minimum_token_frequency = IntParameter(default=1)
+    featuretypes = Parameter(default=False)
 
     # ucto / frog parameters
-    featuretypes = Parameter(default=False)
     tokconfig = Parameter(default=False)
     frogconfig = Parameter(default=False)
     strip_punctuation = BoolParameter(default=True)
@@ -344,11 +344,11 @@ class Vectorize(WorkflowComponent):
         ########################################################
 
         if 'featurized_train_csv' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('trainvectorizer_csv',autopass=True,VectorizeCsv,delimiter=self.delimiter,normalize=self.normalize)
+            trainvectorizer = workflow.new_task('trainvectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter,normalize=self.normalize)
             trainvectorizer.in_csv = input_feeds['featurized_train_csv']
         
         elif 'featurized_train_txt' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('trainvectorizer_txt',autopass=True,VectorizeTxt,delimiter=self.delimiter,normalize=self.normalize)
+            trainvectorizer = workflow.new_task('trainvectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter,normalize=self.normalize)
             trainvectorizer.in_txt = input_feeds['featurized_train_txt']
 
         else:
@@ -361,7 +361,7 @@ class Vectorize(WorkflowComponent):
             
             else: # earlier stage
                 if 'tokenized_train' in input_feeds.keys():
-                    trainfeaturizer = workflow.new_task('trainfeaturizer_tokens',autopass=True,Tokenized2Features,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
+                    trainfeaturizer = workflow.new_task('trainfeaturizer_tokens',Tokenized2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
                     trainfeaturizer.in_tokenized = input_feeds['tokenized_train']           
 
                 elif 'tokdir_train' in input_feeds.keys():
@@ -401,7 +401,7 @@ class Vectorize(WorkflowComponent):
                     elif self.frogconfig:
                         trainfrogger = workflow.new_task('trainfrogger_txtdir',Frog_txtdir,autopass=True,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                         trainfrogger.in_txtdir = input_feeds['txtdir_train']
-                        trainfeaturizer = workflow.new_task('trainfeaturizer_frogtxtdir',Frogdir2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency, autopass=True)
+                        trainfeaturizer = workflow.new_task('trainfeaturizer_frogtxtdir',Frogdir2Features,autopass=True,featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                         trainfeaturizer.in_frogdir = trainfrogger.out_frogjsondir
 
                 train_instances = trainfeaturizer.out_features
@@ -415,7 +415,7 @@ class Vectorize(WorkflowComponent):
                     train_labels = balancetask.out_labels
                 
                 if self.pca:
-                    pca_train = workflow.new_task('PCA_train',PCATrain,autopass=True):
+                    pca_train = workflow.new_task('PCA_train',PCATrain,autopass=True)
                     pca_train.in_train = train_instances
                     train_instances = pca_train.out_train
                     train_vocabulary = pca_train.out_vocabulary
@@ -434,12 +434,12 @@ class Vectorize(WorkflowComponent):
 
         if 'featurized_test_csv' in input_feeds.keys():
             test_instances = 'csv'
-            testvectorizer = workflow.new_task('trainvectorizer_csv',autopass=True,VectorizeCsv,delimiter=self.delimiter,normalize=self.normalize)
+            testvectorizer = workflow.new_task('trainvectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter,normalize=self.normalize)
             testvectorizer.in_csv = input_feeds['featurized_test_csv']
         
         elif 'featurized_test_txt'  in input_feeds.keys():
             test_instances = 'txt'
-            testvectorizer = workflow.new_task('testvectorizer_txt',autopass=True,VectorizeTxt,delimiter=self.delimiter,normalize=self.normalize)
+            testvectorizer = workflow.new_task('testvectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter,normalize=self.normalize)
             testvectorizer.in_txt = input_feeds['featurized_test_txt']      
 
         else:
@@ -450,7 +450,7 @@ class Vectorize(WorkflowComponent):
             
             elif 'tokenized_test' in input_feeds.keys() or 'tokdir_test' in input_feeds.keys() or 'frogged_test' in input_feeds.keys() or 'frogdir_test' in input_feeds.keys() or 'txt_test' in input_feeds.keys() or 'txtdir_test' in input_feeds.keys(): # earlier stage
                 if 'tokenized_test' in input_feeds.keys():
-                    testfeaturizer = workflow.new_task('testfeaturizer_tokens',autopass=True,Tokenized2Features,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
+                    testfeaturizer = workflow.new_task('testfeaturizer_tokens',Tokenized2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
                     testfeaturizer.in_tokenized = input_feeds['tokenized_test']         
 
                 elif 'tokdir_test' in input_feeds.keys():
@@ -476,7 +476,7 @@ class Vectorize(WorkflowComponent):
                     elif self.frogconfig:
                         testfrogger = workflow.new_task('testfrogger_txt',Frog_instances,autopass=True,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                         testfrogger.in_txt = input_feeds['txt']
-                        testfeaturizer = workflow.new_task('testfeaturizer_frogtxt',Frog2Features,autopass=True,featuretypes=self.featuretypes,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,autopass=True)
+                        testfeaturizer = workflow.new_task('testfeaturizer_frogtxt',Frog2Features,autopass=True,featuretypes=self.featuretypes,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
                         testfeaturizer.in_frogged = testfrogger.out_frogged
 
                 elif 'txtdir_test' in input_feeds.keys():
@@ -484,13 +484,13 @@ class Vectorize(WorkflowComponent):
                     if self.tokconfig:
                         testtokenizer = workflow.new_task('testtokenizer_txtdir',Tokenize_txtdir,autopass=True,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation)
                         testtokenizer.in_txtdir = input_feeds['txtdir_test']
-                        testfeaturizer = workflow.new_task('testfeaturizer_toktxtdir',Tokdir2Features,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
+                        testfeaturizer = workflow.new_task('testfeaturizer_toktxtdir',Tokdir2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
                         testfeaturizer.in_tokdir = testtokenizer.out_toktxtdir              
 
                     elif self.frogconfig:
                         testfrogger = workflow.new_task('testfrogger_txtdir',Frog_txtdir,autopass=True,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                         testfrogger.in_txtdir = input_feeds['txtdir_test']
-                        testfeaturizer = workflow.new_task('testfeaturizer_frogtxtdir',Frogdir2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency, autopass=True)
+                        testfeaturizer = workflow.new_task('testfeaturizer_frogtxtdir',Frogdir2Features,autopass=True,featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                         testfeaturizer.in_frogdir = testfrogger.out_frogjsondir
 
                 test_instances = testfeaturizer.out_features
@@ -501,7 +501,7 @@ class Vectorize(WorkflowComponent):
             if not test_instances in ['txt','csv']:
 
                 if self.pca:
-                    pca_test = workflow.new_task('PCA_test',PCATest,autopass=True):
+                    pca_test = workflow.new_task('PCA_test',PCATest,autopass=True)
                     pca_test.in_pca = pca_train.out_pca
                     pca_test.in_vectors = test_instances
                     test_instances = pca_test.out_vectors
