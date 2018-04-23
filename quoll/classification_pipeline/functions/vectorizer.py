@@ -160,29 +160,31 @@ def return_tfidf_vectors(instances, idfs):
     tfidf_vectors = instances.multiply(feature_idf_ordered)
     return tfidf_vectors
 
-def return_top_features(feature_weights, prune):
+def return_featureselection(featureweights, prune):
 
-    top_features = sorted(feature_weights, key = feature_weights.get, reverse = True)[:prune]
-    return top_features
+    featureselection = sorted(featureweights, key = featureweights.get, reverse = True)[:prune]
+    return featureselection
 
-def compress_vectors(instances, top_features):
+def compress_vectors(instances, featureselection):
 
-    compressed_vectors = instances[:, top_features]
+    compressed_vectors = instances[:, featureselection]
     return compressed_vectors
 
 def align_vectors(instances, target_vocabulary, source_vocabulary):
 
     source_feature_indices = dict([(feature, i) for i, feature in enumerate(source_vocabulary)])
-    target_feature_indices = dict([(feature, i) for i, feature in enumerate(target_vocabulary)])
-    keep_features = list(set(source_vocabulary).intersection(set(target_vocabulary)))
-    transform_dict = dict([(target_feature_indices[feature], source_feature_indices[feature]) for feature in keep_features])
-    num_instances = instances.shape[0]
+    indices = []
     columns = []
-    for i,index in enumerate(range(len(target_vocabulary))):
+    for feature in target_vocabulary:
         try:
-            columns.append(instances.getcol(transform_dict[index]))
-        except:
+            indices.append(source_feature_indices[feature])
+        except: # feature not in source vocabulary
+            if len(indices) > 0:
+                columns.append(compress_vectors(instances,indices))
+                indices = []
             columns.append(sparse.csr_matrix([[0]] * num_instances))
+    if len(indices) > 0:
+        columns.append(compress_vectors(instances,indices))
     aligned_vectors = sparse.hstack(columns).tocsr()
     return aligned_vectors
 
