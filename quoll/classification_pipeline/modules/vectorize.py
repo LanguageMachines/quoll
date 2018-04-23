@@ -540,7 +540,7 @@ class VectorizeTrainTest(WorkflowComponent):
 
         else:
 
-            labels = input_feeds['trainlabels']
+            labels = input_feeds['labels_train']
             
             if 'featurized_train' in input_feeds.keys():
                 traininstances = input_feeds['featurized_train']
@@ -590,7 +590,7 @@ class VectorizeTrainTest(WorkflowComponent):
                         trainfeaturizer = workflow.new_task('trainfeaturizer_frogtxtdir',Frogdir2Features,autopass=True,featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                         trainfeaturizer.in_frogdir = trainfrogger.out_frogjsondir
 
-                traininstances = featurizer.out_features
+                traininstances = trainfeaturizer.out_features
 
             if self.balance:
                 balancetask = workflow.new_task('BalanceTask',Balance,autopass=True)
@@ -668,7 +668,7 @@ class VectorizeTrainTest(WorkflowComponent):
                 testinstances = testfeaturizer.out_features
                 
             testvectorizer = workflow.new_task('testvectorizer',ApplyVectorizer,autopass=True,weight=self.weight,prune=self.prune)
-            testvectorizer.in_test = test_instances
+            testvectorizer.in_test = testinstances
             testvectorizer.in_featureselection = trainvectorizer.out_featureselection
 
         return testvectorizer
