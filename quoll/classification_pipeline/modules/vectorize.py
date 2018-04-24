@@ -65,8 +65,9 @@ class Balance(Task):
 class FitVectorizer(Task):
 
     in_train = InputSlot()
-    in_trainlabels = InputSlot()
-    
+    #in_trainlabels = InputSlot()
+
+    labels = Parameter()
     weight = Parameter()
     prune = IntParameter()
 
@@ -102,7 +103,8 @@ class FitVectorizer(Task):
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # load trainlabels
-        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+#        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+        with open(self.labels,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
 
         # calculate feature_weight
@@ -256,6 +258,29 @@ class VectorizeCsv(Task):
         # write instances to file
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
 
+
+class FeaturizeTask(Task):
+
+    in_pre_featurized = InputSlot()
+    
+    ngrams = Parameter()
+    blackfeats = Parameter()
+    lowercase = BoolParameter()
+    minimum_token_frequency = IntParameter()
+    featuretypes = Parameter()
+
+    tokconfig = Parameter()
+    frogconfig = Parameter()
+    strip_punctuation = BoolParameter()
+
+    def out_featurized(self):
+        return self.outputfrominput(inputformat='pre_featurized', stripextension='.' + self.in_pre_featurized().task.extension, addextension='tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+    
+    def run(self):
+       
+        yield Featurize(inputfile=self.in_pre_featurized().path,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+        
+                
 #################################################################
 ### Component ###################################################
 #################################################################
@@ -286,20 +311,20 @@ class Vectorize(WorkflowComponent):
     frogconfig = Parameter(default=False)
     strip_punctuation = BoolParameter()
 
-    def accepts(self):
-        return  [ 
-            ( InputComponent(self,Featurize,inputfile=self.instances,ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation), InputFormat(self, format_id='featurized',extension='.features.npz',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ),
-            ( InputFormat(self, format_id='featurized_csv',extension='.features.csv',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            ( InputFormat(self, format_id='featurized_txt',extension='.features.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') )
-            # ( InputFormat(self, format_id='tokenized',extension='.tok.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            # ( InputFormat(self, format_id='tokdir',extension='.tok.txtdir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            # ( InputFormat(self, format_id='frogged',extension='.frog.json',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            # ( InputFormat(self, format_id='frogdir',extension='.frog.jsondir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            # ( InputFormat(self, format_id='txt',extension='.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
-            # ( InputFormat(self, format_id='txtdir',extension='.txtdir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ) 
+    def accepts(self):      
+        return [
+            ( InputFormat(self, format_id='featurized',extension='.features.npz',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ),
+            ( InputFormat(self, format_id='featurized_csv',extension='.features.csv',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ),
+            ( InputFormat(self, format_id='featurized_txt',extension='.features.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ),
+            ( InputFormat(self, format_id='pre_featurized',extension='.tok.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
+            ( InputFormat(self, format_id='pre_featurized',extension='.tok.txtdir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
+            ( InputFormat(self, format_id='pre_featurized',extension='.frog.json',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
+            ( InputFormat(self, format_id='pre_featurized',extension='.frog.jsondir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
+            ( InputFormat(self, format_id='pre_featurized',extension='.txt',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ), 
+            ( InputFormat(self, format_id='pre_featurized',extension='.txtdir',inputparameter='instances'), InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels') ) 
             ]
     
-    def setup(self, workflow, input_feeds):
+    def setup(self,workflow,input_feeds):
 
         if 'featurized_csv' in input_feeds.keys():
             vectorizer = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter,normalize=self.normalize,selection=self.selection)
@@ -311,14 +336,17 @@ class Vectorize(WorkflowComponent):
 
         else:
 
-            labels = input_feeds['labels']
+            labels = input_feeds['labels']          
             
             if 'featurized' in input_feeds.keys():
                 instances = input_feeds['featurized']
             
-            else: # earlier stage
-                instances =  = workflow.new_component('featurize',Featurize)
+            else: # pre_featurized
+                featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                featurizer.in_pre_featurized = input_feeds['pre_featurized']
 
+                instances = featurizer.out_featurized
+                
             if self.balance:
                 balancetask = workflow.new_task('BalanceTask',Balance,autopass=True)
                 balancetask.in_train = instances
@@ -331,54 +359,6 @@ class Vectorize(WorkflowComponent):
             vectorizer.in_trainlabels = labels
 
         return vectorizer
-
-                # if 'tokenized' in input_feeds.keys():
-                #     featurizer = workflow.new_task('featurizer_tokens',Tokenized2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
-                #     featurizer.in_tokenized = input_feeds['tokenized']           
-
-                # elif 'tokdir' in input_feeds.keys():
-                #     featurizer = workflow.new_task('featurizer_tokdir',Tokdir2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
-                #     featurizer.in_tokdir = inputfeeds['tokdir']            
-
-                # elif 'frogged' in input_feeds.keys():
-                #     featurizer = workflow.new_task('featurizer_frogged',Frog2Features,autopass=True,featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-                #     featurizer.in_frogged = input_feeds['frogged']
-
-                # elif 'frogdir' in input_feeds.keys():
-                #     featurizer = workflow.new_task('featurizer_frogdir',Frogdir2Features,autopass=True,featuretypes=self.featuretypes,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
-                #     featurizer.in_frogdir = input_feeds['frogdir']
-
-                # elif 'txt' in input_feeds.keys():
-                #     # could either be frogged or tokenized according to the config that is given as argument
-                #     if self.tokconfig:
-                #         tokenizer = workflow.new_task('tokenizer_txt',Tokenize_instances,autopass=True,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation)
-                #         tokenizer.in_txt = input_feeds['txt']
-                #         featurizer = workflow.new_task('featurizer_toktxt',Tokenized2Features,autopass=True,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
-                #         featurizer.in_tokenized = tokenizer.out_tokenized
-
-                #     elif self.frogconfig:
-                #         frogger = workflow.new_task('frogger_txt',Frog_instances,autopass=True,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                #         frogger.in_txt = input_feeds['txt']
-                #         featurizer = workflow.new_task('frogger_txt', Frog2Features, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency, autopass=True)
-                #         featurizer.in_frogged = frogger.out_frogged
-
-                # elif 'txtdir' in input_feeds.keys():
-                #     # could either be frogged or tokenized according to the config that is given as argument
-                #     if self.tokconfig:
-                #         tokenizer = workflow.new_task('tokenizer_txtdir',Tokenize_txtdir,autopass=True,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation)
-                #         tokenizer.in_txtdir = input_feeds['txtdir']
-                #         featurizer = workflow.new_task('featurizer_toktxtdir',Tokdir2Features,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency)
-                #         featurizer.in_tokdir = tokenizer.out_toktxtdir                
-
-                #     elif self.frogconfig:
-                #         frogger = workflow.new_task('frogger_txtdir',Frog_txtdir,autopass=True,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                #         frogger.in_txtdir = input_feeds['txtdir']
-                #         featurizer = workflow.new_task('featurizer_frogtxtdir',Frogdir2Features,autopass=True,featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-                #         featurizer.in_frogdir = frogger.out_frogjsondir
-
-                #instances = featurizer.out_features
-
-
 
 @registercomponent
 class VectorizeTest(WorkflowComponent):
