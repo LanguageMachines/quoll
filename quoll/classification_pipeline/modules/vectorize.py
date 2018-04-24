@@ -63,9 +63,8 @@ class Balance(Task):
 class FitVectorizer(Task):
 
     in_train = InputSlot()
-    #in_trainlabels = InputSlot()
+    in_trainlabels = InputSlot()
 
-    labels = Parameter()
     weight = Parameter()
     prune = IntParameter()
 
@@ -101,8 +100,7 @@ class FitVectorizer(Task):
         featurized_instances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         # load trainlabels
-#        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
-        with open(self.labels,'r',encoding='utf-8') as infile:
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
 
         # calculate feature_weight
@@ -457,12 +455,12 @@ class VectorizeTrainTest(WorkflowComponent):
             ( InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances') ), 
             ( InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances') ), 
             ( InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances') ), 
-            ( InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances') ) 
+            ( InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt' or '.frog.json',inputparameter='testinstances') ) 
+            # ( InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances') ), 
+            # ( InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances') ), 
+            # ( InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances') ), 
+            # ( InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances') ), 
+            # ( InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances') ) 
             ]
     
     def setup(self, workflow, input_feeds):
@@ -488,7 +486,7 @@ class VectorizeTrainTest(WorkflowComponent):
             
             else: # pre_featurized
                 trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized']
+                trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
 
                 traininstances = trainfeaturizer.out_featurized
 
@@ -522,7 +520,7 @@ class VectorizeTrainTest(WorkflowComponent):
             
             else: # pre_featurized
                 testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                testfeaturizer.in_pre_featurized = input_feeds['pre_featurized']
+                testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
                 testinstances = testfeaturizer.out_featurized
                 
