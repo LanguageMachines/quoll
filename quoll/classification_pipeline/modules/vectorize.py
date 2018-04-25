@@ -426,7 +426,35 @@ class VectorizeTrainTest(WorkflowComponent):
     strip_punctuation = BoolParameter()
 
     def accepts(self):
-        return list(itertools.product(*[(InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'),InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances')),(InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')),(InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances'),InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances'),InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances'))]))   
+        return [tuple(x) for x in numpy.array(numpy.meshgrid(*
+            [
+                (
+                InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
+                InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),
+                InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances')
+                ),
+                (
+                InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
+                ),
+                (
+                InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
+                InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances'),
+                InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances')
+                )
+            ]
+            )).T.reshape(-1,3)]  
             # ( InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances') ), 
             # ( InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances') ), 
             # ( InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'), InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels'), InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances') ), 
