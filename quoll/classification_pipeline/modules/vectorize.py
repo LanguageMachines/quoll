@@ -18,14 +18,14 @@ class Balance(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
+    def in_vocabulary(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
+
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.features.npz')
 
     def out_labels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels')
-
-    def in_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
 
     def out_vocabulary(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.vocabulary.txt')   
