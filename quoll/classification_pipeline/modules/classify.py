@@ -233,18 +233,18 @@ class Classify(WorkflowComponent):
             [
                 (
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances')
+                InputFormat(self, format_id='feat_train',extension='.features.npz',inputparameter='traininstances'),
+                InputFormat(self, format_id='feat_train_csv',extension='.features.csv',inputparameter='traininstances'),
+                InputFormat(self, format_id='feat_train_txt',extension='.features.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.tok.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.tok.txtdir',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.frog.json',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.frog.jsondir',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='pre_feat_train',extension='.txtdir',inputparameter='traininstances')
                 ),
                 (
-                InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
+                InputFormat(self, format_id='lab_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
                 InputFormat(self, format_id='classifier_args',extension='.txt',inputparameter='classifier_args')
@@ -254,15 +254,15 @@ class Classify(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances')
+                InputFormat(self, format_id='feat_test',extension='.features.npz',inputparameter='testinstances'),
+                InputFormat(self, format_id='feat_test_csv',extension='.features.csv',inputparameter='testinstances'),
+                InputFormat(self, format_id='feat_test_txt',extension='.features.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.tok.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.tok.txtdir',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.frog.json',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.frog.jsondir',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='pre_feat_test',extension='.txtdir',inputparameter='testinstances')
                 ),
             ]
             )).T.reshape(-1,5)]

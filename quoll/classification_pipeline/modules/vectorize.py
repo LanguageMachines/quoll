@@ -292,7 +292,7 @@ class Vectorize(WorkflowComponent):
 
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
-                (
+                (   
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),
