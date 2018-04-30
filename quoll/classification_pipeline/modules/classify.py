@@ -9,7 +9,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.modules.vectorize import Balance, FitVectorizer, ApplyVectorizer, VectorizeTxt, VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import Vectorize
 
 #################################################################
 ### Tasks #######################################################
@@ -37,6 +37,8 @@ class Train(Task):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension=self.classifier + '.model_insights')
 
     def run(self):
+
+        print('Run Trainer')
 
         # initiate directory with model insights
         self.setup_output_dir(self.out_model_insights().path)
@@ -66,7 +68,7 @@ class Train(Task):
         # load vocabulary
         with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
             vocab = infile.read().strip().split('\n')
-            featureselection = [line.split('\t') for line in lines]
+            featureselection = [line.split('\t') for line in vocab]
             vocabulary = [x[0] for x in featureselection]
 
         # transform trainlabels
@@ -153,31 +155,42 @@ class VectorizeTrainTask(Task):
     prune = IntParameter()
     balance = BoolParameter()
 
-    def out_trainvectors(self):
-        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='balanced.' + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+    def out_train(self):
+        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        # return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='balanced.' + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
-    def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='balanced.labels' if self.balance else '.labels')
+    #def out_trainlabels(self):
+    #    return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='balanced.labels' if self.balance else '.labels')
 
+#    def out_featureweights(self):
+#        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureweights.txt')
+#        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='balanced.' + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureweights.txt')
+
+#    def out_featureselection(self):
+#        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
+#        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='balanced.' + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
+    
     def run(self):
+        
+        yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune)
+
+        #print('DONE',os.listdir('/'.join(self.out_train().path.split('/')[:-1])))
+        
+# class VectorizeTestTask(Task):
+
+#     in_trainvectors = InputSlot()
+#     in_testfeatures = InputSlot()
+#     in_trainlabels = InputSlot()
+
+#     weight = Parameter()
+#     prune = IntParameter()
+
+#     def out_vectors(self):
+#         return self.outputfrominput(inputformat='testfeatures', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+
+#     def run(self):
        
-        yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
-
-class VectorizeTestTask(Task):
-
-    in_trainvectors = InputSlot()
-    in_testfeatures = InputSlot()
-    in_trainlabels = InputSlot()
-
-    weight = Parameter()
-    prune = IntParameter()
-
-    def out_vectors(self):
-        return self.outputfrominput(inputformat='testfeatures', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
-
-    def run(self):
-       
-        yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,weight=self.weight,prune=self.prune)
+#         yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,weight=self.weight,prune=self.prune)
 
 
 #################################################################
@@ -252,13 +265,15 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances')
                 ),
             ]
-            )).T.reshape(-1,3)]
+            )).T.reshape(-1,5)]
 
     def setup(self, workflow, input_feeds):
 
         ######################
         ### Training phase ###
         ######################
+
+        print('CLASSIFY INPUT FEEDS',input_feeds.keys())
 
         trainlabels = input_feeds['labels_train']
 
@@ -267,41 +282,41 @@ class Classify(WorkflowComponent):
 
         else: # pre_vectorized
 
-            if 'featurized_train_csv' in input_feeds.keys():
-                trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                trainvectorizer.in_csv = input_feeds['featurized_train_csv']
+            # if 'featurized_train_csv' in input_feeds.keys():
+            #     trainvectorizer = workflow.new_task('tr_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            #     trainvectorizer.in_csv = input_feeds['featurized_train_csv']
                 
-                trainvectors = trainvectorizer.out_vectors
+            #     trainvectors = trainvectorizer.out_vectors
 
-            elif 'featurized_train_txt' in input_feeds.keys():
-                trainvectorizer = workflow.new_task('train_vectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter)
-                trainvectorizer.in_txt = input_feeds['featurized_train_txt']
+            # elif 'featurized_train_txt' in input_feeds.keys():
+            #     trainvectorizer = workflow.new_task('tr_vectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter)
+            #     trainvectorizer.in_txt = input_feeds['featurized_train_txt']
 
-                trainvectors = trainvectorizer.out_vectors
+            #     trainvectors = trainvectorizer.out_vectors
 
-            else:
+            # else:
 
-                if 'pre_featurized_train' in input_feeds.keys():
-                    trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                    trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+            # if 'pre_featurized_train' in input_feeds.keys():
+            #     trainfeaturizer = workflow.new_task('featurize_tr',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            #     trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
 
-                    traininstances = trainfeaturizer.out_featurized
+            #     traininstances = trainfeaturizer.out_featurized
 
-                else:
-                    traininstances = input_feeds['featurized_train']
-
-                trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                trainvectorizer.in_trainfeatures = traininstances
-                trainvectorizer.in_trainlabels = trainlabels
-
-                trainvectors = trainvectorizer.out_trainvectors
-                trainlabels = trainvectorizer.out_trainlabels
-
+            # else:
+            traininstances = input_feeds['featurized_train']
+                    
+            trainvectorizer = workflow.new_task('vectorize_tr',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+            trainvectorizer.in_trainfeatures = traininstances
+            trainvectorizer.in_trainlabels = trainlabels
+            
+            trainvectors = trainvectorizer.out_train
+                
         if 'classifier_args' in input_feeds.keys():
             trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
             trainer.in_train = trainvectors
             trainer.in_trainlabels = trainlabels
             trainer.in_classifier_args = input_feeds['classifier_args']
+            
 
         ######################
         ### Testing phase ####
@@ -314,29 +329,29 @@ class Classify(WorkflowComponent):
 
             else: # pre_vectorized
        
-                if 'featurized_test_csv' in input_feeds.keys():
-                    testvectorizer = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer.in_csv = input_feeds['featurized_test_csv']
+                # if 'featurized_test_csv' in input_feeds.keys():
+                #     testvectorizer = workflow.new_task('vectorizer_csv_te',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                #     testvectorizer.in_csv = input_feeds['featurized_test_csv']
             
-                elif 'featurized_test_txt' in input_feeds.keys():
-                    testvectorizer = workflow.new_task('vectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter)
-                    testvectorizer.in_txt = input_feeds['featurized_test_txt']
+                # elif 'featurized_test_txt' in input_feeds.keys():
+                #     testvectorizer = workflow.new_task('vectorizer_txt_te',VectorizeTxt,autopass=True,delimiter=self.delimiter)
+                #     testvectorizer.in_txt = input_feeds['featurized_test_txt']
 
-                else:
+                # else:
                 
-                    if 'pre_featurized_test' in input_feeds.keys():
-                        testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                        testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
+                    # if 'pre_featurized_test' in input_feeds.keys():
+                    #     testfeaturizer = workflow.new_task('featurize_te',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                    #     testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
-                        testinstances = testfeaturizer.out_featurized
+                    #     testinstances = testfeaturizer.out_featurized
 
-                    else:
-                        testinstances = input_feeds['featurized_test']
+                    # else:
+                    #     testinstances = input_feeds['featurized_test']
 
-                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune)
-                    testvectorizer.in_trainvectors = trainvectors
-                    testvectorizer.in_trainlabels = trainlabels
-                    testvectorizer.in_testfeatures = testinstances
+                testvectorizer = workflow.new_task('vectorize_te',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune)
+                testvectorizer.in_trainvectors = trainvectors
+                testvectorizer.in_trainlabels = trainlabels
+                testvectorizer.in_testfeatures = testinstances
 
                 testvectors = testvectorizer.out_vectors
 
@@ -354,4 +369,5 @@ class Classify(WorkflowComponent):
 
         else:
 
+            print('RETURN TRAINER')
             return trainer
