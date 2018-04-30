@@ -9,7 +9,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.modules.vectorize import Vectorize
+from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask
 
 #################################################################
 ### Tasks #######################################################
@@ -171,9 +171,23 @@ class VectorizeTrainTask(Task):
 #        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='balanced.' + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
     
     def run(self):
-        
-        yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune)
 
+        print(dir(self))
+        #print(dir(self.workflow_task))
+        #print(self._event_callbacks())
+        print('DEPS',self.deps())
+        print('ID',self.task_id)
+        print('FAMILY',self.task_family)
+        print('NAMESPACE',self.task_namespace)
+        print('MODULE',self.task_module)
+        print('OUTPUT TARGETS',self._output_targets())
+        print('INIT',self.initialized())
+        print('COMPLETE',self.complete())
+        if self.complete():
+            return True
+        else:
+            yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune)
+            print('AFTER STATUS',self.status)
         #print('DONE',os.listdir('/'.join(self.out_train().path.split('/')[:-1])))
         
 # class VectorizeTestTask(Task):
@@ -275,7 +289,7 @@ class Classify(WorkflowComponent):
 
         print('CLASSIFY INPUT FEEDS',input_feeds.keys())
 
-        trainlabels = input_feeds['labels_train']
+        trainlabels = input_feeds['lab_train']
 
         if 'vectorized_train' in input_feeds.keys():
             trainvectors = input_feeds['vectorized_train']
@@ -296,15 +310,15 @@ class Classify(WorkflowComponent):
 
             # else:
 
-            # if 'pre_featurized_train' in input_feeds.keys():
-            #     trainfeaturizer = workflow.new_task('featurize_tr',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-            #     trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+            if 'pre_feat_train' in input_feeds.keys():
+                trainfeaturizer = workflow.new_task('featurize_tr',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                trainfeaturizer.in_pre_featurized = input_feeds['pre_feat_train']
 
-            #     traininstances = trainfeaturizer.out_featurized
+                traininstances = trainfeaturizer.out_featurized
 
-            # else:
-            traininstances = input_feeds['featurized_train']
-                    
+            else:
+                traininstances = input_feeds['feat_train']
+                
             trainvectorizer = workflow.new_task('vectorize_tr',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
             trainvectorizer.in_trainfeatures = traininstances
             trainvectorizer.in_trainlabels = trainlabels
@@ -322,7 +336,7 @@ class Classify(WorkflowComponent):
         ### Testing phase ####
         ######################
 
-        if len(list(set(['vectorized_test','featurized_test_csv','featurized_test_txt','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
+        if len(list(set(['vectorized_test','feat_test_csv','feat_test_txt','feat_test','pre_feat_test']) & set(list(input_feeds.keys())))) > 0:
 
             if 'vectorized_test' in input_feeds.keys():
                 testvectors = input_feeds['vectorized_test']
