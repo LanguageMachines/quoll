@@ -26,8 +26,12 @@ class AbstractSKLearnClassifier:
         return label_encoding
 
     def predict(self,clf,testvector):
-        prediction = self.label_encoder.inverse_transform([clf.predict(testvector)[0]])[0]
-        full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+        try:
+            prediction = self.label_encoder.inverse_transform([clf.predict(testvector)[0]])[0]
+            full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+        except ValueError: # classifier trained on dense data
+            prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
+            full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]           
         return prediction, full_prediction
 
     def apply_model(self, clf, testvectors):
@@ -51,15 +55,11 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, alpha='default', fit_prior=True, jobs=4):
-        fit_prior = False if fit_prior == 'False' else True
-        jobs = int(jobs)
-        if alpha == '':
+    def train_classifier(self, trainvectors, labels, alpha='1.0', fit_prior=False, jobs=1):
+        if alpha == 'search':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=jobs)
             paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
             selected_alpha = paramsearch.best_estimator_.alpha
-        elif alpha == 'default':
-            selected_alpha = 1.0
         else:
             selected_alpha = float(alpha)
         self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
@@ -157,7 +157,7 @@ class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def return_feature_count(self,vocab=False):
         feature_count = []
-        feature_count.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de namen van de klassen
+        feature_count.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) 
         if vocab:
             for i,vals in enumerate(self.model.feature_count_.T.tolist()):
                 feature_count.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
@@ -168,7 +168,7 @@ class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def return_feature_log_prob(self,vocab=False):
         feature_log_prob = []
-        feature_log_prob.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de namen van de klassen
+        feature_log_prob.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) 
         if vocab:
             for i,vals in enumerate(self.model.feature_log_prob_.T.tolist()):
                 feature_log_prob.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
@@ -179,7 +179,7 @@ class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def return_ranked_features(self,vocab=False):
         ranked_features = []
-        ranked_features.append('\t'.join([' '.join([self.label_encoder.inverse_transform(self.model.classes_[i]),'log prob']) for i in range(len(self.model.classes_))])) # de namen van de klassen
+        ranked_features.append('\t'.join([' '.join([self.label_encoder.inverse_transform(self.model.classes_[i]),'log prob']) for i in range(len(self.model.classes_))])) 
         sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
         sorted_features_all_classes = []
         for i,c in enumerate(sorted_classes):
@@ -316,34 +316,33 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, c='', kernel='', gamma='', degree='', class_weight='', iterations=10, jobs=4):
-        jobs = int(jobs)
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
         else: # only two classes to distinguish
             parameters = ['C', 'kernel', 'gamma', 'degree']
             multi = False
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == '' else [float(x) for x in c.split()]
-        kernel_values = ['linear', 'rbf', 'poly'] if kernel == '' else [k for  k in kernel.split()]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == '' else [float(x) for x in gamma.split()]
-        degree_values = [1, 2, 3, 4] if degree == '' else [int(x) for x in degree.split()]
+        if len(class_weight.split(':')) > 1: # dictionary
+            class_weight = dict([label_weight.split(':') for label_weight in class_weight.split()])
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'search' else [float(x) for x in c.split()]
+        kernel_values = ['linear', 'rbf', 'poly'] if kernel == 'search' else [k for  k in kernel.split()]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'search' else [float(x) for x in gamma.split()]
+        degree_values = [1, 2, 3, 4] if degree == 'search' else [int(x) for x in degree.split()]
         grid_values = [c_values, kernel_values, gamma_values, degree_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
             for i, parameter in enumerate(parameters):
                 settings[parameter] = grid_values[i][0]
-            if class_weight == '':
-                class_weight = 'balanced'
         else:
-            iterations=int(iterations)
             param_grid = {}
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
             model = svm.SVC(probability=True)
             if multi:
                 model = OutputCodeClassifier(model)
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = 10, pre_dispatch = 4)
+                trainvectors = trainvectors.todense()
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance

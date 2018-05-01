@@ -6,7 +6,7 @@ import itertools
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.functions import vectorizer
+from quoll.classification_pipeline.functions import vectorizer, docreader
 from quoll.classification_pipeline.modules.featurize import Featurize
 
 #################################################################
@@ -195,26 +195,6 @@ class ApplyVectorizer(Task):
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
-class VectorizeTxt(Task):
-
-    in_txt = InputSlot()
-
-    delimiter = Parameter()
-
-    def out_vectors(self):
-        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.vectors.npz')
-
-    def run(self):
-
-        # load instances
-        loader = docreader.Docreader()
-        instances = loader.parse_txt(self.in_txt().path,delimiter=self.delimiter)
-        instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
-        instances_sparse = sparse.csr_matrix(instances_float)
- 
-        # write instances to file
-        numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
-
 class VectorizeCsv(Task):
 
     in_csv = InputSlot()
@@ -228,7 +208,8 @@ class VectorizeCsv(Task):
 
         # load instances
         loader = docreader.Docreader()
-        instances = loader.parse_csv(self.in_csv().path,delimiter=self.delimiter)
+        instances = loader.parse_csv(self.in_csv().path,delim=self.delimiter)
+        print('num features',len(instances[7]))
         instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
         instances_sparse = sparse.csr_matrix(instances_float)
 
@@ -265,14 +246,14 @@ class FeaturizeTask(Task):
 class Vectorize(WorkflowComponent):
     
     traininstances = Parameter()
-    trainlabels = Parameter()
+    trainlabels = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
     testinstances = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass 
     
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    delimiter = Parameter(default=' ')
+    delimiter = Parameter(default=',')
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -293,8 +274,7 @@ class Vectorize(WorkflowComponent):
                 (   
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),
+                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
@@ -307,8 +287,7 @@ class Vectorize(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.features.csv',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_txt',extension='.features.txt',inputparameter='testinstances'),
+                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),
@@ -324,8 +303,6 @@ class Vectorize(WorkflowComponent):
         ######################
         ### Training phase ###
         ######################
-
-        print(input_feeds.keys())
         
         if 'featurized_train_csv' in input_feeds.keys():
             trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
@@ -333,12 +310,6 @@ class Vectorize(WorkflowComponent):
 
             trainvectors = trainvectorizer.out_vectors
                 
-        elif 'featurized_train_txt' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('train_vectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter)
-            trainvectorizer.in_txt = input_feeds['featurized_train_txt']
-
-            trainvectors = trainvectorizer.out_vectors 
-
         else:
 
             if 'vectorized_train' not in input_feeds.keys():
@@ -375,10 +346,6 @@ class Vectorize(WorkflowComponent):
                 testvectorizer = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
                 testvectorizer.in_csv = input_feeds['featurized_test_csv']
         
-            elif 'featurized_test_txt' in input_feeds.keys():
-                testvectorizer = workflow.new_task('vectorizer_txt',VectorizeTxt,autopass=True,delimiter=self.delimiter)
-                testvectorizer.in_txt = input_feeds['featurized_test_txt']
-
             else:
                 
                 if 'featurized_test' in input_feeds.keys():
