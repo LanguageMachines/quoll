@@ -245,7 +245,6 @@ class Featurize(StandardWorkflowComponent):
         return InputFormat(self, format_id='tokenized', extension='tok.txt'), InputFormat(self, format_id='frogged', extension='frog.json'), InputFormat(self, format_id='txt', extension='txt'), InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), InputFormat(self, format_id='frogjsondir', extension='.frog.jsondir', directory=True), InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
                     
     def setup(self, workflow, input_feeds):
-        print('FEATURIZER DICT KEYS',input_feeds.keys())
 
         if 'tokenized' in input_feeds.keys():
             featurizertask = workflow.new_task('FeaturizerTask_tokens', Tokenized2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)

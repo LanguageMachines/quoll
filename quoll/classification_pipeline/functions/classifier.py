@@ -25,9 +25,9 @@ class AbstractSKLearnClassifier:
         label_encoding = list(zip(labels,encoding))
         return label_encoding
 
-    def predict(clf,testvector):
-        prediction = self.label_encoder.inverse_transform([clf.predict(instance)[0]])[0]
-        full_prediction = [clf.predict_proba(instance)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+    def predict(self,clf,testvector):
+        prediction = self.label_encoder.inverse_transform([clf.predict(testvector)[0]])[0]
+        full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
         return prediction, full_prediction
 
     def apply_model(self, clf, testvectors):

@@ -143,7 +143,8 @@ class ApplyVectorizer(Task):
 
     weight = Parameter()
     prune = Parameter()
-
+    balance = BoolParameter()
+    
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vocabulary.txt')
 
@@ -151,7 +152,7 @@ class ApplyVectorizer(Task):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def run(self):
 
@@ -255,9 +256,6 @@ class FeaturizeTask(Task):
     def run(self):
         
         yield Featurize(inputfile=self.in_pre_featurized().path,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-
-        print('DONE FEATURIZER.')
-        
                 
 #################################################################
 ### Component ###################################################
@@ -293,6 +291,7 @@ class Vectorize(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (   
+                InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train_csv',extension='.features.csv',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train_txt',extension='.features.txt',inputparameter='traininstances'),
@@ -326,7 +325,7 @@ class Vectorize(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        print('VECTORIZER',input_feeds.keys())
+        print(input_feeds.keys())
         
         if 'featurized_train_csv' in input_feeds.keys():
             trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
@@ -397,7 +396,7 @@ class Vectorize(WorkflowComponent):
                 else:
                     trainvectors = trainvectorizer.out_train
                     
-                testvectorizer = workflow.new_task('testvectorizer',ApplyVectorizer,autopass=True,weight=self.weight,prune=self.prune)
+                testvectorizer = workflow.new_task('testvectorizer',ApplyVectorizer,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
                 testvectorizer.in_test = testinstances
                 testvectorizer.in_train = trainvectors
 
@@ -405,5 +404,4 @@ class Vectorize(WorkflowComponent):
 
         else:
 
-            print('RETURN TRAINVECTORIZER')
             return trainvectorizer
