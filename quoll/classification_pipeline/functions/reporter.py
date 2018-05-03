@@ -5,7 +5,7 @@ from pynlpl import evaluation
 
 class Reporter:
 
-    def __init__(self, predictions, full_predictions, label_order, labels=False, unique_labels = False, ordinal=False, documents=False, strictness=1):
+    def __init__(self, predictions, full_predictions, label_order, labels=False, ordinal=False, documents=False, strictness=1):
         self.predictions = predictions
         if len(predictions) != len(full_predictions):
             print('The number of full predictions (', len(full_predictions), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -17,14 +17,9 @@ class Reporter:
             if len(predictions) != len(labels):
                 print('The number of predictions (', len(predictions), ') does not align with the number of labels (', len(labels), '); exiting program')
                 quit()
-            if unique_labels:
-                self.unique_labels = unique_labels
-            else:
-                self.unique_labels = list(set(self.labels))
             if ordinal:
                 self.ce = evaluation.OrdinalEvaluation()
                 self.labels = [int(label) for label in labels]
-                self.unique_labels = [int(label) for label in unique_labels]
                 self.predictions = [int(prediction) for prediction in predictions]
             else:
                 self.ce = evaluation.ClassEvaluation()
@@ -32,7 +27,6 @@ class Reporter:
             self.save_classifier_output(self.labels, self.predictions, self.full_predictions, strictness)
         else:
             self.labels = ['-'] * len(self.predictions)
-            self.unique_labels = ['-']
         if documents:
             if len(predictions) != len(documents):
                 print('The number of documents (', len(documents), ') does not align with the number of predictions and labels (', len(predictions), '); exiting program')
@@ -71,7 +65,7 @@ class Reporter:
     def assess_ordinal_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
-        for label in sorted(self.unique_labels):
+        for label in self.label_order:
             if label in self.labels or label in self.predictions:
                 performance.append(self.assess_ordinal_label_performance(label))
             else:
@@ -92,7 +86,7 @@ class Reporter:
     def assess_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
-        for label in sorted(self.unique_labels):
+        for label in label_order:
             if label in self.labels or label in self.predictions:
                 performance.append(self.assess_label_performance(label))
             else:
@@ -105,8 +99,6 @@ class Reporter:
         for index in range(len(self.documents)):
             docpredictions.append([self.documents[index], self.labels[index], self.predictions[index]] + self.full_predictions[index])
         return docpredictions
-
-    
     
     def return_confusion_matrix(self):
         confusion_matrix = self.ce.confusionmatrix()
