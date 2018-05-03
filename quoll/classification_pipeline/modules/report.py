@@ -3,7 +3,7 @@ import numpy
 from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.classify import Train, Predict
+from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTestTask
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, linewriter
@@ -26,6 +26,9 @@ class ReportPerformance(Task):
 
     def out_report(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.report')
+
+    def out_performance(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.report/performance.csv')
 
     def out_performance_at_dir(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.report/performance_at_dir')
@@ -53,7 +56,7 @@ class ReportPerformance(Task):
         # setup reporter output directory
         self.setup_output_dir(self.out_report().path)
         self.setup_output_dir(self.out_performance_at_dir().path)
-
+        
         # load predictions and full_predictions
         with open(self.in_predictions().path) as infile:
             predictions = infile.read().strip().split('\n')
@@ -127,13 +130,13 @@ class ReportPerformance(Task):
             cm_out.write(confusion_matrix)
 
         # report performance-at
-        if len(unique_labels) >= 9:
+        if len(label_order) >= 9:
             prat_opts = [3,5,7,9]
-        elif len(unique_labels) >= 7:
+        elif len(label_order) >= 7:
             prat_opts = [3,5,7]
-        elif len(unique_labels) >= 5:
+        elif len(label_order) >= 5:
             prat_opts = [3,5]
-        elif len(unique_labels) >= 3:
+        elif len(label_order) >= 3:
             prat_opts = [3]
         else:
             prat_opts = []
@@ -169,10 +172,10 @@ class ReportDocpredictions(Task):
             lines = [line.split('\t') for line in infile.read().strip().split('\n')]
         label_order = lines[0]
         full_predictions = lines[1:]
-
+        
         # load documents
         with open(self.in_testdocuments().path,'r',encoding='utf-8') as infile:
-            documents = infile.read().strip().split('\n')
+            testdocuments = infile.read().strip().split('\n')
 
         # initiate reporter
         rp = reporter.Reporter(predictions, full_predictions, label_order, documents=testdocuments)
@@ -241,7 +244,7 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='train'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train')
                 ),
                 (
@@ -269,9 +272,7 @@ class Report(WorkflowComponent):
             )).T.reshape(-1,5)]
 
     def setup(self, workflow, input_feeds):
-
-        trainlabels = input_feeds['trainlabels']
-
+        
         if 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # work towards reporting testpredictions
 
             if 'classified_test' in input_feeds.keys(): # reporter can be started
@@ -288,6 +289,8 @@ class Report(WorkflowComponent):
 
                 else:
 
+                    trainlabels = input_feeds['labels_train']
+
                     if 'vectorized_train' in input_feeds.keys():
                         trainvectors = input_feeds['vectorized_train']
 
@@ -299,17 +302,10 @@ class Report(WorkflowComponent):
 
                     else:
 
-                        if 'docs_train' in input_feeds.keys() or if 'pre_featurized_train' in input_feeds.keys():
-
-                            if 'pre_featurized_train' in input_feeds.keys():
-                                pre_featurized = input_feeds['pre_featurized_train']
-
-                            else:
-                                traindocs = input_feeds['docs_train']
-                                pre_featurized = input_feeds['docs_train']
+                        if 'pre_featurized_train' in input_feeds.keys():
 
                             trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                            trainfeaturizer.in_pre_featurized = pre_featurized
+                            trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
 
                             featurized_train = trainfeaturizer.out_featurized
 
@@ -344,7 +340,7 @@ class Report(WorkflowComponent):
 
                 else:
                     
-                    if 'docs_test' in input_feeds.keys() or if 'pre_featurized_test' in input_feeds.keys():
+                    if 'docs_test' in input_feeds.keys() or 'pre_featurized_test' in input_feeds.keys():
 
                         if 'pre_featurized_test' in input_feeds.keys():
                             pre_featurized = input_feeds['pre_featurized_test']
@@ -361,10 +357,10 @@ class Report(WorkflowComponent):
                     else:
                         featurized_test = input_feeds['featurized_test']
 
-                        testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                        testvectorizer.in_trainvectors = trainvectors
-                        testvectorizer.in_trainlabels = trainlabels
-                        testvectorizer.in_testfeatures = featurized_test
+                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    testvectorizer.in_trainvectors = trainvectors
+                    testvectorizer.in_trainlabels = trainlabels
+                    testvectorizer.in_testfeatures = featurized_test
 
                     testvectors = testvectorizer.out_vectors
 
@@ -382,19 +378,21 @@ class Report(WorkflowComponent):
 
             if 'docs' in input_feeds.keys():
                 testdocs = input_feeds['docs']
+                
+            if 'labels_test' in input_feeds.keys(): # full performance reporter
 
-            if 'test_labels' in input_feeds.keys(): # full performance reporter
-
-                testlabels = input_feeds['test_labels']
+                testlabels = input_feeds['labels_test']
 
                 reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal)
                 reporter.in_predictions = testpredictions
                 reporter.in_testlabels = testlabels
-                reporter.in_testdocs = testdocs
+                reporter.in_testdocuments = testdocs
 
             else: # report docpredictions
 
                 reporter = workflow.new_task('report_docpredictions',ReportDocpredictions,autopass=True)
+                reporter.in_predictions = testpredictions
+                reporter.in_testdocuments = testdocs
 
             return reporter
 

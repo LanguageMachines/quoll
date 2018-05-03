@@ -86,7 +86,7 @@ class Reporter:
     def assess_performance(self):
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
-        for label in label_order:
+        for label in self.label_order:
             if label in self.labels or label in self.predictions:
                 performance.append(self.assess_label_performance(label))
             else:
