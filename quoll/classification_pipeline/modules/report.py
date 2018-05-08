@@ -370,6 +370,9 @@ class Report(WorkflowComponent):
 
         # make sure to have featurized train instances, needed for both the nfold-cv case and the train-test case
 
+        featurized_train = False
+        trainvectors = False
+        
         if 'docs_train' in input_feeds.keys() or 'pre_featurized_train' in input_feeds.keys():
 
             if 'pre_featurized_train' in input_feeds.keys():
@@ -387,20 +390,14 @@ class Report(WorkflowComponent):
         elif 'featurized_train' in input_feeds.keys(): 
             featurized_train = input_feeds['featurized_train']
 
-        else:
-            featurized_train = False
+        elif 'featurized_csv_train' in input_feeds.keys():
+            trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer.in_csv = input_feeds['featurized_csv_train']
 
-            if 'featurized_csv_train' in input_feeds.keys():
-                trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                trainvectorizer.in_csv = input_feeds['featurized_csv_train']
+            trainvectors = trainvectorizer.out_vectors
 
-                trainvectors = trainvectorizer.out_vectors
-
-            elif 'vectorized_train' in input_feeds.keys():
-                trainvectors = input_feeds['vectorized_train']
-
-            else:
-                trainvectors = False
+        elif 'vectorized_train' in input_feeds.keys():
+            trainvectors = input_feeds['vectorized_train']
 
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
 

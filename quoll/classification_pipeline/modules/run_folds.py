@@ -91,7 +91,7 @@ class Folds(Task):
         # for each fold
         for fold in range(self.n):
             yield RunFold(
-                directory=self.out_exp().path, instances=self.in_features().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_documents().path, 
+                directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
