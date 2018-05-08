@@ -1,12 +1,13 @@
 
 import numpy
 from scipy import sparse
-from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
+from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
+from quoll.classification_pipeline.modules.run_folds import Folds, MakeBins
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTestTask
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask
 
-from quoll.classification_pipeline.functions import reporter, linewriter
+from quoll.classification_pipeline.functions import reporter, linewriter, docreader
 
 
 #################################################################
@@ -186,18 +187,106 @@ class ReportDocpredictions(Task):
         lw.write_csv(self.out_docpredictions().path)
 
 
+class ReportFolds(Task):
+
+    in_exp = InputSlot()
+
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.predictions.txt')  
+
+    def out_labels(self):
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.gs.labels')  
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.full_predictions.txt')        
+
+    def out_macro_performance(self):
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.macro_performance.csv')  
+ 
+    def run(self):
+       
+        # gather fold reports
+        print('gathering fold reports')
+        performance_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.performance.csv') ]
+        docprediction_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.docpredictions.csv') ]
+        
+        # calculate average performance
+        dr = docreader.Docreader()
+        performance_combined = [dr.parse_csv(performance_file) for performance_file in performance_files]
+        all_performance = [performance_combined[0][0]] # headers
+        label_performance = defaultdict(list)
+        for p in performance_combined:
+            for i in range(1,len(p)): # labels  
+                no_float = []
+                performance = []
+                label = p[i][0] # name of label
+                for j in range(1,len(p[i])): # report values
+                    if j not in no_float:
+                        try:
+                            performance.append(float(p[i][j]))
+                        except:
+                            no_float.append(j)
+                            performance.append('nan')
+                            for lp in label_performance[label]:
+                                lp[j] = 'nan'
+                    else:
+                        performance.append('nan')
+                label_performance[label].append(performance)
+
+        # compute mean and sum per label
+        if 'micro' in label_performance.keys():
+            labels_order = [label for label in label_performance.keys() if label != 'micro'] + ['micro']
+        else:
+            labels_order = sorted(label_performance.keys())
+
+        for label in labels_order:
+            average_performance = [label]
+            for j in range(0,len(label_performance[label][0])-3):
+                if label_performance[label][0][j] != 'nan':
+                    average_performance.append(str(round(numpy.mean([float(p[j]) for p in label_performance[label]]),2)) + '(' + str(round(numpy.std([float(p[j]) for p in label_performance[label]]),2)) + ')')
+                else:
+                    average_performance.append('nan')
+            for j in range(len(label_performance[label][0])-3,len(label_performance[label][0])):
+                average_performance.append(str(sum([int(p[j]) for p in label_performance[label]])))
+            all_performance.append(average_performance)
+
+        lw = linewriter.Linewriter(all_performance)
+        lw.write_csv(self.out_macro_performance().path)
+
+        # write labels, predictions and full predictions
+        label_order = [x.split('prediction prob for ')[1] for x in dr.parse_csv(docprediction_files[0])[0][3:]]
+        labels = [line[1] for line in docpredictions]
+        predictions = [line[2] for line in docpredictions]
+        full_predictions = [label_order] + [line[3:] for line in docpredictions]
+
+        with open(self.out_labels().path,'w',encoding='utf-8') as l_out:
+            l_out.write('\n'.join(labels))
+
+        with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
+            pr_out.write('\n'.join(predictions))
+
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as fpr_out:
+            fpr_out.write('\n'.join(['\t'.join([str(prob) for prob in full_prediction]) for full_prediction in full_predictions]))
+
+
 #################################################################
-### Component ##################################################
+### Component ###################################################
 #################################################################
 
 @registercomponent
 class Report(WorkflowComponent):
 
-    train = Parameter(default = 'xxx.xxx') # only train for nfold cv
+    train = Parameter() # only train for nfold cv
     test = Parameter(default = 'xxx.xxx')
     trainlabels = Parameter()
     testlabels = Parameter(default = 'xxx.xxx')
     docs = Parameter(default = 'xxx.xxx') # all docs for nfold cv, test docs for train and test
+
+    # nfold-cv parameters
+    n = IntParameter(default=10)
+    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
+    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
+    testend = IntParameter(default=-1)
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -205,13 +294,13 @@ class Report(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
-    nb_alpha = Parameter(default='1.0')
+    nb_alpha = FloatParameter(default=1.0)
     nb_fit_prior = BoolParameter()
     
-    svm_c = Parameter(default='1.0')
+    svm_c = FloatParameter(default=1.0)
     svm_kernel = Parameter(default='linear')
-    svm_gamma = Parameter(default='0.1')
-    svm_degree = Parameter(default='1')
+    svm_gamma = FloatParameter(default=0.1)
+    svm_degree = IntParameter(default=1)
     svm_class_weight = Parameter(default='balanced')
     
     # vectorizer parameters
@@ -244,8 +333,8 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train')
+                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='train')
                 ),
                 (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
@@ -256,8 +345,8 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='test'),
-                InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='test')
+                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test')
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
@@ -273,61 +362,125 @@ class Report(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
         
-        if 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # work towards reporting testpredictions
+        ######################
+        ### Training phase ###
+        ######################
 
-            if 'classified_test' in input_feeds.keys(): # reporter can be started
-                testpredictions = input_feeds['classified_test']
+        trainlabels = input_feeds['labels_train']
 
-            else: # need classifier, running train pipeline
+        # make sure to have featurized train instances, needed for both the nfold-cv case and the train-test case
 
-                ######################
-                ### Training phase ###
-                ######################
+        if 'docs_train' in input_feeds.keys() or 'pre_featurized_train' in input_feeds.keys():
 
-                if 'modeled_train' in input_feeds.keys():
-                    trainmodel = input_feeds['modeled_train']
+            if 'pre_featurized_train' in input_feeds.keys():
+                pre_featurized = input_feeds['pre_featurized_train']
 
-                else:
+            else: # docs (.txt)
+                docs = input_feeds['docs_train']
+                pre_featurized = input_feeds['docs_train']
 
-                    trainlabels = input_feeds['labels_train']
+            trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            trainfeaturizer.in_pre_featurized = pre_featurized
 
-                    if 'vectorized_train' in input_feeds.keys():
-                        trainvectors = input_feeds['vectorized_train']
+            featurized_train = trainfeaturizer.out_featurized
 
-                    elif 'featurized_csv_train' in input_feeds.keys():
-                        trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                        trainvectorizer.in_csv = input_feeds['featurized_csv_train']
-                
-                        trainvectors = trainvectorizer.out_vectors
+        elif 'featurized_train' in input_feeds.keys(): 
+            featurized_train = input_feeds['featurized_train']
 
-                    else:
+        else:
+            featurized_train = False
 
-                        if 'pre_featurized_train' in input_feeds.keys():
+            if 'featurized_csv_train' in input_feeds.keys():
+                trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                trainvectorizer.in_csv = input_feeds['featurized_csv_train']
 
-                            trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                            trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+                trainvectors = trainvectorizer.out_vectors
 
-                            featurized_train = trainfeaturizer.out_featurized
+            elif 'vectorized_train' in input_feeds.keys():
+                trainvectors = input_feeds['vectorized_train']
 
-                        else: # can only be featurized train
-                            featurized_train = input_feeds['featurized_train']
+            else:
+                trainvectors = False
+
+        if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
+
+        ######################
+        ### Nfold CV #########
+        ######################
+
+            if 'docs' in input_feeds.keys():
+                docs = input_feeds['docs']
+
+            if featurized_train:
+                instances = featurized_train
+
+            elif trainvectors:
+                instances = trainvectors
+
+            else:
+                print('Invalid \'train\' input for Nfold CV; ' + 
+                    'give either \'.txt\', \'.tok.txt\', \'frog.json\', \'.txtdir\', \'.tok.txtdir\', \'.frog.jsondir\', \'.features.npz\', \'.vectors.npz\' or \'.csv\'')
+                exit()
+
+            bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, teststart=self.teststart, testend=self.testend)
+            bin_maker.in_labels = trainlabels
+
+            fold_runner = workflow.new_task('nfold_cv', Folds, autopass=True, 
+                n=self.n, 
+                weight=self.weight, prune=self.prune, balance=self.balance, 
+                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+                nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
+                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
+            )
+            fold_runner.in_bins = bin_maker.out_bins
+            fold_runner.in_instances = instances
+            fold_runner.in_labels = trainlabels
+            fold_runner.in_docs = docs      
+
+            foldreporter = workflow.new_task('report_folds', ReportFolds, autopass=True)
+            foldreporter.in_exp = fold_runner.out_exp
+
+            labels = foldreporter.out_labels
+            predictions = foldreporter.out_predictions
+
+        else:
+
+            if 'modeled_train' in input_feeds.keys():
+                trainmodel = input_feeds['modeled_train']
+
+            else:
+
+                if not trainvectors:
+
+                    if featurized_train:
 
                         trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
                         trainvectorizer.in_trainfeatures = featurized_train
                         trainvectorizer.in_trainlabels = trainlabels
-                    
+            
                         trainvectors = trainvectorizer.out_train
-                        trainlabels = trainvectorizer.out_trainlabels
+                        trainlabels = trainvectorizer.out_trainlabels              
 
-                    trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight)
-                    trainer.in_train = trainvectors
-                    trainer.in_trainlabels = trainlabels
+                    else:
+                        print('Invalid train input, exiting program')
+                        exit()
 
-                    trainmodel = trainer.out_model
+                trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
+                    nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight)
+                trainer.in_train = trainvectors
+                trainer.in_trainlabels = trainlabels    
 
-                ######################
-                ### Testing phase ####
-                ######################
+                trainmodel = trainer.out_model 
+
+            if 'classified_test' in input_feeds.keys(): # reporter can be started
+                predictions = input_feeds['classified_test']
+
+            else: 
+
+        ######################
+        ### Testing phase ####
+        ######################
 
                 if 'vectorized_test' in input_feeds.keys():
                     testvectors = input_feeds['vectorized_test']
@@ -346,7 +499,7 @@ class Report(WorkflowComponent):
                             pre_featurized = input_feeds['pre_featurized_test']
 
                         else:
-                            testdocs = input_feeds['docs_test']
+                            docs = input_feeds['docs_test']
                             pre_featurized = input_feeds['docs_test']
 
                         testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
@@ -369,50 +522,32 @@ class Report(WorkflowComponent):
                 predictor.in_trainlabels = trainlabels
                 predictor.in_model = trainmodel
 
-                testpredictions = predictor.out_predictions
-
-
-            ######################
-            ### Reporting phase ##
-            ######################
+                predictions = predictor.out_predictions
 
             if 'docs' in input_feeds.keys():
-                testdocs = input_feeds['docs']
+                docs = input_feeds['docs']
                 
             if 'labels_test' in input_feeds.keys(): # full performance reporter
+                labels = input_feeds['labels_test']
 
-                testlabels = input_feeds['labels_test']
+            else:
+                labels = False
 
-                reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal)
-                reporter.in_predictions = testpredictions
-                reporter.in_testlabels = testlabels
-                reporter.in_testdocuments = testdocs
+        ######################
+        ### Reporting phase ##
+        ######################
 
-            else: # report docpredictions
+        if labels:
 
-                reporter = workflow.new_task('report_docpredictions',ReportDocpredictions,autopass=True)
-                reporter.in_predictions = testpredictions
-                reporter.in_testdocuments = testdocs
+            reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal)
+            reporter.in_predictions = predictions
+            reporter.in_testlabels = labels
+            reporter.in_testdocuments = docs
 
-            return reporter
+        else: # report docpredictions
 
+            reporter = workflow.new_task('report_docpredictions',ReportDocpredictions,autopass=True)
+            reporter.in_predictions = predictions
+            reporter.in_testdocuments = docs
 
-        #if 'train' in [x.split('_')[-1] for x in input_feeds.keys() if x != 'labels_train']: #
-
-
-# @registercomponent
-# class RegressionReporterComponent(WorkflowComponent):
-
-#     predictions = Parameter()
-#     labels = Parameter()
-
-#     def accepts(self):
-#         return [ ( InputFormat(self, format_id='predictions', extension='.predictions.txt',inputparameter='predictions'), InputFormat(self, format_id='labels', extension='.txt', inputparameter='labels') ) ]
-
-#     def setup(self, workflow, input_feeds):
-
-#         regreporter = workflow.new_task('report_regression_performance', ReportRegressionPerformance, autopass=True)
-#         regreporter.in_predictions = input_feeds['predictions']
-#         regreporter.in_labels = input_feeds['labels']
-
-#         return regreporter
+        return reporter
