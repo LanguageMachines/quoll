@@ -6,8 +6,7 @@ from collections import defaultdict
 
 from quoll.classification_pipeline.functions import nfold_cv_functions, linewriter, docreader
 
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv
-
+from quoll.classification_pipeline.modules.report import Report
 
 #################################################################
 ### Tasks #######################################################
@@ -77,11 +76,10 @@ class Folds(Task):
     balance = BoolParameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='bins', stripextension='.bins.csv', addextension= 
-            '.labels_' + self.in_labels().path.split('.')[-2] + self.classifier + 
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension= '.labels_' + self.in_labels().path.split('.')[-2] + self.classifier + 
             '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else 
-            '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
-
+            '.weight_' + self.weight + '.prune_' + str(self.prune) + '.exp')
+    
         
     def run(self):
 
@@ -130,16 +128,16 @@ class Fold(Task):
     balance = BoolParameter()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + self.in_instances().task.extension, addextension='.vocabulary.txt')   
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt')   
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
 
     def out_train(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.' + self.in_instances().task.extension)        
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_test(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + self.in_instances().task.extension)
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
