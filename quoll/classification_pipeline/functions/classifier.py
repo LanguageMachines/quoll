@@ -5,6 +5,7 @@ from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegressio
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
+import warnings
 
 import numpy
 import multiprocessing
@@ -13,7 +14,8 @@ class AbstractSKLearnClassifier:
 
     def __init__(self):
         self.label_encoder = preprocessing.LabelEncoder()
-
+        warnings.filterwarnings(action='ignore', category=DeprecationWarning) # to ignore an annoying warning message during label transforming
+        
     def set_label_encoder(self, labels):
         self.label_encoder.fit(labels)
 
@@ -347,15 +349,15 @@ class SVMClassifier(AbstractSKLearnClassifier):
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
         self.model = svm.SVC(
-           probability = True,
-           C = settings[parameters[0]],
-           kernel = settings[parameters[1]],
-           gamma = settings[parameters[2]],
-           degree = settings[parameters[3]],
-           class_weight = class_weight,
-           cache_size = 1000,
-           verbose = 2
-           )
+            probability = True,
+            C = settings[parameters[0]],
+            kernel = settings[parameters[1]],
+            gamma = settings[parameters[2]],
+            degree = settings[parameters[3]],
+            class_weight = class_weight,
+            cache_size = 1000,
+            verbose = 2
+        )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):

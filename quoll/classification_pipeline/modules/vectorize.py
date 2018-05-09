@@ -103,7 +103,7 @@ class FitVectorizer(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
-
+           
         # calculate feature_weight
         featureweights = weight_functions[self.weight][0](featurized_instances, trainlabels)
 
@@ -114,7 +114,7 @@ class FitVectorizer(Task):
             trainvectors = featurized_instances
 
         # prune features
-        featureselection = vectorizer.return_featureselection(featureweights, self.prune)
+        featureselection = vectorizer.return_featureselection(weight_functions['frequency'][0](featurized_instances, trainlabels), self.prune)
 
         # compress vectors
         trainvectors = vectorizer.compress_vectors(trainvectors, featureselection)

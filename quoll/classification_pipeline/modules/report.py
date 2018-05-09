@@ -1,9 +1,11 @@
 
 import numpy
 from scipy import sparse
+import glob
+from collections import defaultdict
+
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.run_folds import Folds, MakeBins
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTestTask
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask
 
@@ -212,8 +214,8 @@ class ReportFolds(Task):
        
         # gather fold reports
         print('gathering fold reports')
-        performance_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.performance.csv') ]
-        docprediction_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.docpredictions.csv') ]
+        performance_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.report/performance.csv') ]
+        docprediction_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.report/docpredictions.csv') ]
         
         # calculate average performance
         dr = docreader.Docreader()
@@ -260,6 +262,7 @@ class ReportFolds(Task):
 
         # write labels, predictions and full predictions
         label_order = [x.split('prediction prob for ')[1] for x in dr.parse_csv(docprediction_files[0])[0][3:]]
+        docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
         labels = [line[1] for line in docpredictions]
         predictions = [line[2] for line in docpredictions]
         full_predictions = [label_order] + [line[3:] for line in docpredictions]
@@ -338,11 +341,8 @@ class Folds(Task):
     balance = BoolParameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension= '.labels_' + self.in_labels().path.split('.')[-2] + self.classifier + 
-            '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else 
-            '.weight_' + self.weight + '.prune_' + str(self.prune) + '.exp')
-    
-        
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == '.features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == '.features.npz' else '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp')
+                                    
     def run(self):
 
         # make experiment directory
@@ -353,6 +353,7 @@ class Folds(Task):
             yield RunFold(
                 directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold, 
+                weight=self.weight, prune=self.prune, balance=self.balance, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
@@ -408,10 +409,10 @@ class Fold(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == '.features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt')
 
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
@@ -421,6 +422,9 @@ class Fold(Task):
 
     def run(self):
 
+        if self.complete(): # needed as it will not complete otherwise
+            return True
+        
         # make fold directory
         self.setup_output_dir(self.out_fold().path)
 
@@ -528,6 +532,13 @@ class RunFold(WorkflowComponent):
         return [ ( 
             InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.features.npz',inputparameter='instances'), 
+            InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
+            InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
+            InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
+        ),
+        (
+            InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
+            InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 

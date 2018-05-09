@@ -142,12 +142,6 @@ def return_document_frequency(instances, labels):
     document_frequency = cnt.count_document_frequency()
     return document_frequency
 
-def return_infogain(instances, labels):
-    pass
-
-def return_infogain_vectors(instances, weights):
-    pass
-
 def return_idf(instances, labels):
 
     cnt = Counts(instances, labels)
@@ -166,8 +160,9 @@ def return_tfidf_vectors(instances, idfs):
     tfidf_vectors = instances.multiply(feature_idf_ordered)
     return tfidf_vectors
 
-def return_featureselection(featureweights, prune):
-
+def return_featureselection(prune):
+    # by default pruning is done based on feature frequency
+    
     featureselection = sorted(featureweights, key = featureweights.get, reverse = True)[:prune]
     return featureselection
 
