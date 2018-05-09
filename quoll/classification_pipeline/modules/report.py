@@ -326,13 +326,13 @@ class Folds(Task):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
-    nb_alpha = FloatParameter(default=1.0)
+    nb_alpha = Parameter(default=1.0)
     nb_fit_prior = BoolParameter()
     
-    svm_c = FloatParameter(default=1.0)
+    svm_c = Parameter(default=1.0)
     svm_kernel = Parameter(default='linear')
-    svm_gamma = FloatParameter(default=0.1)
-    svm_degree = IntParameter(default=1)
+    svm_gamma = Parameter(default='0.1')
+    svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
     
     # vectorizer parameters
@@ -376,13 +376,13 @@ class Fold(Task):
     jobs = IntParameter()
     iterations = IntParameter()
     
-    nb_alpha = FloatParameter()
+    nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
     
-    svm_c = FloatParameter()
+    svm_c = Parameter()
     svm_kernel = Parameter()
-    svm_gamma = FloatParameter()
-    svm_degree = IntParameter()
+    svm_gamma = Parameter()
+    svm_degree = Parameter()
     svm_class_weight = Parameter()
     
     # vectorizer parameters
@@ -409,7 +409,7 @@ class Fold(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == '.features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt')
@@ -421,7 +421,7 @@ class Fold(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
 
     def run(self):
-
+        
         if self.complete(): # needed as it will not complete otherwise
             return True
         
@@ -514,13 +514,13 @@ class RunFold(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
-    nb_alpha = FloatParameter(default=1.0)
+    nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
     
-    svm_c = FloatParameter(default=1.0)
+    svm_c = Parameter(default='1.0')
     svm_kernel = Parameter(default='linear')
-    svm_gamma = FloatParameter(default=0.1)
-    svm_degree = IntParameter(default=1)
+    svm_gamma = Parameter(default='0.1')
+    svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
 
     # vectorizer parameters
@@ -588,13 +588,13 @@ class Report(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
-    nb_alpha = FloatParameter(default=1.0)
+    nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
     
-    svm_c = FloatParameter(default=1.0)
+    svm_c = Parameter(default='1.0')
     svm_kernel = Parameter(default='linear')
-    svm_gamma = FloatParameter(default=0.1)
-    svm_degree = IntParameter(default=1)
+    svm_gamma = Parameter(default='0.1')
+    svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
     
     # vectorizer parameters

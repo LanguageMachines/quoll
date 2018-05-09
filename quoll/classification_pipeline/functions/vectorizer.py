@@ -160,9 +160,8 @@ def return_tfidf_vectors(instances, idfs):
     tfidf_vectors = instances.multiply(feature_idf_ordered)
     return tfidf_vectors
 
-def return_featureselection(prune):
-    # by default pruning is done based on feature frequency
-    
+def return_featureselection(featureweights,prune):
+    # by default pruning is done based on feature frequency    
     featureselection = sorted(featureweights, key = featureweights.get, reverse = True)[:prune]
     return featureselection
 
