@@ -9,7 +9,7 @@ import copy
 import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
-from sklearn.decomposition import IncrementalPCA
+from sklearn.feature_extraction.text import TfidfTransformer
 
 class Counts:
     """
@@ -144,10 +144,13 @@ def return_document_frequency(instances, labels):
 
 def return_idf(instances, labels):
 
-    cnt = Counts(instances, labels)
-    idf = cnt.count_idf()
+    transformer = TfidfTransformer(smooth_idf=True)
+    transformer.fit(instances)
+    idf = dict.fromkeys(range(instances.shape[1]), 0)
+    for feature,value in enumerate(list(transformer._idf_diag.data)):
+        idf[feature] = value
     return idf
-
+                            
 def return_binary_vectors(instances, feature_weights):
     
     binary_values = numpy.array([1 for cell in instances.data])
