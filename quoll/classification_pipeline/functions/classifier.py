@@ -65,70 +65,67 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         else:
             selected_alpha = float(alpha)
         self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
+
+
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):
         return self.model
 
+    def return_class_names(self):
+        return [self.label_encoder.inverse_transform(c) for c in self.model.classes_]
+
     def return_feature_count(self,vocab=False):
-        feature_count = []
-        feature_count.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de namen van de klassen
+        feature_count = ['\t'.join(self.return_class_names())]
         if vocab:
-            for i,vals in enumerate(self.model.feature_count_.T.tolist()):
-                feature_count.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
+            l=vocab
         else:
-            for i,vals in enumerate(self.model.feature_count_.T.tolist()):
-                feature_count.append('\t'.join([str(i)] + [str(x) for x in vals]))
+            l=list(range(len(self.model.feature_count_.T.tolist())))
+        feature_count.extend(['\t'.join([str(l[i])] + [str(x) for x in vals]) for i,vals in enumerate(self.model.feature_count_.T.tolist())])
         return '\n'.join(feature_count) + '\n'
 
     def return_feature_log_prob(self,vocab=False):
-        feature_log_prob = []
-        feature_log_prob.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de namen van de klassen
+        feature_log_prob = ['\t'.join(self.return_class_names())]
         if vocab:
-            for i,vals in enumerate(self.model.feature_log_prob_.T.tolist()):
-                feature_log_prob.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
+            l=vocab
         else:
-            for i,vals in enumerate(self.model.feature_log_prob_.T.tolist()):
-                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
+            l=list(range(len(self.model.feature_log_prob_.T.tolist())))
+        feature_log_prob.extend(['\t'.join([str(l[i])] + [str(x) for x in vals]) for i,vals in enumerate(self.model.feature_log_prob_.T.tolist())])
         return '\n'.join(feature_log_prob) + '\n'
 
-    def return_ranked_features(self,vocab=False):
-        ranked_features = []
-        ranked_features.append('\t'.join([' '.join([self.label_encoder.inverse_transform(self.model.classes_[i]),'log prob']) for i in range(len(self.model.classes_))])) # de namen van de klassen
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
-        sorted_features_all_classes = []
-        for i,c in enumerate(sorted_classes):
-            if vocab:
-                features_log_prob_class = [[vocab[j],vals[i]] for j,vals in enumerate(self.model.feature_log_prob_.T.tolist())]
-            else:
-                features_log_prob_class = [[str(j),vals[i]] for j,vals in enumerate(self.model.feature_log_prob_.T.tolist())]
-            sorted_features_log_prob_class = sorted(features_log_prob_class,key = lambda k : k[1],reverse=True)
-            sorted_features_log_prob_class_str = [' '.join([x,str(y)]) for x,y in sorted_features_log_prob_class]
-            sorted_features_all_classes.append(sorted_features_log_prob_class_str)
-        for i,s in enumerate(sorted_features_all_classes[0]):
-            ranked_features.append('\t'.join([sorted_features_all_classes[j][i] for j,x in enumerate(sorted_features_all_classes)]))
-        return '\n'.join(ranked_features) + '\n'
+    def return_ranked_features(self,class_index,vocab=False):
+        if vocab:
+            l=vocab
+        else:
+            l=list(range(len(self.model.feature_log_prob_.T.tolist())))
+        sorted_features_class = [' '.join([str(x),str(y)]) for x,y in sorted([[l[j],vals[class_index]] for j,vals in enumerate(self.model.feature_log_prob_.T.tolist())],key=lambda k : k[1],reverse=True)]
+        return '\n'.join(sorted_features_class) + '\n'
 
     def return_class_count(self):
-        class_count = []
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
-        for i,c in enumerate(sorted_classes):
-            class_count.append('\t'.join([c[0],str(int(self.model.class_count_.tolist()[i]))]))
+        sorted_classes = sorted(self.return_class_names(),key=lambda k : k[0])
+        class_count = ['\t'.join([c[0],str(self.model.class_count_.tolist()[i])]) for i,c in enumerate(sorted_classes)]
         return '\n'.join(class_count) + '\n'
 
     def return_class_log_prior(self):
-        class_log_prior = []
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_log_prior_.tolist())],key = lambda k : k[0])
-        for i,c in enumerate(sorted_classes):
-            class_log_prior.append('\t'.join([c[0],str(self.model.class_log_prior_.tolist()[i])]))
+        sorted_classes = sorted(self.return_class_names(),key=lambda k : k[0])
+        class_log_prior = ['\t'.join([c[0],str(self.model.class_log_prior_.tolist()[i])]) for i,c in enumerate(sorted_classes)]
         return '\n'.join(class_log_prior) + '\n'
 
+    def return_parameter_settings(self):
+        parameter_settings = []
+        for param in ['alpha','fit_prior']:
+            parameter_settings.append([param,str(self.model.get_params()[param])])
+        return '\n'.join([': '.join(x) for x in parameter_settings])
+
     def return_model_insights(self,vocab):
-        model_insights = [['feature_count.txt',self.return_feature_count(vocab)],['feature_log_prob.txt',self.return_feature_log_prob(vocab)],['ranked_features.txt',self.return_ranked_features(vocab)],['class_count.txt',self.return_class_count()],['class_log_prior.txt',self.return_class_log_prior()]]
+        model_insights = [['parameter_settings',self.return_parameter_settings()],['feature_count.txt',self.return_feature_count(vocab)],['feature_log_prob.txt',self.return_feature_log_prob(vocab)],['class_count.txt',self.return_class_count()],['class_log_prior.txt',self.return_class_log_prior]]
+        sorted_classes = sorted(self.return_class_names(),key=lambda k : k[0])
+        for i,cl in enumerate(sorted_classes):
+            model_insights.append(['ranked_features_' + cl + '.txt',self.return_ranked_features(i,vocab)])
         return model_insights
         
 
-class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
+class SVMClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
         AbstractSKLearnClassifier.__init__(self)
@@ -139,86 +136,175 @@ class GaussianNaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-    
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='default', fit_prior=True, jobs=4):
-        fit_prior = False if fit_prior == 'False' else True
-        jobs = int(jobs)
-        if alpha == '':
-            paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=6)
-            paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
-            selected_alpha = paramsearch.best_estimator_.alpha
-        elif alpha == 'default':
-            selected_alpha = 1.0
+
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1):
+        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+            parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
+            multi = True
+        else: # only two classes to distinguish
+            parameters = ['C', 'kernel', 'gamma', 'degree']
+            multi = False
+        if len(class_weight.split(':')) > 1: # dictionary
+            class_weight = dict([label_weight.split(':') for label_weight in class_weight.split()])
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'search' else [float(x) for x in c.split()]
+        kernel_values = ['linear', 'rbf', 'poly'] if kernel == 'search' else [k for  k in kernel.split()]
+        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'search' else [float(x) for x in gamma.split()]
+        degree_values = [1, 2, 3, 4] if degree == 'search' else [int(x) for x in degree.split()]
+        grid_values = [c_values, kernel_values, gamma_values, degree_values]
+        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
+            settings = {}
+            for i, parameter in enumerate(parameters):
+                settings[parameter] = grid_values[i][0]
         else:
-            selected_alpha = alpha
-        self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
+            param_grid = {}
+            for i, parameter in enumerate(parameters):
+                param_grid[parameter] = grid_values[i]
+            model = svm.SVC(probability=True)
+            if multi:
+                model = OutputCodeClassifier(model)
+                trainvectors = trainvectors.todense()
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
+            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            settings = paramsearch.best_params_
+        # train an SVC classifier with the settings that led to the best performance
+        self.model = svm.SVC(
+            probability = True,
+            C = settings[parameters[0]],
+            kernel = settings[parameters[1]],
+            gamma = settings[parameters[2]],
+            degree = settings[parameters[3]],
+            class_weight = class_weight,
+            cache_size = 1000,
+            verbose = 2
+        )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
     def return_classifier(self):
         return self.model
 
-    def return_feature_count(self,vocab=False):
-        feature_count = []
-        feature_count.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) 
-        if vocab:
-            for i,vals in enumerate(self.model.feature_count_.T.tolist()):
-                feature_count.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
-        else:
-            for i,vals in enumerate(self.model.feature_count_.T.tolist()):
-                feature_count.append('\t'.join([str(i)] + [str(x) for x in vals]))
-        return '\n'.join(feature_count) + '\n'
+    def return_class_names(self):
+        return [self.label_encoder.inverse_transform(c) for c in self.model.classes_]
 
-    def return_feature_log_prob(self,vocab=False):
-        feature_log_prob = []
-        feature_log_prob.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) 
-        if vocab:
-            for i,vals in enumerate(self.model.feature_log_prob_.T.tolist()):
-                feature_log_prob.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
-        else:
-            for i,vals in enumerate(self.model.feature_log_prob_.T.tolist()):
-                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
-        return '\n'.join(feature_log_prob) + '\n'
-
-    def return_ranked_features(self,vocab=False):
-        ranked_features = []
-        ranked_features.append('\t'.join([' '.join([self.label_encoder.inverse_transform(self.model.classes_[i]),'log prob']) for i in range(len(self.model.classes_))])) 
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
-        sorted_features_all_classes = []
-        for i,c in enumerate(sorted_classes):
+    def return_feature_weights(self,vocab=False):
+        if self.model.get_params()['kernel'] == 'linear':
             if vocab:
-                features_log_prob_class = [[vocab[j],vals[i]] for j,vals in enumerate(self.model.feature_log_prob_.T.tolist())]
+                l=vocab
             else:
-                features_log_prob_class = [[str(j),vals[i]] for j,vals in enumerate(self.model.feature_log_prob_.T.tolist())]
-            sorted_features_log_prob_class = sorted(features_log_prob_class,key = lambda k : k[1],reverse=True)
-            sorted_features_log_prob_class_str = [' '.join([x,str(y)]) for x,y in sorted_features_log_prob_class]
-            sorted_features_all_classes.append(sorted_features_log_prob_class_str)
-        for i,s in enumerate(sorted_features_all_classes[0]):
-            ranked_features.append('\t'.join([sorted_features_all_classes[j][i] for j,x in enumerate(sorted_features_all_classes)]))
-        return '\n'.join(ranked_features) + '\n'
+                l=list(range(self.model.coef_.shape[1]))
+            feature_weights=[]
+            for i in l:
+                feature_weights=[]
+                for j in range(self.model.coef_.shape[0]):
+                    feature_weights.append(str(self.model.coef_[j,i]))
+                feature_weights.append(' '.join(feature_weights))
+            return '\n'.join(feature_weights)
+        else:
+            return 'Feature weights can only be requested in case of a linear kernel, not for a ' + str(self.model.get_params()['kernel']) + ' kernel.'
 
-    def return_class_count(self):
-        class_count = []
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
-        for i,c in enumerate(sorted_classes):
-            class_count.append('\t'.join([c[0],str(int(self.model.class_count_.tolist()[i]))]))
-        return '\n'.join(class_count) + '\n'
+    def return_parameter_settings(self):
+        parameter_settings = []
+        for param in ['C','kernel','gamma','degree']:
+            parameter_settings.append([param,str(self.model.get_params()[param])])
+        return '\n'.join([': '.join(x) for x in parameter_settings])
 
-    def return_class_prior(self):
-        class_log_prior = []
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_log_prior_.tolist())],key = lambda k : k[0])
-        for i,c in enumerate(sorted_classes):
-            class_log_prior.append('\t'.join([c[0],str(self.model.class_log_prior_.tolist()[i])]))
-        return '\n'.join(class_log_prior) + '\n'
-
-    def return_model_insights(self,vocab):
-        model_insights = [['feature_count.txt',self.return_feature_count(vocab)],['feature_log_prob.txt',self.return_feature_log_prob(vocab)],['ranked_features.txt',self.return_ranked_features(vocab)],['class_count.txt',self.return_class_count()],['class_log_prior.txt',self.return_class_log_prior()]]
+    def return_model_insights(self,vocab=False):
+        model_insights = [['feature_weights.txt',self.return_feature_weights(vocab)],['parameter_settings.txt',self.return_parameter_settings()]]
         return model_insights
 
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
+class LogisticRegressionClassifier(AbstractSKLearnClassifier):
 
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+
+    def train_classifier(self, trainvectors, labels, c='1.0', solver='liblinear', dual=False, penalty='l2', multiclass='ovr', max_iterations='1000', iterations=10, jobs=4):
+        parameters = ['C', 'solver', 'penalty', 'dual', 'multi_class']
+        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'search' else [float(x) for x in c.split()]
+        solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == 'search' else [s for  s in solver.split()]
+        if penalty == 'search':
+            if not set(['newton-cg','lbfgs','sag']) & set(solver_values):
+                penalty_values = ['l1', 'l2']
+            else:
+                penalty_values = ['l2']
+        else:
+            penalty_values = [penalty]
+        if dual:
+            if dual == 'search':
+                if len(solver_values) == 1 and solver_values[0] == 'liblinear':
+                    if len(penalty_values) == 1 and penalty_values[0] == 'l2':
+                        dual_values = [True,False]
+                else:
+                    dual_values = [False]
+            else:
+                dual_values = [int(dual)] # 1 or 0
+        else: # dual is False
+            dual_values = [False]
+        if multiclass == 'search':
+            if 'liblinear' not in solver_values:
+                multiclass_values = ['ovr', 'multinomial']
+            else:
+                multiclass_values = ['ovr']
+        else:
+            multiclass_values = [multiclass]
+        grid_values = [c_values, solver_values, penalty_values, dual_values, multiclass_values]
+        max_iterations = int(max_iterations)
+        if not False in [len(x) == 1 for x in grid_values]: # only single parameter settings
+            settings = {}
+            for i, parameter in enumerate(parameters):
+                settings[parameter] = grid_values[i][0]
+        else: # try different parameter combinations
+            iterations=int(iterations)
+            param_grid = {}
+            for i, parameter in enumerate(parameters):
+                param_grid[parameter] = grid_values[i]
+            model = LogisticRegression(max_iter=max_iterations)
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
+            paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
+            settings = paramsearch.best_params_
+        # train a logistic regression classifier with the settings that led to the best performance
+        self.model = LogisticRegression(
+            C = settings[parameters[0]],
+            solver = settings[parameters[1]],
+            penalty = settings[parameters[2]],
+            dual = settings[parameters[3]],
+            multi_class = settings[parameters[4]],
+            max_iter = max_iterations,
+            verbose = 2,
+            n_jobs = jobs
+        )
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+
+    def return_classifier(self):
+        return self.model
+
+    def return_feature_coef(self,vocab=False):
+        feature_coef = []
+        feature_coef.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de names of the classes
+        if vocab:
+            for i,vals in enumerate(self.model.coef_.T.tolist()):
+                feature_coef.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
+        else:
+            for i,vals in enumerate(self.model.coef_.T.tolist()):
+                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
+        return '\n'.join(feature_coef) + '\n'
+    
+    def return_model_insights(self,vocab=False):
+        model_insights = [['coef.txt',self.return_feature_coef(vocab)]]
+        return model_insights
+        
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
 
 
 class LinearRegressionClassifier(AbstractSKLearnClassifier):
@@ -306,175 +392,8 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
 
 
 
-class SVMClassifier(AbstractSKLearnClassifier):
 
-    def __init__(self):
-        AbstractSKLearnClassifier.__init__(self)
-        self.model = False
 
-    def set_label_encoder(self, labels):
-        AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-    def return_label_encoding(self, labels):
-        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1):
-        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
-            parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
-            multi = True
-        else: # only two classes to distinguish
-            parameters = ['C', 'kernel', 'gamma', 'degree']
-            multi = False
-        if len(class_weight.split(':')) > 1: # dictionary
-            class_weight = dict([label_weight.split(':') for label_weight in class_weight.split()])
-        c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'search' else [float(x) for x in c.split()]
-        kernel_values = ['linear', 'rbf', 'poly'] if kernel == 'search' else [k for  k in kernel.split()]
-        gamma_values = [0.0005, 0.002, 0.008, 0.032, 0.128, 0.512, 1.024, 2.048] if gamma == 'search' else [float(x) for x in gamma.split()]
-        degree_values = [1, 2, 3, 4] if degree == 'search' else [int(x) for x in degree.split()]
-        grid_values = [c_values, kernel_values, gamma_values, degree_values]
-        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
-            settings = {}
-            for i, parameter in enumerate(parameters):
-                settings[parameter] = grid_values[i][0]
-        else:
-            param_grid = {}
-            for i, parameter in enumerate(parameters):
-                param_grid[parameter] = grid_values[i]
-            model = svm.SVC(probability=True)
-            if multi:
-                model = OutputCodeClassifier(model)
-                trainvectors = trainvectors.todense()
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
-            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
-            settings = paramsearch.best_params_
-        # train an SVC classifier with the settings that led to the best performance
-        self.model = svm.SVC(
-            probability = True,
-            C = settings[parameters[0]],
-            kernel = settings[parameters[1]],
-            gamma = settings[parameters[2]],
-            degree = settings[parameters[3]],
-            class_weight = class_weight,
-            cache_size = 1000,
-            verbose = 2
-        )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
-
-    def return_classifier(self):
-        return self.model
-
-    def return_support_vectors(self):
-        return '\n'.join(self.model.support_vectors_.T.tolist())
-
-    def return_feature_weights(self):
-        return '\n'.join([' '.join(l) for l in self.model.coef_.T.tolist()])
-
-    def return_model_insights(self,vocab=False):
-        model_insights = []
-        try:
-            model_insights.append(['support_vectors.txt',self.return_support_vectors()])
-        except:
-            print('could not return support vectors')
-        try:
-            model_insights.append(['feature_weights',self.return_feature_weights()])
-        except:
-            print('could not return feature weights')
-        return model_insights
-
-    def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-        return classifications
-
-class LogisticRegressionClassifier(AbstractSKLearnClassifier):
-
-    def __init__(self):
-        AbstractSKLearnClassifier.__init__(self)
-        self.model = False
-
-    def set_label_encoder(self, labels):
-        AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-    def return_label_encoding(self, labels):
-        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, c='', solver='', dual='', penalty='', multiclass='', max_iterations=1000, iterations=10, jobs=4):
-        jobs = int(jobs)
-        parameters = ['C', 'solver', 'penalty', 'dual', 'multi_class']
-        c_values = [0.001, 0.005, 0.01, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0] if c == '' else [float(x) for x in c.split()]
-        solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == '' else [s for  s in solver.split()]
-        if penalty == '':
-            if not set(['newton-cg','lbfgs','sag']) & set(solver_values):
-                penalty_values = ['l1', 'l2']
-            else:
-                penalty_values = ['l2']
-        else:
-            penalty_values = [penalty]
-        if dual == '':
-            if len(solver_values) == 1 and solver_values[0] == 'liblinear':
-                if len(penalty_values) == 1 and penalty_values[0] == 'l2':
-                    dual_values = [True,False]
-            else:
-                dual_values = [False]
-        elif dual == 'False':
-            dual_values = [False]
-        else:
-            dual_values = [int(dual)] # 1 or 0
-        if multiclass == '':
-            if 'liblinear' not in solver_values:
-                multiclass_values = ['ovr', 'multinomial']
-            else:
-                multiclass_values = ['ovr']
-        else:
-            multiclass_values = [multiclass]
-        grid_values = [c_values, solver_values, penalty_values, dual_values, multiclass_values]
-        max_iterations = int(max_iterations)
-        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
-            settings = {}
-            for i, parameter in enumerate(parameters):
-                settings[parameter] = grid_values[i][0]
-        else: # try different parameter combinations
-            iterations=int(iterations)
-            param_grid = {}
-            for i, parameter in enumerate(parameters):
-                param_grid[parameter] = grid_values[i]
-            model = LogisticRegression(max_iter=max_iterations)
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
-            paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
-            settings = paramsearch.best_params_
-        # train a logistic regression classifier with the settings that led to the best performance
-        self.model = LogisticRegression(
-            C = settings[parameters[0]],
-            solver = settings[parameters[1]],
-            penalty = settings[parameters[2]],
-            dual = settings[parameters[3]],
-            multi_class = settings[parameters[4]],
-            max_iter = max_iterations,
-            verbose = 2,
-            n_jobs = 10
-        )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
-
-    def return_classifier(self):
-        return self.model
-
-    def return_feature_coef(self,vocab=False):
-        feature_coef = []
-        feature_coef.append('\t'.join([''] + [self.label_encoder.inverse_transform(self.model.classes_[i]) for i in range(len(self.model.classes_))])) # de names of the classes
-        if vocab:
-            for i,vals in enumerate(self.model.coef_.T.tolist()):
-                feature_coef.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
-        else:
-            for i,vals in enumerate(self.model.coef_.T.tolist()):
-                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
-        return '\n'.join(feature_coef) + '\n'
-    
-    def return_model_insights(self,vocab=False):
-        model_insights = [['coef.txt',self.return_feature_coef(vocab)]]
-        return model_insights
-        
-    def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-        return classifications
 
 class TreeClassifier(AbstractSKLearnClassifier):
 

@@ -334,6 +334,13 @@ class Folds(Task):
     svm_gamma = Parameter(default='0.1')
     svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
+
+    lr_c = Parameter(default='1.0')
+    lr_solver = Parameter(default='liblinear')
+    lr_dual = BoolParameter()
+    lr_penalty = Parameter(default='l2')
+    lr_multiclass = Parameter(default='ovr')
+    lr_maxiter = Parameter(default='1000')
     
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
@@ -356,7 +363,8 @@ class Folds(Task):
                 weight=self.weight, prune=self.prune, balance=self.balance, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
+                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
             )                
 
 class Fold(Task):
@@ -384,6 +392,13 @@ class Fold(Task):
     svm_gamma = Parameter()
     svm_degree = Parameter()
     svm_class_weight = Parameter()
+
+    lr_c = Parameter()
+    lr_solver = Parameter()
+    lr_dual = BoolParameter()
+    lr_penalty = Parameter()
+    lr_multiclass = Parameter()
+    lr_maxiter = Parameter()
     
     # vectorizer parameters
     weight = Parameter() # options: frequency, binary, tfidf
@@ -488,7 +503,8 @@ class Fold(Task):
             weight=self.weight, prune=self.prune, balance=self.balance, 
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
+            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
         )
 
 
@@ -523,6 +539,13 @@ class RunFold(WorkflowComponent):
     svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
 
+    lr_c = Parameter(default='1.0')
+    lr_solver = Parameter(default='liblinear')
+    lr_dual = BoolParameter()
+    lr_penalty = Parameter(default='l2')
+    lr_multiclass = Parameter(default='ovr')
+    lr_maxiter = Parameter(default='1000')
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
@@ -552,7 +575,8 @@ class RunFold(WorkflowComponent):
             weight=self.weight, prune=self.prune, balance=self.balance, 
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
+            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
         )
         run_fold.in_directory = input_feeds['directory']
         run_fold.in_instances = input_feeds['instances']
@@ -596,7 +620,14 @@ class Report(WorkflowComponent):
     svm_gamma = Parameter(default='0.1')
     svm_degree = Parameter(default='1')
     svm_class_weight = Parameter(default='balanced')
-    
+
+    lr_c = Parameter(default='1.0')
+    lr_solver = Parameter(default='liblinear')
+    lr_dual = BoolParameter()
+    lr_penalty = Parameter(default='l2')
+    lr_multiclass = Parameter(default='ovr')
+    lr_maxiter = Parameter(default='1000')
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
@@ -721,7 +752,8 @@ class Report(WorkflowComponent):
                 weight=self.weight, prune=self.prune, balance=self.balance, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight
+                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
             )
             fold_runner.in_bins = bin_maker.out_bins
             fold_runner.in_instances = instances
@@ -758,7 +790,9 @@ class Report(WorkflowComponent):
 
                 trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight)
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+                )
                 trainer.in_train = trainvectors
                 trainer.in_trainlabels = trainlabels    
 

@@ -195,6 +195,9 @@ class ApplyVectorizer(Task):
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
+
+
+
 class VectorizeCsv(Task):
 
     in_csv = InputSlot()
