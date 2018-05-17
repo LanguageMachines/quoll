@@ -118,7 +118,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return '\n'.join([': '.join(x) for x in parameter_settings])
 
     def return_model_insights(self,vocab):
-        model_insights = [['parameter_settings',self.return_parameter_settings()],['feature_count.txt',self.return_feature_count(vocab)],['feature_log_prob.txt',self.return_feature_log_prob(vocab)],['class_count.txt',self.return_class_count()],['class_log_prior.txt',self.return_class_log_prior]]
+        model_insights = [['parameter_settings.txt',self.return_parameter_settings()],['feature_count.txt',self.return_feature_count(vocab)],['feature_log_prob.txt',self.return_feature_log_prob(vocab)],['class_count.txt',self.return_class_count()],['class_log_prior.txt',self.return_class_log_prior()]]
         sorted_classes = sorted(self.return_class_names(),key=lambda k : k[0])
         for i,cl in enumerate(sorted_classes):
             model_insights.append(['ranked_features_' + cl + '.txt',self.return_ranked_features(i,vocab)])
@@ -191,13 +191,13 @@ class SVMClassifier(AbstractSKLearnClassifier):
                 l=vocab
             else:
                 l=list(range(self.model.coef_.shape[1]))
-            feature_weights=[]
-            for i in l:
-                feature_weights=[]
+            features_weights=[]
+            for i in range(len(l)):
+                feature_weights=[l[i]]
                 for j in range(self.model.coef_.shape[0]):
                     feature_weights.append(str(self.model.coef_[j,i]))
-                feature_weights.append(' '.join(feature_weights))
-            return '\n'.join(feature_weights)
+                features_weights.append(' '.join(feature_weights))
+            return '\n'.join(features_weights)
         else:
             return 'Feature weights can only be requested in case of a linear kernel, not for a ' + str(self.model.get_params()['kernel']) + ' kernel.'
 
@@ -237,7 +237,11 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             else:
                 penalty_values = ['l2']
         else:
-            penalty_values = [penalty]
+            if (set(['newton-cg','lbfgs','sag']) & set(solver_values)) and 'l1' in penalty:
+                print('L1 penalty does not fit with solver, fixing l2')
+                penalty_values = ['l2']
+            else:
+                penalty_values = [penalty]
         if dual:
             if dual == 'search':
                 if len(solver_values) == 1 and solver_values[0] == 'liblinear':
@@ -255,7 +259,14 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             else:
                 multiclass_values = ['ovr']
         else:
-            multiclass_values = [multiclass]
+            if 'liblinear' not in solver_values:
+                multiclass_values = [multiclass]
+            else:
+                if 'multinomial' in multiclass:
+                    print('Multinomial is not an option when using liblinear solver, switching to \'ovr\' setting for \'multiclass\'')
+                    multiclass_values = ['ovr']
+                else:
+                    multiclass_values = [multiclass]
         grid_values = [c_values, solver_values, penalty_values, dual_values, multiclass_values]
         max_iterations = int(max_iterations)
         if not False in [len(x) == 1 for x in grid_values]: # only single parameter settings
@@ -264,6 +275,9 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
                 settings[parameter] = grid_values[i][0]
         else: # try different parameter combinations
             iterations=int(iterations)
+            combis = len(c_values) * len(solver_values) * len(penalty_values) * len(dual_values) * len(multiclass_values)
+            if combis < iterations:
+                iterations=combis
             param_grid = {}
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]

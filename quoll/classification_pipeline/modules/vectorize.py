@@ -155,6 +155,9 @@ class ApplyVectorizer(Task):
     def out_test(self):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
+
     def run(self):
 
         weight_functions = {
@@ -196,6 +199,10 @@ class ApplyVectorizer(Task):
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
+        # write featureselection to file
+        with open(self.out_featureselection().path, 'w', encoding = 'utf-8') as t_out:
+            t_out.write('\n'.join(lines))
+        
 
 class VectorizeCsv(Task):
 
@@ -225,16 +232,16 @@ class Combine(Task):
     in_vectors_append = InputSlot()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.vocabulary.txt')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def in_vocabulary_append(self):
-        return self.outputfrominput(inputformat='vectors_append', stripextension='.vectors.npz', addextension='.vocabulary.txt')   
+        return self.outputfrominput(inputformat='vectors_append', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.featureselection.txt')   
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.featureselection.txt')   
 
     def out_combined(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.vectors.npz')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.vectors.npz')
     
     def run(self):
 
@@ -255,19 +262,21 @@ class Combine(Task):
         # load vectors
         loader = numpy.load(self.in_vectors().path)
         vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-
+        V = vectors.toarray()
+        
         # load vectors append
         loader = numpy.load(self.in_vectors_append().path)
         vectors_append = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-
+        VA = vectors_append.toarray()
+        
         # combine vocabularies
         vocabulary_combined = vocabulary + vocabulary_append
 
         # combine vectors
-        vectors_combined = sparse.hstack(vectors,vectors_append)
+        vectors_combined = sparse.hstack([vectors,vectors_append]).tocsr()
 
         # write vocabulary to file
-        with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
+        with open(self.out_featureselection().path, 'w', encoding='utf-8') as v_out:
             v_out.write('\n'.join(vocabulary_combined))
 
         # write combined vectors to file
@@ -363,7 +372,7 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='testinstances_append'),
                 ),
             ]
-            )).T.reshape(-1,3)]  
+            )).T.reshape(-1,5)]  
     
     def setup(self, workflow, input_feeds):
 
@@ -414,7 +423,13 @@ class Vectorize(WorkflowComponent):
 
                 trainvectors_append = trainvectorizer_append.out_vectors
 
-            traincombiner = workflow.new_task('combine_train',CombineTrain,autopass=True)
+            if 'vectorized_train' in input_feeds.keys():
+                trainvectors = input_feeds['vectorized_train']
+ 
+            else:
+                trainvectors = trainvectorizer.out_train
+
+            traincombiner = workflow.new_task('combine_train',Combine,autopass=True)
             traincombiner.in_vectors = trainvectors
             traincombiner.in_vectors_append = trainvectors_append
 
@@ -445,7 +460,7 @@ class Vectorize(WorkflowComponent):
                     
                 if 'vectorized_train' in input_feeds.keys():
                     trainvectors = input_feeds['vectorized_train']
-
+ 
                 else:
                     trainvectors = trainvectorizer.out_train
 
@@ -455,6 +470,8 @@ class Vectorize(WorkflowComponent):
 
             if 'vectorized_test_append' in input_feeds.keys() or 'featurized_csv_test_append' in input_feeds.keys():
 
+                testvectors = testvectorizer.out_test
+                
                 if 'vectorized_test_append' in input_feeds.keys():
                     testvectors_append = input_feeds['vectorized_test_append'] 
 
@@ -464,9 +481,9 @@ class Vectorize(WorkflowComponent):
 
                     testvectors_append = testvectorizer_append.out_vectors
 
-                testcombiner = workflow.new_task('combine_test',CombineTest,autopass=True)
-                testcombiner.in_vectors = trainvectors
-                testcombiner.in_vectors_append = trainvectors_append
+                testcombiner = workflow.new_task('combine_test',Combine,autopass=True)
+                testcombiner.in_vectors = testvectors
+                testcombiner.in_vectors_append = testvectors_append
 
                 return testvectorizer, traincombiner, testcombiner
 
