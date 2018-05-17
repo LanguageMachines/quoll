@@ -375,7 +375,7 @@ class Vectorize(WorkflowComponent):
             )).T.reshape(-1,5)]  
     
     def setup(self, workflow, input_feeds):
-
+        
         ######################
         ### Training phase ###
         ######################
@@ -485,8 +485,12 @@ class Vectorize(WorkflowComponent):
                 testcombiner.in_vectors = testvectors
                 testcombiner.in_vectors_append = testvectors_append
 
-                return testvectorizer, traincombiner, testcombiner
+                if 'vectorized_train_append' in input_feeds.keys() or 'featurized_csv_train_append' in input_feeds.keys():
+                    return testvectorizer, traincombiner, testcombiner
 
+                else:
+                    return testvectorizer, testcombiner
+                
             else:
 
                 if 'featurized_test_csv' in input_feeds.keys():
