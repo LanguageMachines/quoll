@@ -595,10 +595,17 @@ class RunFold(WorkflowComponent):
 class Report(WorkflowComponent):
 
     train = Parameter() # only train for nfold cv
+    train_append = Parameter(default = 'xxx.xxx') # additional features to combine with word features in .csv or .vector.npz
     test = Parameter(default = 'xxx.xxx')
+    test_append = Parameter(default = 'xxx.xxx')
     trainlabels = Parameter()
+    trainlabels_layer2 = Parameter(default = 'xxx.xxx')
     testlabels = Parameter(default = 'xxx.xxx')
+    testlabels_layer2 = Parameter(default = 'xxx.xxx')
     docs = Parameter(default = 'xxx.xxx') # all docs for nfold cv, test docs for train and test
+
+    # procedural parameter
+    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
 
     # nfold-cv parameters
     n = IntParameter(default=10)
@@ -662,6 +669,10 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='train')
                 ),
                 (
+                InputFormat(self, format_id='vectorized_train_append',extension='.vectors.npz',inputparameter='train_append'),
+                InputFormat(self, format_id='featurized_csv_train_append',extension='.csv',inputparameter='train_append'),
+                ),
+                (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
@@ -674,16 +685,26 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test')
                 ),
                 (
+                InputFormat(self, format_id='vectorized_test_append',extension='.vectors.npz',inputparameter='test_append'),
+                InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='test_append'),
+                ),
+                (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
+                ),
+                (
+                InputFormat(self, format_id='labels_train_layer2',extension='.labels',inputparameter='trainlabels_layer2')
                 ),
                 (
                 InputFormat(self, format_id='labels_test',extension='.labels',inputparameter='testlabels')
                 ),
                 (
+                InputFormat(self, format_id='labels_test_layer2',extension='.labels',inputparameter='testlabels_layer2')
+                ),
+                (
                 InputFormat(self, format_id='docs',extension='.txt',inputparameter='docs')
                 )
             ]
-            )).T.reshape(-1,5)]
+            )).T.reshape(-1,9)]
 
     def setup(self, workflow, input_feeds):
         
@@ -698,7 +719,7 @@ class Report(WorkflowComponent):
         featurized_train = False
         trainvectors = False
         
-        if 'docs_train' in input_feeds.keys() or 'pre_featurized_train' in input_feeds.keys():
+        if 'docs_train' in input_feeds.keys() or 'pre_featurized_train' in input_feeds.keys(): # both stored as docs and featurized
 
             if 'pre_featurized_train' in input_feeds.keys():
                 pre_featurized = input_feeds['pre_featurized_train']
@@ -723,6 +744,18 @@ class Report(WorkflowComponent):
 
         elif 'vectorized_train' in input_feeds.keys():
             trainvectors = input_feeds['vectorized_train']
+
+        if 'vectorized_train_append' in input_feeds.keys():
+            trainvectors_append = input_feeds['vectorized_train_append']
+
+        elif 'featurized_csv_train_append' in input_feeds.keys():
+            trainvectorizer_append = workflow.new_task('vectorize_train_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer_append.in_csv = input_feeds['featurized_csv_train_append']
+
+            trainvectors_append = trainvectorizer_append.out_vectors
+
+        else:
+            trainvectors_append = False
 
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
 
