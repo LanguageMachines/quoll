@@ -177,11 +177,37 @@ class VectorizeTrainTask(Task):
     
     def run(self):
         
-        if self.complete(): # needed as it will not complete otherwise
+        if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
             yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
+
+class VectorizeTrainCombinedTask(Task):
+
+    in_trainfeatures = InputSlot()
+    in_trainvectors_append = InputSlot()
+    in_trainlabels = InputSlot()
+
+    weight = Parameter()
+    prune = IntParameter()
+    balance = BoolParameter()
+
+    def out_train_combined(self):
+        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-3] + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-3] + '.vectors.npz')
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+
+    def out_trainlabels(self):
+           return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
+    
+    def run(self):
         
+        if self.complete(): # necessary check as it will not complete otherwise
+            return True
+        else:
+            yield Vectorize(traininstances=self.in_trainfeatures().path,traininstances_append=self.in_trainvectors_append().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
+    
 class VectorizeTestTask(Task):
 
     in_trainvectors = InputSlot()
@@ -197,10 +223,31 @@ class VectorizeTestTask(Task):
 
     def run(self):
 
-        if self.complete(): # needed as it will not complete otherwise
+        if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
             yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,weight=self.weight,prune=self.prune,balance=self.balance)
+
+class VectorizeTestCombinedTask(Task):
+
+    in_trainvectors = InputSlot()
+    in_testfeatures = InputSlot()
+    in_testvectors_append = InputSlot()
+    in_trainlabels = InputSlot()
+
+    weight = Parameter()
+    prune = IntParameter()
+    balance = BoolParameter()
+    
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='testfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-3] + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-3] + '.vectors.npz')
+
+    def run(self):
+
+        if self.complete(): # necessary as it will not complete otherwise
+            return True
+        else:
+            yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,testinstances_append=self.in_testvectors_append().path,weight=self.weight,prune=self.prune,balance=self.balance)
 
 
 #################################################################
@@ -211,8 +258,10 @@ class VectorizeTestTask(Task):
 class Classify(WorkflowComponent):
     
     traininstances = Parameter()
+    traininstances_append = Parameter(default = 'xxx.xxx')
     trainlabels = Parameter()
     testinstances = Parameter(default = 'xxx.xxx') # not obligatory, dummy extension to enable a pass
+    testinstances_append = Parameter(default = 'xxx.xxx')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -269,6 +318,10 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances')
                 ),
                 (
+                InputFormat(self, format_id='vectorized_train_append',extension='.vectors.npz',inputparameter='traininstances_append'),
+                InputFormat(self, format_id='featurized_csv_train_append',extension='.csv',inputparameter='traininstances_append'),
+                ),
+                (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
@@ -281,6 +334,10 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances')
+                ),
+                (
+                InputFormat(self, format_id='vectorized_test_append',extension='.vectors.npz',inputparameter='testinstances_append'),
+                InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='testinstances_append'),
                 ),
             ]
             )).T.reshape(-1,3)]
@@ -315,9 +372,29 @@ class Classify(WorkflowComponent):
                 else:
                     featurized_train = input_feeds['featurized_train']
                 
-                trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                trainvectorizer.in_trainfeatures = featurized_train
-                trainvectorizer.in_trainlabels = trainlabels
+                if 'vectorized_train_append' in input_feeds.keys():
+                    trainvectors_append = input_feeds['vectorized_train_append']
+                elif 'featurized_csv_train_append' in input_feeds.keys():
+                    trainvectors_append = input_feeds['featurized_csv_train_append']
+                else:
+                    trainvectors_append = False
+
+                if trainvectors_append:
+
+                    trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    trainvectorizer.in_trainfeatures = featurized_train
+                    trainvectorizer.in_trainvectors_append = trainvectors_append
+                    trainvectorizer.in_trainlabels = trainlabels
+
+                    trainvectors_combined = trainvectorizer.out_train_combined
+
+                else:
+
+                    trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    trainvectorizer.in_trainfeatures = featurized_train
+                    trainvectorizer.in_trainlabels = trainlabels
+
+                    trainvectors_combined = False
             
                 trainvectors = trainvectorizer.out_train
                 trainlabels = trainvectorizer.out_trainlabels
@@ -327,7 +404,10 @@ class Classify(WorkflowComponent):
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
         )
-        trainer.in_train = trainvectors
+        if trainvectors_combined:
+            trainer.in_train = trainvectors_combined
+        else:
+            trainer.in_train = trainvectors
         trainer.in_trainlabels = trainlabels            
 
         ######################
@@ -356,10 +436,27 @@ class Classify(WorkflowComponent):
                     else:
                         featurized_test = input_feeds['featurized_test']
 
-                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                    testvectorizer.in_trainvectors = trainvectors
-                    testvectorizer.in_trainlabels = trainlabels
-                    testvectorizer.in_testfeatures = featurized_test
+                    if 'vectorized_test_append' in input_feeds.keys():
+                        testvectors_append = input_feeds['vectorized_test_append']
+                    elif 'featurized_csv_test_append' in input_feeds.keys():
+                        testvectors_append = input_feeds['featurized_csv_test_append']
+                    else:
+                        testvectors_append = False
+
+                    if testvectors_append:
+
+                        testvectorizer = workflow.new_task('vectorize_test_combined',VectorizeTestCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                        testvectorizer.in_trainvectors = trainvectors
+                        testvectorizer.in_trainlabels = trainlabels
+                        testvectorizer.in_testfeatures = featurized_test
+                        testvectorizer.in_testvectors_append = testvectors_append
+
+                    else:
+
+                        testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                        testvectorizer.in_trainvectors = trainvectors
+                        testvectorizer.in_trainlabels = trainlabels
+                        testvectorizer.in_testfeatures = featurized_test
 
                 testvectors = testvectorizer.out_vectors
 
