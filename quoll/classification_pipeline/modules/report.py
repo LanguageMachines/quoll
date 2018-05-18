@@ -752,6 +752,26 @@ class Report(WorkflowComponent):
         else:
             trainvectors_append = False
 
+        if trainvectors_append:
+
+            trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+            trainvectorizer.in_trainfeatures = featurized_train
+            trainvectorizer.in_trainvectors_append = trainvectors_append
+            trainvectorizer.in_trainlabels = trainlabels
+
+            trainvectors_combined = trainvectorizer.out_train_combined
+
+        else:
+
+            trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+            trainvectorizer.in_trainfeatures = featurized_train
+            trainvectorizer.in_trainlabels = trainlabels
+
+            trainvectors_combined = False
+    
+        trainvectors = trainvectorizer.out_train
+        trainlabels = trainvectorizer.out_trainlabels
+
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
 
         ######################
@@ -821,7 +841,10 @@ class Report(WorkflowComponent):
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
                 )
-                trainer.in_train = trainvectors
+                if trainvectors_combined:
+                    trainer.in_train = trainvectors_combined
+                else:
+                    trainer.in_train = trainvectors
                 trainer.in_trainlabels = trainlabels    
 
                 trainmodel = trainer.out_model 
