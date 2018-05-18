@@ -9,7 +9,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 #################################################################
 ### Tasks #######################################################
@@ -244,8 +244,6 @@ class VectorizeTestCombinedTask(Task):
 
     def run(self):
 
-        print('OUT VECTORS TEST',self.out_vectors().path)
-        
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
@@ -352,6 +350,16 @@ class Classify(WorkflowComponent):
         
         trainlabels = input_feeds['labels_train']
 
+        if 'vectorized_train_append' in input_feeds.keys():
+            trainvectors_append = input_feeds['vectorized_train_append']
+        elif 'featurized_csv_train_append' in input_feeds.keys():
+            trainvectorizer_append = workflow.new_task('vectorize_train_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer_append.in_csv = input_feeds['featurized_csv_train_append']
+                
+            trainvectors_append = trainvectorizer_append.out_vectors
+        else:
+            trainvectors_append = False
+        
         if 'vectorized_train' in input_feeds.keys():
             trainvectors = input_feeds['vectorized_train']
 
@@ -365,6 +373,7 @@ class Classify(WorkflowComponent):
 
             else:
 
+                trainvectors = False
                 if 'pre_featurized_train' in input_feeds.keys():
                     trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                     trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
@@ -374,30 +383,35 @@ class Classify(WorkflowComponent):
                 else:
                     featurized_train = input_feeds['featurized_train']
                 
-                if 'vectorized_train_append' in input_feeds.keys():
-                    trainvectors_append = input_feeds['vectorized_train_append']
-                elif 'featurized_csv_train_append' in input_feeds.keys():
-                    trainvectors_append = input_feeds['featurized_csv_train_append']
-                else:
-                    trainvectors_append = False
+        if trainvectors_append:
 
-                if trainvectors_append:
+            if trainvectors:
+                trainvectorizer = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
+                trainvectorizer.in_vectors = trainvectors
+                trainvectorizer.in_vectors_append = trainvectors_append
 
-                    trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                    trainvectorizer.in_trainfeatures = featurized_train
-                    trainvectorizer.in_trainvectors_append = trainvectors_append
-                    trainvectorizer.in_trainlabels = trainlabels
+                trainvectors_combined = trainvectorizer.out_combined
 
-                    trainvectors_combined = trainvectorizer.out_train_combined
+            else: # featurized train
 
-                else:
+                trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                trainvectorizer.in_trainfeatures = featurized_train
+                trainvectorizer.in_trainvectors_append = trainvectors_append
+                trainvectorizer.in_trainlabels = trainlabels
 
-                    trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                    trainvectorizer.in_trainfeatures = featurized_train
-                    trainvectorizer.in_trainlabels = trainlabels
+                trainvectors_combined = trainvectorizer.out_train_combined
+                trainvectors = trainvectorizer.out_train
+                trainlabels = trainvectorizer.out_trainlabels
 
-                    trainvectors_combined = False
-            
+        else:
+
+            trainvectors_combined = False
+
+            if not trainvectors:
+                trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                trainvectorizer.in_trainfeatures = featurized_train
+                trainvectorizer.in_trainlabels = trainlabels
+
                 trainvectors = trainvectorizer.out_train
                 trainlabels = trainvectorizer.out_trainlabels
                 
@@ -418,17 +432,30 @@ class Classify(WorkflowComponent):
 
         if len(list(set(['vectorized_test','featurized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
 
+            if 'vectorized_test_append' in input_feeds.keys():
+                testvectors_append = input_feeds['vectorized_test_append']
+            elif 'featurized_csv_test_append' in input_feeds.keys():
+                testvectorizer_append = workflow.new_task('vectorize_test_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                testvectorizer_append.in_csv = input_feeds['featurized_csv_test_append']
+
+                testvectors_append = testvectorizer_append.out_vectors
+            else:
+                testvectors_append = False
+ 
             if 'vectorized_test' in input_feeds.keys():
                 testvectors = input_feeds['vectorized_test']
 
             else: # pre_vectorized
-       
+
                 if 'featurized_test_csv' in input_feeds.keys():
                     testvectorizer = workflow.new_task('vectorize_test_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
                     testvectorizer.in_csv = input_feeds['featurized_test_csv']
 
+                    testvectors = testvectorizer.out_vectors
+                    
                 else:
-                
+
+                    testvectors = False
                     if 'pre_featurized_test' in input_feeds.keys():
                         testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                         testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
@@ -438,30 +465,33 @@ class Classify(WorkflowComponent):
                     else:
                         featurized_test = input_feeds['featurized_test']
 
-                    if 'vectorized_test_append' in input_feeds.keys():
-                        testvectors_append = input_feeds['vectorized_test_append']
-                    elif 'featurized_csv_test_append' in input_feeds.keys():
-                        testvectors_append = input_feeds['featurized_csv_test_append']
-                    else:
-                        testvectors_append = False
+            if testvectors_append:
+                if testvectors:
+                    testvectorizer = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
+                    testvectorizer.in_vectors = testvectors
+                    testvectorizer.in_vectors_append = testvectors_append
 
-                    if testvectors_append:
+                    testvectors = testvectorizer.out_combined
+                    
+                else:
+                    testvectorizer = workflow.new_task('vectorize_test_combined',VectorizeTestCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    testvectorizer.in_trainvectors = trainvectors
+                    testvectorizer.in_trainlabels = trainlabels
+                    testvectorizer.in_testfeatures = featurized_test
+                    testvectorizer.in_testvectors_append = testvectors_append
 
-                        testvectorizer = workflow.new_task('vectorize_test_combined',VectorizeTestCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                        testvectorizer.in_trainvectors = trainvectors
-                        testvectorizer.in_trainlabels = trainlabels
-                        testvectorizer.in_testfeatures = featurized_test
-                        testvectorizer.in_testvectors_append = testvectors_append
+                    testvectors=testvectorizer.out_vectors
+                    
+            else:
+                if not testvectors:
+                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    testvectorizer.in_trainvectors = trainvectors
+                    testvectorizer.in_trainlabels = trainlabels
+                    testvectorizer.in_testfeatures = featurized_test
 
-                    else:
-
-                        testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                        testvectorizer.in_trainvectors = trainvectors
-                        testvectorizer.in_trainlabels = trainlabels
-                        testvectorizer.in_testfeatures = featurized_test
-
-                testvectors = testvectorizer.out_vectors
-
+                    testvectors_combined = False
+                    testvectors = testvectorizer.out_vectors
+                    
             if 'classifier_model' in input_feeds.keys():
                 model = input_feeds['classifier_model']
             else:
