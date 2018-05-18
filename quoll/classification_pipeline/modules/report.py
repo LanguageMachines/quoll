@@ -613,7 +613,7 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
 
     def in_vocabulary_append(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances_append().path.split('.')[-2:]), addextension='.featureselection.txt')   
+        return self.outputfrominput(inputformat='instances_append', stripextension='.' + '.'.join(self.in_instances_append().path.split('.')[-2:]), addextension='.featureselection.txt')   
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
@@ -866,7 +866,7 @@ class RunFoldAppend(WorkflowComponent):
         return [ ( 
             InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.features.npz',inputparameter='instances'),
-            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances'), 
+            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances_append'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
@@ -874,7 +874,7 @@ class RunFoldAppend(WorkflowComponent):
         (
             InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'),
-            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances'), 
+            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances_append'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
