@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.report import Report
+from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
 
@@ -329,7 +329,7 @@ class Validate(WorkflowComponent):
 
     instances = Parameter()
     labels = Parameter()
-    docs = Parameter()
+    docs = Parameter(default = 'xxx.xxx')
 
     # fold-parameters
     n = IntParameter()
@@ -362,18 +362,61 @@ class Validate(WorkflowComponent):
     balance = BoolParameter()
     
     def accepts(self):
-        return [ ( 
-            InputFormat(self,format_id='instances',extension='.features.npz',inputparameter='instances'), 
-            InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
-            InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
-        ),
-        (
-            InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'), 
-            InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
-            InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
-        ) ]
+        return [tuple(x) for x in numpy.array(numpy.meshgrid(*
+            [
+                (
+                InputFormat(self, format_id='vectorized',extension='.vectors.npz',inputparameter='instances'),
+                InputFormat(self, format_id='featurized',extension='.features.npz',inputparameter='instances'),
+                InputFormat(self, format_id='featurized_csv',extension='.csv',inputparameter='instances'),
+                InputFormat(self, format_id='pre_featurized',extension='.tok.txt',inputparameter='instances'),
+                InputFormat(self, format_id='pre_featurized',extension='.tok.txtdir',inputparameter='instances'),
+                InputFormat(self, format_id='pre_featurized',extension='.frog.json',inputparameter='instances'),
+                InputFormat(self, format_id='pre_featurized',extension='.frog.jsondir',inputparameter='instances'),
+                InputFormat(self, format_id='pre_featurized',extension='.txtdir',inputparameter='instances'),
+                InputFormat(self, format_id='docs_instances',extension='.txt',inputparameter='instances'),
+                ),
+                (
+                InputFormat(self, format_id='labels',extension='.labels',inputparameter='labels')
+                ),
+                (
+                InputFormat(self, format_id='docs',extension='.txt',inputparameter='docs')
+                )
+            ]
+            )).T.reshape(-1,3)]
+
  
     def setup(self, workflow, input_feeds):
+
+        if 'docs_instances' in input_feeds.keys():
+            docs = input_feeds['docs_instances']
+        else:
+            docs = input_feeds['docs']
+
+        if 'vectorized' in input_feeds.keys():
+            instances = input_feeds['vectorized']
+        elif 'featurized' in input_feeds.keys():
+            instances = input_feeds['featurized']
+        
+        elif 'featurized_csv' in input_feeds.keys():
+            vectorizer = workflow.new_task('vectorize_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            vectorizer.in_csv = input_feeds['featurized_csv']
+                
+            instances = vectorizer.out_vectors
+
+        else:
+            if 'pre_featurized' in input_feeds.keys():
+                pre_featurized = input_feeds['pre_featurized']
+            else:
+                pre_featurized = input_feeds['docs_instances']
+
+            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,
+                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,
+                minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,
+                tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
+            )
+            featurizer.in_pre_featurized = pre_featurized
+
+            instances = featurizer.out_featurized
 
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=5)
         bin_maker.in_labels = input_feeds['labels']
@@ -388,8 +431,16 @@ class Validate(WorkflowComponent):
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
         )
         foldrunner.in_bins = bin_maker.out_bins
-        foldrunner.in_instances = input_feeds['instances']
+        foldrunner.in_instances = instances
         foldrunner.in_labels = input_feeds['labels']
-        foldrunner.in_docs = input_feeds['docs']
+        foldrunner.in_docs = docs
 
-        return foldrunner
+        foldreporter = workflow.new_task('report_folds', ReportFolds, autopass=True)
+        foldreporter.in_exp = foldrunner.out_exp
+
+        validator = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal)
+        validator.in_predictions = foldreporter.out_predictions
+        validator.in_testlabels = foldreporter.out_labels
+        validator.in_testdocuments = foldreporter.out_docs
+
+        return validator

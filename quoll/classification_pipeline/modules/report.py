@@ -193,10 +193,13 @@ class ReportFolds(Task):
     in_exp = InputSlot()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.predictions.txt')  
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.predictions.txt')  
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.gs.labels')  
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.labels')  
+
+    def out_docs(self):
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.docs.txt')  
 
     def out_full_predictions(self):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.full_predictions.txt')        
@@ -257,9 +260,13 @@ class ReportFolds(Task):
         # write labels, predictions and full predictions
         label_order = [x.split('prediction prob for ')[1] for x in dr.parse_csv(docprediction_files[0])[0][3:]]
         docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
+        docs = [line[0] for line in docpredictions]
         labels = [line[1] for line in docpredictions]
         predictions = [line[2] for line in docpredictions]
         full_predictions = [label_order] + [line[3:] for line in docpredictions]
+
+        with open(self.out_docs().path,'w',encoding='utf-8') as l_out:
+            l_out.write('\n'.join(docs))
 
         with open(self.out_labels().path,'w',encoding='utf-8') as l_out:
             l_out.write('\n'.join(labels))
