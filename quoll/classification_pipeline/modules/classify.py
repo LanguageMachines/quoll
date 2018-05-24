@@ -182,32 +182,6 @@ class VectorizeTrainTask(Task):
             return True
         else:
             yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
-
-class VectorizeTrainCombinedTask(Task):
-
-    in_trainfeatures = InputSlot()
-    in_trainvectors_append = InputSlot()
-    in_trainlabels = InputSlot()
-
-    weight = Parameter()
-    prune = IntParameter()
-    balance = BoolParameter()
-
-    def out_train_combined(self):
-        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-3] + '.vectors.npz' if self.balance and self.in_trainvectors_append().path[-3:] == 'npz' else '.balance.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-2] + '.vectors.npz' if self.balance and self.in_trainvectors_append().path[-3:] == 'csv' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-3] + '.vectors.npz' if self.in_trainvectors_append().path[-3:] == 'npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_trainvectors_append().path.split('.')[-2] + '.vectors.npz')
-
-    def out_train(self):
-        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
-
-    def out_trainlabels(self):
-           return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
-    
-    def run(self):
-        
-        if self.complete(): # necessary check as it will not complete otherwise
-            return True
-        else:
-            yield Vectorize(traininstances=self.in_trainfeatures().path,traininstances_append=self.in_trainvectors_append().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
     
 class VectorizeTestTask(Task):
 
@@ -228,28 +202,6 @@ class VectorizeTestTask(Task):
             return True
         else:
             yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,weight=self.weight,prune=self.prune,balance=self.balance)
-
-class VectorizeTestCombinedTask(Task):
-
-    in_trainvectors = InputSlot()
-    in_testfeatures = InputSlot()
-    in_testvectors_append = InputSlot()
-    in_trainlabels = InputSlot()
-
-    weight = Parameter()
-    prune = IntParameter()
-    balance = BoolParameter()
-    
-    def out_vectors(self):
-        return self.outputfrominput(inputformat='testfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-3] + '.vectors.npz' if self.balance and self.in_testvectors_append().path[-3:] == 'npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-2] + '.vectors.npz' if self.balance and self.in_testvectors_append().path[-3:] == 'csv' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-3] + '.vectors.npz' if self.in_testvectors_append().path[-3:] == 'npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_testvectors_append().path.split('.')[-2] + '.vectors.npz')
-
-    def run(self):
-
-        if self.complete(): # necessary as it will not complete otherwise
-            return True
-        else:
-            yield Vectorize(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testfeatures().path,testinstances_append=self.in_testvectors_append().path,weight=self.weight,prune=self.prune,balance=self.balance)
-
 
 #################################################################
 ### Component ###################################################
