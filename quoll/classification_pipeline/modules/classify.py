@@ -9,6 +9,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.functions.classifier import *
+from quoll.classification_pipeline.modules.report import MakeBins, Folds, ReportFolds
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 #################################################################
@@ -262,6 +263,7 @@ class Classify(WorkflowComponent):
     trainlabels = Parameter()
     testinstances = Parameter(default = 'xxx.xxx') # not obligatory, dummy extension to enable a pass
     testinstances_append = Parameter(default = 'xxx.xxx')
+    traindocs = Parameter(default = 'xxx.xxx')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -269,6 +271,9 @@ class Classify(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
+    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
+    bow_classifier = Parameter(default=self.classifier)
+
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
     
@@ -315,7 +320,8 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances')
+                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances'),
+                InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traininstances')
                 ),
                 (
                 InputFormat(self, format_id='vectorized_train_append',extension='.vectors.npz',inputparameter='traininstances_append'),
@@ -339,8 +345,9 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='vectorized_test_append',extension='.vectors.npz',inputparameter='testinstances_append'),
                 InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='testinstances_append'),
                 ),
+                InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traindocs')
             ]
-            )).T.reshape(-1,5)]
+            )).T.reshape(-1,6)]
 
     def setup(self, workflow, input_feeds):
 
@@ -385,7 +392,46 @@ class Classify(WorkflowComponent):
                 
         if trainvectors_append:
 
+            if self.bow_as_feature:
+                if trainvectors:
+                    print('Bag-of-words as features can only be ran on featurized train instances (ending with \'.features.npz\', exiting programme...')
+                    exit()
+
+                # make bag-of-words predictions on training instances using 5-fold cv
+                bin_maker = workflow.new_task('make_bins_bow', MakeBins, autopass=True, n=5)
+                bin_maker.in_labels = trainlabels
+
+                fold_runner = workflow.new_task('nfold_cv_bow', Folds, autopass=True, 
+                    n=5, 
+                    weight=self.weight, prune=self.prune, balance=self.balance, 
+                    classifier=self.bow_classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+                    nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+                )
+                fold_runner.in_bins = bin_maker.out_bins
+                fold_runner.in_instances = featurized_train
+                fold_runner.in_labels = trainlabels
+                fold_runner.in_docs = input_feeds['docs_train']
+
+                foldreporter = workflow.new_task('report_folds_bow', ReportFolds, autopass=True)
+                foldreporter.in_exp = fold_runner.out_exp
+
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
+                fold_vectorizer.in_predictions = foldreporter.out_predictions
+                fold_vectorizer.in_bins = bin_maker.out_bins
+
+                trainvectors = fold_vectorizer.out_vectors
+
+                trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                trainvectorizer.in_trainfeatures = featurized_train
+                trainvectorizer.in_trainlabels = trainlabels
+
+                trainvectors_bow = trainvectorizer.out_vectors
+                trainlabels = trainvectorizer.out_trainlabels
+
             if trainvectors:
+
                 trainvectorizer = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
                 trainvectorizer.in_vectors = trainvectors
                 trainvectorizer.in_vectors_append = trainvectors_append
@@ -466,6 +512,35 @@ class Classify(WorkflowComponent):
                         featurized_test = input_feeds['featurized_test']
 
             if testvectors_append:
+                
+                if self.bow_as_feature:
+                    if testvectors:
+                        print('Bag-of-words as features can only be ran on featurized test instances (ending with \'.features.npz\', exiting programme...')
+                        exit()
+
+                    bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
+                        nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                        svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                        lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+                    )
+                    bow_trainer.in_train = trainvectors_bow
+                    bow_trainer.in_trainlabels = trainlabels            
+
+                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    testvectorizer.in_trainvectors = trainvectors_bow
+                    testvectorizer.in_trainlabels = trainlabels
+                    testvectorizer.in_testfeatures = featurized_test
+
+                    bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
+                    bow_predictor.in_test = testvectorizer.out_vectors
+                    bow_predictor.in_trainlabels = trainlabels
+                    bow_predictor.in_model = bow_trainer.out_model
+
+                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
+                    prediction_vectorizer.in_predictions = bow_predictor.out_predictions
+
+                    testvectors = prediction_vectorizer.out_vectors
+
                 if testvectors:
                     testvectorizer = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
                     testvectorizer.in_vectors = testvectors
@@ -489,7 +564,6 @@ class Classify(WorkflowComponent):
                     testvectorizer.in_trainlabels = trainlabels
                     testvectorizer.in_testfeatures = featurized_test
 
-                    testvectors_combined = False
                     testvectors = testvectorizer.out_vectors
                     
             if 'classifier_model' in input_feeds.keys():

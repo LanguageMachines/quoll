@@ -918,9 +918,6 @@ class Report(WorkflowComponent):
     testlabels_layer2 = Parameter(default = 'xxx.xxx')
     docs = Parameter(default = 'xxx.xxx') # all docs for nfold cv, test docs for train and test
 
-    # procedural parameter
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-
     # nfold-cv parameters
     n = IntParameter(default=10)
     steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
@@ -953,6 +950,7 @@ class Report(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     delimiter = Parameter(default=',')
 
     # featurizer parameters

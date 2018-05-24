@@ -283,6 +283,76 @@ class Combine(Task):
         numpy.savez(self.out_combined().path, data=vectors_combined.data, indices=vectors_combined.indices, indptr=vectors_combined.indptr, shape=vectors_combined.shape)
 
 
+class VectorizeFoldreporter(Task):
+
+    in_predictions = InputSlot()
+    in_bins = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.vectors.npz')
+
+    def run(self):
+
+        # open bin indices
+        dr = docreader.Docreader()
+        bins_str = dr.parse_csv(self.in_bins().path)
+        indices = sum([[int(x) for x in bin] for bin in bins_str],[])
+
+        # load predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as file_in:
+            predictions = file_in.read().strip().split('\n')
+
+        # generate prediction dict (to convert names to numbrers)
+        predictiondict = {}
+        for i,pred in enumerate(list(set(predictions))):
+            predictiondict[pred] = 0
+
+        # initialize vectorcolumn
+        vectors = [[0]] * len(indices)
+
+        print('NUM INDICES',len(indices),'NUM PREDICTIONS',len(predictions))
+
+        # for each prediction
+        for i,prediction in enumerate(predictions):
+            index = indices[i]
+            print('INDEX',index)
+            vectors[index][0] = predictiondict[prediction]
+        vectors_csr = sparse.csr_matrix(vectors)
+
+        # write output
+        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+
+class VectorizePredictions(Task):
+
+    in_predictions = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.vectors.npz')
+
+    def run(self):
+
+        # load predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as file_in:
+            predictions = file_in.read().strip().split('\n')
+
+        # generate prediction dict (to convert names to numbrers)
+        predictiondict = {}
+        for i,pred in enumerate(list(set(predictions))):
+            predictiondict[pred] = 0
+
+        # initialize vectorcolumn
+        vectors = []
+
+        # for each prediction
+        for prediction in predictions:
+            vectors.append([predictiondict[prediction]])
+        vectors_csr = sparse.csr_matrix(vectors)
+
+        # write output
+        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+
 class FeaturizeTask(Task):
 
     in_pre_featurized = InputSlot()
@@ -428,7 +498,7 @@ class Vectorize(WorkflowComponent):
  
             else:
                 trainvectors = trainvectorizer.out_train
-
+            
             traincombiner = workflow.new_task('combine_train',Combine,autopass=True)
             traincombiner.in_vectors = trainvectors
             traincombiner.in_vectors_append = trainvectors_append
