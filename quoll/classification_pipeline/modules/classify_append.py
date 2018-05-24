@@ -277,7 +277,7 @@ class ClassifyAppend(WorkflowComponent):
                 bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
                 bow_predictor.in_test = testvectorizer.out_vectors
                 bow_predictor.in_trainlabels = trainlabels
-                bow_predictor.in_train = trainvectors_bow
+                bow_predictor.in_model = bow_trainer.out_model
 
                 prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
                 prediction_vectorizer.in_predictions = bow_predictor.out_predictions
@@ -307,16 +307,11 @@ class ClassifyAppend(WorkflowComponent):
                 testvectorizer.in_testvectors_append = testvectors_append
 
                 testvectors = testvectorizer.out_vectors
-                    
-            # if 'classifier_model' in input_feeds.keys():
-            #     model = input_feeds['classifier_model']
-            # else:
-            #     model = trainer.out_model
-            
+                            
             predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
             predictor.in_test = testvectors
             predictor.in_trainlabels = trainlabels
-            predictor.in_train = trainvectors_combined
+            predictor.in_model = trainer.out_model
 
             return predictor
 
