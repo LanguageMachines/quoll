@@ -7,6 +7,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
+from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
 
@@ -332,7 +333,7 @@ class Validate(WorkflowComponent):
     docs = Parameter(default = 'xxx.xxx')
 
     # fold-parameters
-    n = IntParameter()
+    n = IntParameter(default=10)
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -431,7 +432,7 @@ class Validate(WorkflowComponent):
 
             instances = featurizer.out_featurized
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=5)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
         bin_maker.in_labels = input_feeds['labels']
 
         foldrunner = workflow.new_task(

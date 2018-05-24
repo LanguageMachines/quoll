@@ -6,8 +6,8 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.classify import ClassifyTask
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrainTask, VectorizeTestTask 
+from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, linewriter, docreader
 
@@ -202,7 +202,7 @@ class ReportFolds(Task):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.docs.txt')  
 
     def out_full_predictions(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.full_predictions.txt')        
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.full_predictions.txt')        
 
     def out_macro_performance(self):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.macro_performance.csv')  
@@ -386,6 +386,7 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
                 ),
                 (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
