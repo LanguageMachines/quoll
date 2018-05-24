@@ -41,7 +41,7 @@ class ClassifyAppend(WorkflowComponent):
     iterations = IntParameter(default=10)
     
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-    bow_classifier = Parameter(default=self.classifier)
+    bow_classifier = Parameter(default='naive_bayes')
 
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -181,12 +181,12 @@ class ClassifyAppend(WorkflowComponent):
 
             trainvectors = fold_vectorizer.out_vectors
 
-            trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-            trainvectorizer.in_trainfeatures = featurized_train
-            trainvectorizer.in_trainlabels = trainlabels
+            trainvectorizer_bow = workflow.new_task('vectorize_train_bow',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+            trainvectorizer_bow.in_trainfeatures = featurized_train
+            trainvectorizer_bow.in_trainlabels = trainlabels
 
-            trainvectors_bow = trainvectorizer.out_vectors
-            trainlabels = trainvectorizer.out_trainlabels
+            trainvectors_bow = trainvectorizer_bow.out_train
+            trainlabels = trainvectorizer_bow.out_trainlabels
 
         if 'vectorized_train_append' in input_feeds.keys():
             trainvectors_append = input_feeds['vectorized_train_append']
@@ -277,7 +277,7 @@ class ClassifyAppend(WorkflowComponent):
                 bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
                 bow_predictor.in_test = testvectorizer.out_vectors
                 bow_predictor.in_trainlabels = trainlabels
-                bow_predictor.in_model = bow_trainer.out_model
+                bow_predictor.in_train = trainvectors_bow
 
                 prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
                 prediction_vectorizer.in_predictions = bow_predictor.out_predictions
@@ -308,15 +308,15 @@ class ClassifyAppend(WorkflowComponent):
 
                 testvectors = testvectorizer.out_vectors
                     
-            if 'classifier_model' in input_feeds.keys():
-                model = input_feeds['classifier_model']
-            else:
-                model = trainer.out_model
-
+            # if 'classifier_model' in input_feeds.keys():
+            #     model = input_feeds['classifier_model']
+            # else:
+            #     model = trainer.out_model
+            
             predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
             predictor.in_test = testvectors
             predictor.in_trainlabels = trainlabels
-            predictor.in_model = model
+            predictor.in_train = trainvectors_combined
 
             return predictor
 

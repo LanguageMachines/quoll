@@ -313,25 +313,24 @@ class VectorizeFoldreporter(Task):
         # initialize vectorcolumn
         vectors = [[0]] * len(indices)
 
-        print('NUM INDICES',len(indices),'NUM PREDICTIONS',len(predictions))
-
         # for each prediction
         for i,prediction in enumerate(predictions):
             index = indices[i]
-            print('INDEX',index)
             vectors[index][0] = predictiondict[prediction]
         vectors_csr = sparse.csr_matrix(vectors)
 
         # write output
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
 
-
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('BOW')
+        
 class VectorizePredictions(Task):
 
     in_predictions = InputSlot()
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.vectors.npz')
 
     def out_vocabulary(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.featureselection.txt')
@@ -357,6 +356,9 @@ class VectorizePredictions(Task):
 
         # write output
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('BOW')
 
 
 class FeaturizeTask(Task):
