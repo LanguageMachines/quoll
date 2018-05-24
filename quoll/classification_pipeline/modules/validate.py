@@ -360,7 +360,20 @@ class Validate(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    
+    delimiter = Parameter(default=',')
+
+    # featurizer parameters
+    ngrams = Parameter(default='1 2 3')
+    blackfeats = Parameter(default=False)
+    lowercase = BoolParameter()    
+    minimum_token_frequency = IntParameter(default=1)
+    featuretypes = Parameter(default='tokens')
+
+    # ucto / frog parameters
+    tokconfig = Parameter(default=False)
+    frogconfig = Parameter(default=False)
+    strip_punctuation = BoolParameter(default=True)
+
     def accepts(self):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
