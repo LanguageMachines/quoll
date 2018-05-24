@@ -196,34 +196,26 @@ class ClassifyAppend(WorkflowComponent):
                 
             trainvectors_append = trainvectorizer_append.out_vectors
 
-        if trainvectors:
-
-            trainvectorizer = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
-            trainvectorizer.in_vectors = trainvectors
-            trainvectorizer.in_vectors_append = trainvectors_append
-
-            trainvectors_combined = trainvectorizer.out_combined
-
-        else: # featurized train
-
-            trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+        if not trainvectors:
+            trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
             trainvectorizer.in_trainfeatures = featurized_train
-            trainvectorizer.in_trainvectors_append = trainvectors_append
             trainvectorizer.in_trainlabels = trainlabels
 
-            trainvectors_combined = trainvectorizer.out_train_combined
             trainvectors = trainvectorizer.out_train
             trainlabels = trainvectorizer.out_trainlabels
+            
+        traincombiner = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
+        traincombiner.in_vectors = trainvectors
+        traincombiner.in_vectors_append = trainvectors_append
+
+        trainvectors_combined = traincombiner.out_combined
                 
         trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
         )
-        if trainvectors_combined:
-            trainer.in_train = trainvectors_combined
-        else:
-            trainer.in_train = trainvectors
+        trainer.in_train = trainvectors_combined
         trainer.in_trainlabels = trainlabels            
 
         ######################
@@ -269,13 +261,13 @@ class ClassifyAppend(WorkflowComponent):
                 bow_trainer.in_train = trainvectors_bow
                 bow_trainer.in_trainlabels = trainlabels            
 
-                testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                testvectorizer.in_trainvectors = trainvectors_bow
-                testvectorizer.in_trainlabels = trainlabels
-                testvectorizer.in_testfeatures = featurized_test
+                testvectorizer_bow = workflow.new_task('vectorize_test_bow',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                testvectorizer_bow.in_trainvectors = trainvectors_bow
+                testvectorizer_bow.in_trainlabels = trainlabels
+                testvectorizer_bow.in_testfeatures = featurized_test
 
                 bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
-                bow_predictor.in_test = testvectorizer.out_vectors
+                bow_predictor.in_test = testvectorizer_bow.out_vectors
                 bow_predictor.in_trainlabels = trainlabels
                 bow_predictor.in_model = bow_trainer.out_model
 
@@ -292,24 +284,20 @@ class ClassifyAppend(WorkflowComponent):
 
                 testvectors_append = testvectorizer_append.out_vectors
 
-            if testvectors:
-                testvectorizer = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
-                testvectorizer.in_vectors = testvectors
-                testvectorizer.in_vectors_append = testvectors_append
-
-                testvectors = testvectorizer.out_combined
-                
-            else:
-                testvectorizer = workflow.new_task('vectorize_test_combined',VectorizeTestCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+            if not testvectors:
+                testvectorizer = workflow.new_task('vectorize_test_bow',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
                 testvectorizer.in_trainvectors = trainvectors
                 testvectorizer.in_trainlabels = trainlabels
                 testvectorizer.in_testfeatures = featurized_test
-                testvectorizer.in_testvectors_append = testvectors_append
 
                 testvectors = testvectorizer.out_vectors
+                
+            testvector_combiner = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
+            testvector_combiner.in_vectors = testvectors
+            testvector_combiner.in_vectors_append = testvectors_append
                             
             predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
-            predictor.in_test = testvectors
+            predictor.in_test = testvector_combiner.out_combined
             predictor.in_trainlabels = trainlabels
             predictor.in_model = trainer.out_model
 
