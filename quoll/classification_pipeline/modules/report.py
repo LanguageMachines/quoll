@@ -202,7 +202,7 @@ class ReportFolds(Task):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.docs.txt')  
 
     def out_full_predictions(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.full_predictions.txt')        
+        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.full_predictions.txt')        
 
     def out_macro_performance(self):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.macro_performance.csv')  
