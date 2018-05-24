@@ -206,7 +206,7 @@ class Preprocess(StandardWorkflowComponent):
     def setup(self, workflow, input_feeds):
 
         assert self.tokconfig != False or self.frogconfig != False, 'No config file included, specify a ucto config using \'--tokconfig\' or a frog config using \'frogconfig\''
-        assert not (self.tokconfig and self.tokconfig), 'Both a tokconfig and a frogconfig included, only one of the two required'
+        assert not (self.tokconfig and self.frogconfig), 'Both a tokconfig and a frogconfig included, only one of the two required'
         
         if 'txt' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
