@@ -359,6 +359,7 @@ class Validate(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -412,6 +413,18 @@ class Validate(WorkflowComponent):
             vectorizer = workflow.new_task('vectorize_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
             vectorizer.in_csv = input_feeds['featurized_csv']
                 
+            instances = vectorizer.out_vectors
+
+            vectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            vectorizer_csv.in_csv = input_feeds['featurized_csv']
+
+            if self.scale:
+                vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True)
+                vectorizer.in_vectors = vectorizer_csv.out_vectors
+
+            else:
+                vectorizer = vectorizer_csv
+
             instances = vectorizer.out_vectors
 
         else:

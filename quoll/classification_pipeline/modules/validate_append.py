@@ -57,6 +57,7 @@ class FoldAppend(Task):
     weight = Parameter() # options: frequency, binary, tfidf
     prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    scale = BoolParameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
@@ -107,7 +108,7 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.scale else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
 
     def run(self):
 
@@ -194,7 +195,7 @@ class FoldAppend(Task):
             traininstances=self.out_train().path, traininstances_append=self.out_train_append().path, trainlabels=self.out_trainlabels().path, 
             testinstances=self.out_test().path, testinstances_append=self.out_test_append().path, 
             traindocs=self.out_traindocs().path, 
-            weight=self.weight, prune=self.prune, balance=self.balance, 
+            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -246,6 +247,7 @@ class FoldsAppend(Task):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    scale = BoolParameter()
     
     def out_exp(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.bow_as_feature else '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp')
@@ -260,7 +262,7 @@ class FoldsAppend(Task):
             yield RunFoldAppend(
                 directory=self.out_exp().path, instances=self.in_instances().path, instances_append=self.in_instances_append().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold,
-                weight=self.weight, prune=self.prune, balance=self.balance, 
+                weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
                 bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -316,6 +318,7 @@ class RunFoldAppend(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    scale = BoolParameter()
     
     def accepts(self):
         return [ ( 
@@ -340,7 +343,7 @@ class RunFoldAppend(WorkflowComponent):
         fold_append_runner = workflow.new_task(
             'run_fold_append', FoldAppend, autopass=True, 
             i=self.i, 
-            weight=self.weight, prune=self.prune, balance=self.balance,
+            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -404,6 +407,7 @@ class ValidateAppend(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -492,7 +496,7 @@ class ValidateAppend(WorkflowComponent):
         foldrunner_append = workflow.new_task(
             'foldrunner_append', FoldsAppend, autopass=False, 
             n=self.n, 
-            weight=self.weight, prune=self.prune, balance=self.balance,
+            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
