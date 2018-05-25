@@ -209,7 +209,9 @@ class VectorizeCsv(Task):
     in_csv = InputSlot()
 
     delimiter = Parameter()
-
+    categorical = BoolParameter()
+    normalize = BoolParameter()    
+    
     def out_vectors(self):
         return self.outputfrominput(inputformat='csv', stripextension='.csv', addextension='.vectors.npz')
 
