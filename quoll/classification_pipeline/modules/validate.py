@@ -4,7 +4,6 @@ from scipy import sparse
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.support import MakeBins
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
 from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
 

@@ -3,6 +3,7 @@ import numpy
 from scipy import sparse
 import os
 import itertools
+import pickle
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
@@ -203,14 +204,11 @@ class ApplyVectorizer(Task):
         with open(self.out_featureselection().path, 'w', encoding = 'utf-8') as t_out:
             t_out.write('\n'.join(lines))
         
-
 class VectorizeCsv(Task):
 
     in_csv = InputSlot()
 
-    delimiter = Parameter()
-    categorical = BoolParameter()
-    normalize = BoolParameter()    
+    delimiter = Parameter()  
     
     def out_vectors(self):
         return self.outputfrominput(inputformat='csv', stripextension='.csv', addextension='.vectors.npz')
@@ -220,18 +218,75 @@ class VectorizeCsv(Task):
         # load instances
         loader = docreader.Docreader()
         instances = loader.parse_csv(self.in_csv().path,delim=self.delimiter)
-        print('num features',len(instances[7]))
         instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
         instances_sparse = sparse.csr_matrix(instances_float)
 
         # write instances to file
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
 
+class FitTransformScale(Task)
+
+    in_vectors = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+
+    def out_scaler(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler.pkl')
+
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+ 
+        # scale vectors
+        scaler = vectorizer.fit_scale(vectors)
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write scaler
+        with open(self.out_scaler().path, 'wb') as fid:
+            pickle.dump(scaler, fid)
+
+
+class TransformScale(Task):
+
+    in_vectors = InputSlot()
+    in_scaler = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+ 
+        # read scaler
+        with open(self.in_scaler().path, 'rb') as fid:
+            scaler = pickle.load(fid)
+
+        # scale vectors
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write scaler
+        with open(self.out_scaler().path, 'wb') as fid:
+            pickle.dump(scaler, fid)
+
 
 class Combine(Task):
 
     in_vectors = InputSlot()
     in_vectors_append = InputSlot()
+
+    normalize = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')
@@ -276,6 +331,10 @@ class Combine(Task):
 
         # combine vectors
         vectors_combined = sparse.hstack([vectors,vectors_append]).tocsr()
+
+        # scale
+        if self.scale:
+            instances_sparse = vectorizer.normalize_features(instances_sparse)
 
         # write vocabulary to file
         with open(self.out_featureselection().path, 'w', encoding='utf-8') as v_out:
@@ -400,6 +459,7 @@ class Vectorize(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -451,11 +511,16 @@ class Vectorize(WorkflowComponent):
         ######################
         
         if 'featurized_train_csv' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer.in_csv = input_feeds['featurized_train_csv']
+            trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
 
-            trainvectors = trainvectorizer.out_vectors
-                
+            if self.scale:
+                trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+                trainvectorizer.in_vectors = trainvectorizer.out_vectors
+
+            else:
+                trainvectorizer = trainvectorizer_csv
+
         else:
 
             if 'vectorized_train' not in input_feeds.keys():
@@ -489,8 +554,16 @@ class Vectorize(WorkflowComponent):
         if len(list(set(['featurized_test_csv','featurized_test_txt','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
         
             if 'featurized_test_csv' in input_feeds.keys():
-                testvectorizer = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                testvectorizer.in_csv = input_feeds['featurized_test_csv']
+                testvectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                testvectorizer_csv.in_csv = input_feeds['featurized_test_csv']
+
+                if self.scale:
+                    testvectorizer = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                    testvectorizer.in_vectors = testvectorizer_csv.out_vectors
+                    testvectorizer.in_scaler = trainvectorizer.out_scaler
+
+                else:
+                    testvectorizer = testvectorizer_csv
 
                 return testvectorizer, trainvectorizer
         

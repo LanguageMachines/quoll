@@ -10,6 +10,7 @@ import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
 from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.preprocessing import StandardScaler
 
 class Counts:
     """
@@ -197,3 +198,11 @@ def normalize_features(instances):
 
     normalized = normalize(instances,norm='l1')
     return normalized
+
+def fit_scale(vectors):
+    scaler = StandardScaler()
+    scaler.fit(vectors)
+    return scaler
+
+def scale_vectors(vectors,scale):
+    return scaler.transform(vectors)
