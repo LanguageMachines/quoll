@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine
 
 from quoll.classification_pipeline.functions.classifier import *
 
@@ -354,7 +354,7 @@ class Classify(WorkflowComponent):
 
                 if self.scale:
                     trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-                    trainvectorizer.in_vectors = trainvectorizer.out_vectors
+                    trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
 
                 else:
                     trainvectorizer = trainvectorizer_csv

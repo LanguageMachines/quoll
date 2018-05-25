@@ -228,18 +228,28 @@ class FitTransformScale(Task):
 
     in_vectors = InputSlot()
 
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
     def out_vectors(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
     def out_scaler(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler.pkl')
 
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+    
     def run(self):
 
         # read vectors
         loader = numpy.load(self.in_vectors().path)
         vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
- 
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+        
         # scale vectors
         scaler = vectorizer.fit_scale(vectors)
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
@@ -251,21 +261,36 @@ class FitTransformScale(Task):
         with open(self.out_scaler().path, 'wb') as fid:
             pickle.dump(scaler, fid)
 
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
+
 
 class TransformScale(Task):
 
     in_vectors = InputSlot()
     in_scaler = InputSlot()
 
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
     def out_vectors(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+
+    
     def run(self):
 
         # read vectors
         loader = numpy.load(self.in_vectors().path)
         vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
- 
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+
         # read scaler
         with open(self.in_scaler().path, 'rb') as fid:
             scaler = pickle.load(fid)
@@ -275,6 +300,10 @@ class TransformScale(Task):
 
         # write vectors
         numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
 
 
 class Combine(Task):
