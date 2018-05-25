@@ -224,11 +224,11 @@ class VectorizeCsv(Task):
         # write instances to file
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
 
-class FitTransformScale(Task)
+class FitTransformScale(Task):
 
     in_vectors = InputSlot()
 
-    def out_vectors(self):
+    def out_scaled(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
     def out_scaler(self):
@@ -245,7 +245,7 @@ class FitTransformScale(Task)
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
 
         # write vectors
-        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+        numpy.savez(self.out_scaled().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
 
         # write scaler
         with open(self.out_scaler().path, 'wb') as fid:
@@ -257,7 +257,7 @@ class TransformScale(Task):
     in_vectors = InputSlot()
     in_scaler = InputSlot()
 
-    def out_vectors(self):
+    def out_scaled(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
     def run(self):
@@ -274,11 +274,7 @@ class TransformScale(Task):
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
 
         # write vectors
-        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
-
-        # write scaler
-        with open(self.out_scaler().path, 'wb') as fid:
-            pickle.dump(scaler, fid)
+        numpy.savez(self.out_scaled().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
 
 
 class Combine(Task):
@@ -516,7 +512,7 @@ class Vectorize(WorkflowComponent):
 
             if self.scale:
                 trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-                trainvectorizer.in_vectors = trainvectorizer.out_vectors
+                trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
 
             else:
                 trainvectorizer = trainvectorizer_csv

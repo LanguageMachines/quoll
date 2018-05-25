@@ -200,9 +200,13 @@ def normalize_features(instances):
     return normalized
 
 def fit_scale(vectors):
-    scaler = StandardScaler()
-    scaler.fit(vectors)
+    try:
+        scaler = StandardScaler()
+        scaler.fit(vectors)
+    except:
+        scaler = StandardScaler(with_mean=False)
+        scaler.fit(vectors)
     return scaler
 
-def scale_vectors(vectors,scale):
+def scale_vectors(vectors,scaler):
     return scaler.transform(vectors)
