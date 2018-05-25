@@ -311,8 +311,6 @@ class Combine(Task):
     in_vectors = InputSlot()
     in_vectors_append = InputSlot()
 
-    normalize = Parameter()
-
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
