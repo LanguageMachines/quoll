@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.validate import BinMaker
+from quoll.classification_pipeline.modules.support import MakeBins
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend
 from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
@@ -102,15 +102,17 @@ class FoldAppend(Task):
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
+    def out_traindocs(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.docs.txt')
+
     def out_testdocs(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]) + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else 
-            '.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]) + '.append.labels_train.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
 
     def run(self):
-        
+
         if self.complete(): # needed as it will not complete otherwise
             return True
         
@@ -183,6 +185,8 @@ class FoldAppend(Task):
             outfile.write('\n'.join(train_labels))
         with open(self.out_testlabels().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_labels))
+        with open(self.out_traindocs().path,'w',encoding='utf-8') as outfile:
+            outfile.write('\n'.join(train_documents))
         with open(self.out_testdocs().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
@@ -190,7 +194,7 @@ class FoldAppend(Task):
 
         yield ClassifyAppend(
             traininstances=self.out_train().path, traininstances_append=self.out_train_append().path, trainlabels=self.out_trainlabels().path, 
-            testinstances=self.out_test().path, testinstances_append=self.out_test_append().path, testlabels=self.out_testlabels().path, 
+            testinstances=self.out_test().path, testinstances_append=self.out_test_append().path, 
             traindocs=self.out_traindocs().path, 
             weight=self.weight, prune=self.prune, balance=self.balance, 
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
@@ -246,7 +250,7 @@ class FoldsAppend(Task):
     balance = BoolParameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.bow.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp' if self.bow_as_feature else '.labels_' + self.in_labels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.exp')
                                     
     def run(self):
 
@@ -477,10 +481,10 @@ class ValidateAppend(WorkflowComponent):
             instances = featurizer.out_featurized
 
         if 'vectorized_append' in input_feeds.keys():
-            instances_append = input_feeds['vectorized_train_append']
+            instances_append = input_feeds['vectorized_append']
         elif 'featurized_csv_append' in input_feeds.keys():
-            vectorizer_append = workflow.new_task('vectorize_train_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            vectorizer_append.in_csv = input_feeds['featurized_csv_train_append']
+            vectorizer_append = workflow.new_task('vectorize_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            vectorizer_append.in_csv = input_feeds['featurized_csv_append']
                 
             instances_append = vectorizer_append.out_vectors
 
