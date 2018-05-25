@@ -11,7 +11,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.validate import MakeBins, Folds
 from quoll.classification_pipeline.modules.report import ReportFolds
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTrainCombinedTask, VectorizeTestTask, VectorizeTestCombinedTask
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizePredictions
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, VectorizeFoldreporter, VectorizePredictions
 
 from quoll.classification_pipeline.functions.classifier import *
 
@@ -60,6 +60,7 @@ class ClassifyAppend(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -204,7 +205,14 @@ class ClassifyAppend(WorkflowComponent):
         traincombiner.in_vectors = trainvectors
         traincombiner.in_vectors_append = trainvectors_append
 
-        trainvectors_combined = traincombiner.out_combined
+        if self.scale:
+            trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+            trainscaler.in_vectors = traincombiner.out_combined
+            
+            trainvectors_combined = trainscaler.out_vectors
+
+        else:
+            trainvectors_combined = traincombiner.out_combined
                 
         trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -292,8 +300,18 @@ class ClassifyAppend(WorkflowComponent):
             testvector_combiner.in_vectors = testvectors
             testvector_combiner.in_vectors_append = testvectors_append
                             
+            if self.scale:
+                testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                testscaler.in_vectors = testvector_combiner.out_combined
+                testscaler.in_scaler = trainscaler.out_scaler
+
+                testvectors_combined = testscaler.out_vectors
+
+            else:
+                testvectors_combined = testvector_combiner.out_combined
+
             predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
-            predictor.in_test = testvector_combiner.out_combined
+            predictor.in_test = testvectors_combined
             predictor.in_trainlabels = trainlabels
             predictor.in_model = trainer.out_model
 
