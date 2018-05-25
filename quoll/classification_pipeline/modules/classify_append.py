@@ -29,11 +29,9 @@ class ClassifyAppend(WorkflowComponent):
     testinstances_append = Parameter(default = 'xxx.xxx')
     traindocs = Parameter(default = 'xxx.xxx')
 
-    # nfold-cv parameters
-    n = IntParameter(default=10)
-    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
-    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
-    testend = IntParameter(default=-1)
+    # append parameters
+    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
+    bow_classifier = Parameter(default='naive_bayes')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -41,9 +39,6 @@ class ClassifyAppend(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-    bow_classifier = Parameter(default='naive_bayes')
-
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
     
