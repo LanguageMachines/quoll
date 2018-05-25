@@ -289,6 +289,7 @@ class Classify(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -348,9 +349,16 @@ class Classify(WorkflowComponent):
         else: # pre_vectorized
 
             if 'featurized_train_csv' in input_feeds.keys():
-                trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                trainvectorizer.in_csv = input_feeds['featurized_train_csv']
-                
+                trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
+
+                if self.scale:
+                    trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+                    trainvectorizer.in_vectors = trainvectorizer.out_vectors
+
+                else:
+                    trainvectorizer = trainvectorizer_csv
+
                 trainvectors = trainvectorizer.out_vectors
 
             else:
@@ -391,8 +399,16 @@ class Classify(WorkflowComponent):
             else: # pre_vectorized
 
                 if 'featurized_test_csv' in input_feeds.keys():
-                    testvectorizer = workflow.new_task('vectorize_test_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer.in_csv = input_feeds['featurized_test_csv']
+                    testvectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                    testvectorizer_csv.in_csv = input_feeds['featurized_test_csv']
+
+                    if self.scale:
+                        testvectorizer = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                        testvectorizer.in_vectors = testvectorizer_csv.out_vectors
+                        testvectorizer.in_scaler = trainvectorizer.out_scaler
+
+                    else:
+                        testvectorizer = testvectorizer_csv
 
                     testvectors = testvectorizer.out_vectors
                     

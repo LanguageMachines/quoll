@@ -228,7 +228,7 @@ class FitTransformScale(Task):
 
     in_vectors = InputSlot()
 
-    def out_scaled(self):
+    def out_vectors(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
     def out_scaler(self):
@@ -245,7 +245,7 @@ class FitTransformScale(Task):
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
 
         # write vectors
-        numpy.savez(self.out_scaled().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
 
         # write scaler
         with open(self.out_scaler().path, 'wb') as fid:
@@ -257,7 +257,7 @@ class TransformScale(Task):
     in_vectors = InputSlot()
     in_scaler = InputSlot()
 
-    def out_scaled(self):
+    def out_vectors(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
 
     def run(self):
@@ -274,7 +274,7 @@ class TransformScale(Task):
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
 
         # write vectors
-        numpy.savez(self.out_scaled().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
 
 
 class Combine(Task):
