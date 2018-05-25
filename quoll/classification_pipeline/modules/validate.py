@@ -5,7 +5,7 @@ from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
 
@@ -81,7 +81,7 @@ class Fold(Task):
     balance = BoolParameter()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt')   
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
 
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    

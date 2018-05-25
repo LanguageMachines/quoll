@@ -310,7 +310,7 @@ class Combine(Task):
 
     in_vectors = InputSlot()
     in_vectors_append = InputSlot()
-
+    
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
@@ -354,10 +354,6 @@ class Combine(Task):
 
         # combine vectors
         vectors_combined = sparse.hstack([vectors,vectors_append]).tocsr()
-
-        # scale
-        if self.scale:
-            instances_sparse = vectorizer.normalize_features(instances_sparse)
 
         # write vocabulary to file
         with open(self.out_featureselection().path, 'w', encoding='utf-8') as v_out:
