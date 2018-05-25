@@ -7,7 +7,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrainTask, VectorizeTestTask 
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale
 
 from quoll.classification_pipeline.functions import reporter, linewriter, docreader
 
@@ -381,7 +381,7 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='featurized_csv_train',extension='.csv',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
@@ -393,7 +393,7 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='featurized_csv_test',extension='.csv',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
