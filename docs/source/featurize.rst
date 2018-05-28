@@ -1,12 +1,12 @@
 The Featurize module
 ==================================
 
-The Featurize module is the second module in the pipeline, taking care of feature extraction from the output of the Preprocess module. It makes use of ColibriCore_ to count features, and its output forms the input to the Vectorize module. 
+The Featurize module is the second module in the pipeline, taking care of feature extraction from the output of the Preprocess_ module. It makes use of ColibriCore_ to count features, and its output forms the input to the Vectorize_ module. 
 
 Input
 --------
 
-*If the input to Preprocess (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.* 
+*If the input to Preprocess_ (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.* 
 
 --inputfile                 + The featurize module takes preprocessed documents as input. They can come in four formats:
                             1. Extension **.tok.txt** - File with tokenized text documents on each line. 
@@ -75,4 +75,5 @@ $ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --
 $ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg --featuretypes \'tokens pos\' --blackfeats snake
 
 .. _ColibriCore: https://proycon.github.io/colibri-core/
-
+.. _Preprocess: preprocess.rst
+.. _Vectorize: vectorize.rst
