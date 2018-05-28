@@ -29,11 +29,11 @@ Quoll has the following advantages:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Table of Contents
+   :glob:
    
-   The Quoll pipeline
-      Preprocess
-      Featurize
+   pipeline/*
+   usage*
       
 
 
