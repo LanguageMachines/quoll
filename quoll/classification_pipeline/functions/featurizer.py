@@ -10,9 +10,6 @@ from collections import Counter
 
 import colibricore
 
-from quoll.classification_pipeline.functions import utils
-
-
 #####################################################
 ### Helpers ####
 #####################################################
@@ -158,7 +155,7 @@ class CocoNgrams:
         options = colibricore.PatternModelOptions(mintokens = mt, maxlength = max(self.ngrams), doreverseindex=True)
         self.model = colibricore.IndexedPatternModel()
         self.model.train(corpusfile, options)
-
+        
     def transform(self, write = False):
         rows = []
         cols = []
@@ -467,6 +464,15 @@ class CharNgrams:
             self.blackfeats = []
         self.features = []
 
+    def freq_dict(self, text):
+        """
+        Returns a frequency dictionary of the input list
+        """
+        c = Counter()
+        for word in text:
+            c[word] += 1
+        return c
+        
     def fit(self, documents):
         """
         Model fitter
@@ -487,7 +493,7 @@ class CharNgrams:
         for document in documents:
             document = list(document)
             for n in self.n_list:
-                features.update(utils.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
+                features.update(self.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
         self.features = [i for i,j in sorted(features.items(), reverse=True, key=operator.itemgetter(1)) if not bool(set(i.split("_")) & set(self.blackfeats))]
 
     def transform(self, documents):
@@ -511,7 +517,7 @@ class CharNgrams:
             document = list(document)
             char_dict = {}
             for n in self.n_list:
-                char_dict.update(utils.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
+                char_dict.update(self.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
             instances.append([char_dict.get(f,0) for f in self.features])
         return np.array(instances)
 
