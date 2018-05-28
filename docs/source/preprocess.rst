@@ -32,6 +32,8 @@ Options
 
 Output
 -------
+*The output comes in one of the following four extensions, depending on the setting (see Overview_)* 
+
 :.tok.txt:
   File with each token divided by a space
 :.tok.txtdir:
