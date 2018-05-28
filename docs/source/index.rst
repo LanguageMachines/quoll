@@ -29,7 +29,9 @@ Quoll has the following advantages:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :glob:
+
+   *
 
 
 
