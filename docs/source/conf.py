@@ -24,9 +24,9 @@ copyright = '2018, Florian Kunneman, Maarten van Gompel'
 author = 'Florian Kunneman, Maarten van Gompel'
 
 # The short X.Y version
-version = ''
+version = '0.9'
 # The full version, including alpha/beta/rc tags
-release = '0.9'
+#release = '0.9'
 
 
 # -- General configuration ---------------------------------------------------
@@ -54,7 +54,7 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.txt'
+source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
