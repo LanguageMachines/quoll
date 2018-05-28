@@ -2,7 +2,7 @@
 The preprocess module
 ==================================
 
-The preprocess module is the first module in the pipeline, taking care of basic text preprocessing tasks: tokenization (Ucto_ / Frog_), stemming and part-of-speech tagging (Frog_). Its output provides the input to the Featurize module. 
+The preprocess module is the first module in the pipeline, taking care of basic text preprocessing tasks: tokenization (Ucto_ / Frog_), stemming and part-of-speech tagging (Frog_). Its output provides the input to the Featurize_ module. 
 
 Input
 --------
@@ -32,7 +32,7 @@ Options
 
 Output
 -------
-*The output comes in one of the following four extensions, depending on the setting (see Overview_)* 
+The output comes in one of the following four extensions, depending on the setting (see `Overview`_). 
 
 :.tok.txt:
   File with each token divided by a space
@@ -80,4 +80,4 @@ $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess 
 
 .. _Ucto: https://languagemachines.github.io/ucto/
 .. _Frog: https://languagemachines.github.io/frog/
-
+.. _Featurize: featurize.rst
