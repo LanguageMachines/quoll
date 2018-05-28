@@ -3,6 +3,7 @@ import numpy
 from scipy import sparse
 import os
 import itertools
+import pickle
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
@@ -61,6 +62,7 @@ class Balance(Task):
         with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
             v_out.write('\n'.join(vocabulary))
         
+
 class FitVectorizer(Task):
 
     in_train = InputSlot()
@@ -103,7 +105,7 @@ class FitVectorizer(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
-
+           
         # calculate feature_weight
         featureweights = weight_functions[self.weight][0](featurized_instances, trainlabels)
 
@@ -114,7 +116,7 @@ class FitVectorizer(Task):
             trainvectors = featurized_instances
 
         # prune features
-        featureselection = vectorizer.return_featureselection(featureweights, self.prune)
+        featureselection = vectorizer.return_featureselection(weight_functions['frequency'][0](featurized_instances, trainlabels), self.prune)
 
         # compress vectors
         trainvectors = vectorizer.compress_vectors(trainvectors, featureselection)
@@ -153,6 +155,9 @@ class ApplyVectorizer(Task):
 
     def out_test(self):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
 
     def run(self):
 
@@ -195,12 +200,16 @@ class ApplyVectorizer(Task):
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
 
+        # write featureselection to file
+        with open(self.out_featureselection().path, 'w', encoding = 'utf-8') as t_out:
+            t_out.write('\n'.join(lines))
+        
 class VectorizeCsv(Task):
 
     in_csv = InputSlot()
 
-    delimiter = Parameter()
-
+    delimiter = Parameter()  
+    
     def out_vectors(self):
         return self.outputfrominput(inputformat='csv', stripextension='.csv', addextension='.vectors.npz')
 
@@ -209,12 +218,227 @@ class VectorizeCsv(Task):
         # load instances
         loader = docreader.Docreader()
         instances = loader.parse_csv(self.in_csv().path,delim=self.delimiter)
-        print('num features',len(instances[7]))
         instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
         instances_sparse = sparse.csr_matrix(instances_float)
 
         # write instances to file
         numpy.savez(self.out_vectors().path, data=instances_sparse.data, indices=instances_sparse.indices, indptr=instances_sparse.indptr, shape=instances_sparse.shape)
+
+class FitTransformScale(Task):
+
+    in_vectors = InputSlot()
+
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+
+    def out_scaler(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler.pkl')
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+    
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+        
+        # scale vectors
+        scaler = vectorizer.fit_scale(vectors)
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write scaler
+        with open(self.out_scaler().path, 'wb') as fid:
+            pickle.dump(scaler, fid)
+
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
+
+
+class TransformScale(Task):
+
+    in_vectors = InputSlot()
+    in_scaler = InputSlot()
+
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+
+    
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+
+        # read scaler
+        with open(self.in_scaler().path, 'rb') as fid:
+            scaler = pickle.load(fid)
+
+        # scale vectors
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
+
+
+class Combine(Task):
+
+    in_vectors = InputSlot()
+    in_vectors_append = InputSlot()
+    
+    def in_vocabulary(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')
+
+    def in_vocabulary_append(self):
+        return self.outputfrominput(inputformat='vectors_append', stripextension='.vectors.npz', addextension='.featureselection.txt')   
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.featureselection.txt')   
+
+    def out_combined(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.vectors.npz')
+    
+    def run(self):
+
+        # assert that vocabulary file exists (not checked in component)
+        assert os.path.exists(self.in_vocabulary().path), 'Vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary().path 
+        
+        # assert that vocabulary_append file exists (not checked in component)
+        assert os.path.exists(self.in_vocabulary_append().path), 'Second vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary_append().path 
+
+        # load vocabulary
+        with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
+            vocabulary = infile.read().strip().split('\n')
+        
+        # load vocabulary append
+        with open(self.in_vocabulary_append().path,'r',encoding='utf-8') as infile:
+            vocabulary_append = infile.read().strip().split('\n')
+
+        # load vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        V = vectors.toarray()
+        
+        # load vectors append
+        loader = numpy.load(self.in_vectors_append().path)
+        vectors_append = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        VA = vectors_append.toarray()
+        
+        # combine vocabularies
+        vocabulary_combined = vocabulary + vocabulary_append
+
+        # combine vectors
+        vectors_combined = sparse.hstack([vectors,vectors_append]).tocsr()
+
+        # write vocabulary to file
+        with open(self.out_featureselection().path, 'w', encoding='utf-8') as v_out:
+            v_out.write('\n'.join(vocabulary_combined))
+
+        # write combined vectors to file
+        numpy.savez(self.out_combined().path, data=vectors_combined.data, indices=vectors_combined.indices, indptr=vectors_combined.indptr, shape=vectors_combined.shape)
+
+
+class VectorizeFoldreporter(Task):
+
+    in_predictions = InputSlot()
+    in_bins = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.vectors.npz')
+
+    def out_vocabulary(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.featureselection.txt')
+    
+    def run(self):
+
+        # open bin indices
+        dr = docreader.Docreader()
+        bins_str = dr.parse_csv(self.in_bins().path)
+        indices = sum([[int(x) for x in bin] for bin in bins_str],[])
+
+        # load predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as file_in:
+            predictions = file_in.read().strip().split('\n')
+
+        # generate prediction dict (to convert names to numbrers)
+        predictiondict = {}
+        for i,pred in enumerate(list(set(predictions))):
+            predictiondict[pred] = 0
+
+        # initialize vectorcolumn
+        vectors = [[0]] * len(indices)
+
+        # for each prediction
+        for i,prediction in enumerate(predictions):
+            index = indices[i]
+            vectors[index][0] = predictiondict[prediction]
+        vectors_csr = sparse.csr_matrix(vectors)
+
+        # write output
+        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('BOW')
+        
+class VectorizePredictions(Task):
+
+    in_predictions = InputSlot()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.vectors.npz')
+
+    def out_vocabulary(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.featureselection.txt')
+    
+    def run(self):
+
+        # load predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as file_in:
+            predictions = file_in.read().strip().split('\n')
+
+        # generate prediction dict (to convert names to numbrers)
+        predictiondict = {}
+        for i,pred in enumerate(list(set(predictions))):
+            predictiondict[pred] = 0
+
+        # initialize vectorcolumn
+        vectors = []
+
+        # for each prediction
+        for prediction in predictions:
+            vectors.append([predictiondict[prediction]])
+        vectors_csr = sparse.csr_matrix(vectors)
+
+        # write output
+        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('BOW')
 
 
 class FeaturizeTask(Task):
@@ -247,13 +471,14 @@ class Vectorize(WorkflowComponent):
     
     traininstances = Parameter()
     trainlabels = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
-    testinstances = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass 
+    testinstances = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
     
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -299,17 +524,22 @@ class Vectorize(WorkflowComponent):
             )).T.reshape(-1,3)]  
     
     def setup(self, workflow, input_feeds):
-
+        
         ######################
         ### Training phase ###
         ######################
         
         if 'featurized_train_csv' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer.in_csv = input_feeds['featurized_train_csv']
+            trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
 
-            trainvectors = trainvectorizer.out_vectors
-                
+            if self.scale:
+                trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+                trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
+
+            else:
+                trainvectorizer = trainvectorizer_csv
+
         else:
 
             if 'vectorized_train' not in input_feeds.keys():
@@ -343,8 +573,18 @@ class Vectorize(WorkflowComponent):
         if len(list(set(['featurized_test_csv','featurized_test_txt','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
         
             if 'featurized_test_csv' in input_feeds.keys():
-                testvectorizer = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                testvectorizer.in_csv = input_feeds['featurized_test_csv']
+                testvectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+                testvectorizer_csv.in_csv = input_feeds['featurized_test_csv']
+
+                if self.scale:
+                    testvectorizer = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                    testvectorizer.in_vectors = testvectorizer_csv.out_vectors
+                    testvectorizer.in_scaler = trainvectorizer.out_scaler
+
+                else:
+                    testvectorizer = testvectorizer_csv
+
+                return testvectorizer, trainvectorizer
         
             else:
                 
@@ -356,19 +596,19 @@ class Vectorize(WorkflowComponent):
                     testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
                     testinstances = testfeaturizer.out_featurized
-                
+                    
                 if 'vectorized_train' in input_feeds.keys():
                     trainvectors = input_feeds['vectorized_train']
-
+ 
                 else:
                     trainvectors = trainvectorizer.out_train
-                    
+
                 testvectorizer = workflow.new_task('testvectorizer',ApplyVectorizer,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
                 testvectorizer.in_test = testinstances
                 testvectorizer.in_train = trainvectors
-
-            return testvectorizer
-
-        else:
+                
+                return testvectorizer
+        
+        else: # only train
 
             return trainvectorizer

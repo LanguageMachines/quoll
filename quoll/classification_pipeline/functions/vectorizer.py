@@ -7,10 +7,10 @@ import random
 import numpy
 import copy
 import operator
+
 from scipy import sparse, stats
-from sklearn.preprocessing import normalize
-from sklearn.decomposition import IncrementalPCA
 from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.preprocessing import StandardScaler
 
 class Counts:
     """
@@ -143,12 +143,6 @@ def return_document_frequency(instances, labels):
     document_frequency = cnt.count_document_frequency()
     return document_frequency
 
-def return_infogain(instances, labels):
-    pass
-
-def return_infogain_vectors(instances, weights):
-    pass
-
 def return_idf(instances, labels):
 
     transformer = TfidfTransformer(smooth_idf=True)
@@ -161,6 +155,61 @@ def return_idf(instances, labels):
     # cnt = Counts(instances, labels)
     # idf = cnt.count_idf()
     # return idf
+
+def return_infogain(instances, labels):
+    """
+    Infogain calculator
+    =====
+    Function to calculate the information gain of each feature
+
+    Transforms
+    -----
+    self.feature_infogain : dict
+        key : feature index, int
+        value : information gain, float
+    """
+    # some initial calculations
+    infogain = dict.fromkeys(range(instances.shape[1]), 0)
+    cnt = Counts(instances, labels)
+    len_instances = instances.shape[0]
+    feature_frequency = cnt.count_document_frequency()
+    label_frequency = cnt.count_label_frequency()
+    label_feature_frequency = cnt.count_label_feature_frequency()
+    label_probability = [(label_frequency[label] / len_instances) for label in label_frequency.keys()]
+    initial_entropy = -sum([prob * math.log(prob, 2) for prob in label_probability if prob != 0])
+    # assign infogain values to each feature
+    for feature in feature_frequency.keys():
+        # calculate positive entropy
+        frequency = feature_frequency[feature]
+        if frequency > 0:
+            feature_probability = frequency / len_instances
+            positive_label_probabilities = []
+            for label in labels:
+                if label_feature_frequency[label][feature] > 0:
+                    positive_label_probabilities.append(label_feature_frequency[label][feature] / frequency)
+                else:
+                    positive_label_probabilities.append(0)
+            positive_entropy = -sum([prob * math.log(prob, 2) for prob in positive_label_probabilities if prob != 0])
+        else:
+            positive_entropy = 0
+        # calculate negative entropy
+        inverse_frequency = len_instances - feature_frequency[feature]
+        negative_probability = inverse_frequency / len_instances
+        negative_label_probabilities = [((label_frequency[label] - label_feature_frequency[label][feature]) / inverse_frequency) for label in labels]
+        negative_entropy = -sum([prob * math.log(prob, 2) for prob in negative_label_probabilities if not prob <= 0])
+        # based on positive and negative entropy, calculate final entropy
+        final_entropy = positive_entropy - negative_entropy
+        infogain[feature] = initial_entropy - final_entropy
+    return infogain
+
+def return_correlations(instances, labels):
+    feature_correlation = {}
+    nplabels = numpy.array(labels)
+    for i in range(instances.shape[1]):
+        feature_vals = instances[:,i].toarray()
+        corr,p = stats.pearsonr(feature_vals,nplabels)
+        feature_correlation[i] = [corr,p]
+    return feature_correlation[i]
 
 def return_binary_vectors(instances, feature_weights):
     
@@ -177,8 +226,8 @@ def return_tfidf_vectors(instances, idfs):
     # tfidf_vectors = instances.multiply(feature_idf_ordered)
     # return tfidf_vectors
 
-def return_featureselection(featureweights, prune):
-
+def return_featureselection(featureweights,prune):
+    # by default pruning is done based on feature frequency    
     featureselection = sorted(featureweights, key = featureweights.get, reverse = True)[:prune]
     return featureselection
 
@@ -211,3 +260,15 @@ def normalize_features(instances):
 
     normalized = normalize(instances,norm='l1')
     return normalized
+
+def fit_scale(vectors):
+    try:
+        scaler = StandardScaler()
+        scaler.fit(vectors)
+    except:
+        scaler = StandardScaler(with_mean=False)
+        scaler.fit(vectors)
+    return scaler
+
+def scale_vectors(vectors,scaler):
+    return scaler.transform(vectors)
