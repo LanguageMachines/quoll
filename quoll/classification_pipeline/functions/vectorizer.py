@@ -10,6 +10,7 @@ import operator
 from scipy import sparse, stats
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import IncrementalPCA
+from sklearn.feature_extraction.text import TfidfTransformer
 
 class Counts:
     """
@@ -150,9 +151,16 @@ def return_infogain_vectors(instances, weights):
 
 def return_idf(instances, labels):
 
-    cnt = Counts(instances, labels)
-    idf = cnt.count_idf()
+    transformer = TfidfTransformer(smooth_idf=True)
+    transformer.fit(instances)
+    idf = dict.fromkeys(range(instances.shape[1]), 0)
+    for feature,value in enumerate(list(transformer._idf_diag.data)):
+        idf[feature] = value
     return idf
+    
+    # cnt = Counts(instances, labels)
+    # idf = cnt.count_idf()
+    # return idf
 
 def return_binary_vectors(instances, feature_weights):
     
@@ -162,9 +170,12 @@ def return_binary_vectors(instances, feature_weights):
 
 def return_tfidf_vectors(instances, idfs):
 
-    feature_idf_ordered = sparse.csr_matrix([idfs[feature] for feature in sorted(idfs.keys())])
-    tfidf_vectors = instances.multiply(feature_idf_ordered)
-    return tfidf_vectors
+    transformer = TfidfTransformer(smooth_idf=True)
+    return transformer.fit_transform(instances)
+    
+    # feature_idf_ordered = sparse.csr_matrix([idfs[feature] for feature in sorted(idfs.keys())])
+    # tfidf_vectors = instances.multiply(feature_idf_ordered)
+    # return tfidf_vectors
 
 def return_featureselection(featureweights, prune):
 
