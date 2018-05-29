@@ -10,7 +10,7 @@ import operator
 
 from scipy import sparse, stats
 from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 class Counts:
     """
@@ -262,12 +262,8 @@ def normalize_features(instances):
     return normalized
 
 def fit_scale(vectors):
-    try:
-        scaler = StandardScaler()
-        scaler.fit(vectors)
-    except:
-        scaler = StandardScaler(with_mean=False)
-        scaler.fit(vectors)
+    scaler = MinMaxScaler(feature_range=(0,1))
+    scaler.fit(vectors)
     return scaler
 
 def scale_vectors(vectors,scaler):
