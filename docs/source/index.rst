@@ -32,8 +32,9 @@ Quoll has the following advantages:
    :caption: Table of Contents
    :glob:
    
-   pipeline/*
-   usage*
+   pipeline/preprocess
+   pipeline/featurize
+   pipeline/vectorize
       
 
 
