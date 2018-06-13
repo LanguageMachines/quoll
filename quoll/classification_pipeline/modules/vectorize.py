@@ -20,16 +20,16 @@ class Balance(Task):
     in_trainlabels = InputSlot()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.vocabulary.txt')   
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.features.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.balanced.features.npz' if self.in_train().path.split('.')[-2] == 'features' else '.balanced.vectors.npz')
 
     def out_labels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.balanced.vocabulary.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.balanced.vocabulary.txt')   
     
     def run(self):
 
@@ -527,6 +527,8 @@ class Vectorize(WorkflowComponent):
         ### Training phase ###
         ######################
         
+        labels = input_feeds['labels_train']
+
         if 'featurized_train_csv' in input_feeds.keys():
             trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
             trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
@@ -538,11 +540,14 @@ class Vectorize(WorkflowComponent):
             else:
                 trainvectorizer = trainvectorizer_csv
 
+            if self.balance:
+                balancetask = workflow.new_task('BalanceTaskCSV',Balance,autopass=True)
+                balancetask.in_train = trainvectorizer.out_vectors
+                balancetask.in_trainlabels = labels
+
         else:
 
             if 'vectorized_train' not in input_feeds.keys():
-
-                labels = input_feeds['labels_train']
             
                 if 'featurized_train' in input_feeds.keys():
                     traininstances = input_feeds['featurized_train']
@@ -564,6 +569,8 @@ class Vectorize(WorkflowComponent):
                 trainvectorizer.in_train = traininstances
                 trainvectorizer.in_trainlabels = labels
 
+                traininstances = trainvectorizer.out_vectors
+
         ######################
         ### Testing phase ####
         ######################
@@ -582,7 +589,10 @@ class Vectorize(WorkflowComponent):
                 else:
                     testvectorizer = testvectorizer_csv
 
-                return testvectorizer, trainvectorizer
+                if self.balance:
+                    return testvectorizer, balancetask
+                else:
+                    return testvectorizer, trainvectorizer
         
             else:
                 

@@ -359,6 +359,14 @@ class Classify(WorkflowComponent):
                 else:
                     trainvectorizer = trainvectorizer_csv
 
+            if self.balance:
+                balancetask = workflow.new_task('BalanceTaskCSV',Balance,autopass=True)
+                balancetask.in_train = trainvectorizer.out_vectors
+                balancetask.in_trainlabels = labels
+
+                trainvectors = balancetask.out_train
+                trainlabels = balancetask.out_labels
+            else:
                 trainvectors = trainvectorizer.out_vectors
 
             else:
