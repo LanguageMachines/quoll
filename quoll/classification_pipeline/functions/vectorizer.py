@@ -263,8 +263,8 @@ def normalize_features(instances):
 
 def fit_scale(vectors):
     scaler = MinMaxScaler(feature_range=(0,1))
-    scaler.fit(vectors)
+    scaler.fit(vectors.toarray())
     return scaler
 
 def scale_vectors(vectors,scaler):
-    return scaler.transform(vectors)
+    return sparse.csr_matrix(scaler.transform(vectors.toarray()))

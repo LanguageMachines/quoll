@@ -72,13 +72,13 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_train_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.append.vectors.npz')            
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.train.vectors.npz')            
 
     def out_test(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
 
     def out_test_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.append.vectors.npz')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.test.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
@@ -90,13 +90,13 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_trainvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.append.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.train.featureselection.txt')
 
     def out_testvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt')
 
     def out_testvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.append.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.test.featureselection.txt')
 
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
@@ -108,7 +108,7 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.scale else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.scale else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
 
     def run(self):
 

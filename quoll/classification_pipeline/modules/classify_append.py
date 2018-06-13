@@ -200,17 +200,22 @@ class ClassifyAppend(WorkflowComponent):
 
             trainvectors = trainvectorizer.out_train
             trainlabels = trainvectorizer.out_trainlabels
-            
+
+        if self.scale and not self.bow_as_feature:
+            trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+            trainscaler.in_vectors = trainvectors_append
+
+            trainvectors_append = trainscaler.out_vectors
+                        
         traincombiner = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
         traincombiner.in_vectors = trainvectors
         traincombiner.in_vectors_append = trainvectors_append
 
-        if self.scale:
+        if self.scale and self.bow_as_feature:
             trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
             trainscaler.in_vectors = traincombiner.out_combined
             
             trainvectors_combined = trainscaler.out_vectors
-
         else:
             trainvectors_combined = traincombiner.out_combined
                 
@@ -295,18 +300,24 @@ class ClassifyAppend(WorkflowComponent):
                 testvectorizer.in_testfeatures = featurized_test
 
                 testvectors = testvectorizer.out_vectors
-                
+
+            if self.scale and not self.bow_as_feature:
+                testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                testscaler.in_vectors = testvectors_append
+                testscaler.in_scaler = trainscaler.out_scaler
+
+                testvectors_append = testscaler.out_vectors
+
             testvector_combiner = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
             testvector_combiner.in_vectors = testvectors
             testvector_combiner.in_vectors_append = testvectors_append
                             
-            if self.scale:
+            if self.scale and self.bow_as_feature:
                 testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
                 testscaler.in_vectors = testvector_combiner.out_combined
                 testscaler.in_scaler = trainscaler.out_scaler
 
                 testvectors_combined = testscaler.out_vectors
-
             else:
                 testvectors_combined = testvector_combiner.out_combined
 

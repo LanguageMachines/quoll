@@ -116,7 +116,7 @@ class FitVectorizer(Task):
             trainvectors = featurized_instances
 
         # prune features
-        featureselection = vectorizer.return_featureselection(weight_functions['frequency'][0](featurized_instances, trainlabels), self.prune)
+        featureselection = vectorizer.return_featureselection(weight_functions[self.weight][0](featurized_instances, trainlabels), self.prune)
 
         # compress vectors
         trainvectors = vectorizer.compress_vectors(trainvectors, featureselection)
@@ -318,10 +318,10 @@ class Combine(Task):
         return self.outputfrominput(inputformat='vectors_append', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.featureselection.txt')   
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('/')[-1].split('.')[0] + '.featureselection.txt')   
 
     def out_combined(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('.')[-3] + '.vectors.npz')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('/')[-1].split('.')[0] + '.vectors.npz')
     
     def run(self):
 
@@ -342,12 +342,10 @@ class Combine(Task):
         # load vectors
         loader = numpy.load(self.in_vectors().path)
         vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        V = vectors.toarray()
         
         # load vectors append
         loader = numpy.load(self.in_vectors_append().path)
         vectors_append = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-        VA = vectors_append.toarray()
         
         # combine vocabularies
         vocabulary_combined = vocabulary + vocabulary_append
