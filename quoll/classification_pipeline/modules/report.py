@@ -438,11 +438,18 @@ class Report(WorkflowComponent):
                     if self.scale:
                         trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
                         trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
-
                     else:
                         trainvectorizer = trainvectorizer_csv
 
-                    trainvectors = trainvectorizer.out_vectors
+                    if self.balance:
+                        balancetask = workflow.new_task('BalanceTaskCSV',Balance,autopass=True)
+                        balancetask.in_train = trainvectorizer.out_vectors
+                        balancetask.in_trainlabels = labels
+
+                        trainlabels = balancetask.out_labels
+                        trainvectors = balancetask.out_train
+                    else:
+                        trainvectors = trainvectorizer.out_vectors
 
                 else:
 
