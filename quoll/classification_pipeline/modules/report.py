@@ -427,7 +427,16 @@ class Report(WorkflowComponent):
             trainlabels = input_feeds['labels_train']
 
             if 'vectorized_train' in input_feeds.keys():
-                trainvectors = input_feeds['vectorized_train']
+                if self.balance and 'balanced' not in input_feeds['vectorized_train'].split('/')[-1].split('.'):
+                    balancetask = workflow.new_task('BalanceTaskVector',Balance,autopass=True)
+                    balancetask.in_train = input_feeds['vectorized_train']
+                    balancetask.in_trainlabels = trainlabels
+
+                    trainvectors = balancetask.out_train
+                    trainlabels = balancetask.out_labels
+
+                else:
+                    trainvectors = input_feeds['vectorized_train']
 
             else: # pre_vectorized
 
