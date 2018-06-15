@@ -337,7 +337,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
     def train_classifier(self, trainvectors, labels, 
         booster='gbtree', silent='0', nthread='12', 
         learning_rate='0.1', min_child_weight='1', max_depth='6', gamma='0', max_delta_step='0', 
-        subsample='1', colsample_bytree='1.0', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
+        subsample='1', colsample_bytree='1', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
         objective='binary:logistic', seed=7, n_estimators='100',
         scoring='roc_auc', jobs=12):
         # prepare grid search
@@ -350,8 +350,8 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         min_child_weight_values = range(1,6,1) if min_child_weight == 'search' else [int(x) for x in min_child_weight.split()]
         max_depth_values = range(3,10,1) if max_depth == 'search' else [int(x) for x in max_depth.split()]
         gamma_values = [i/10 for i in range(0,5)] if gamma == 'search' else [float(x) for x in gamma.split()]
-        subsample_values = [i/10 for i in range(6,10)] if subsample == 'search' else [float(x) for x in gamma.split()]
-        colsample_bytree_values = [i/10 for i in range(6,10)] if colcample_bytree == 'search' else [float(x) for x in gamma.split()]
+        subsample_values = [i/10 for i in range(6,10)] if subsample == 'search' else [float(x) for x in subsample.split()]
+        colsample_bytree_values = [i/10 for i in range(6,10)] if colsample_bytree == 'search' else [float(x) for x in colsample_bytree.split()]
         reg_alpha_values = [1e-5,1e-2,0.1,1,100] if reg_alpha == 'search' else [float(x) for x in reg_alpha.split()]
         grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
@@ -364,13 +364,13 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
                 param_grid[parameter] = grid_values[i]
             model = XGBClassifier(learning_rate=learning_rate,max_delta_step=max_delta_step,reg_lambda=reg_lambda,scale_pos_weight=scale_pos_weight)
             if [len(x) > 1 for x in grid_values].count(True) <= 2: # exhaustive grid search with two parameters
-                paramsearch = GridSearchCV(estimator = model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=n_jobs)
+                paramsearch = GridSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=n_jobs)
             else: # random grid search
                 paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=jobs)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
-        model = XGBClassifier(
+        self.model = XGBClassifier(
             learning_rate = learning_rate, 
             max_delta_step = max_delta_step, 
             reg_lambda = reg_lambda, 

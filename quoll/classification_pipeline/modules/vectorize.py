@@ -569,7 +569,7 @@ class Vectorize(WorkflowComponent):
                 trainvectorizer.in_train = traininstances
                 trainvectorizer.in_trainlabels = labels
 
-                traininstances = trainvectorizer.out_vectors
+                traininstances = trainvectorizer.out_train
 
         ######################
         ### Testing phase ####
