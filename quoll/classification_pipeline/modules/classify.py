@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, Balance
 
 from quoll.classification_pipeline.functions.classifier import *
 
