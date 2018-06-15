@@ -288,8 +288,8 @@ def normalize_features(instances):
     normalized = normalize(instances,norm='l1')
     return normalized
 
-def fit_scale(vectors):
-    scaler = MinMaxScaler(feature_range=(0,1))
+def fit_scale(vectors,min_scale,max_scale):
+    scaler = MinMaxScaler(feature_range=(min_scale,max_scale))
     scaler.fit(vectors.toarray())
     return scaler
 

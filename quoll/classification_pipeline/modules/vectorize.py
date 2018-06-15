@@ -228,17 +228,20 @@ class FitTransformScale(Task):
 
     in_vectors = InputSlot()
 
+    min_scale = IntParameter()
+    max_scale = IntParameter()
+    
     def in_featureselection(self):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
     
     def out_vectors(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled_' + str(self.min_scale) + '_' + str(self.max_scale) + '.vectors.npz')
 
     def out_scaler(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler.pkl')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler_' + str(self.min_scale) + '_' + str(self.max_scale) + '.pkl')
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled_' + str(self.min_scale) + '_' + str(self.max_scale) + '.featureselection.txt')       
     
     def run(self):
 
@@ -251,7 +254,7 @@ class FitTransformScale(Task):
             featureselection = file_in.read().strip().split('\n')
         
         # scale vectors
-        scaler = vectorizer.fit_scale(vectors)
+        scaler = vectorizer.fit_scale(vectors,self.min_scale,self.max_scale)
         scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
 
         # write vectors

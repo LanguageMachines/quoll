@@ -325,7 +325,7 @@ class RunFold(WorkflowComponent):
     lr_maxiter = Parameter(default='1000')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
@@ -419,7 +419,7 @@ class Validate(WorkflowComponent):
     lr_maxiter = Parameter(default='1000')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
@@ -499,8 +499,12 @@ class Validate(WorkflowComponent):
             vectorizer_csv.in_csv = input_feeds['featurized_csv']
 
             if self.scale:
-                vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True)
-                vectorizer.in_vectors = vectorizer_csv.out_vectors
+                if self.classifier == 'svm':
+                    vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
+                    vectorizer.in_vectors = vectorizer_csv.out_vectors
+                else:
+                    vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
+                    vectorizer.in_vectors = vectorizer_csv.out_vectors
 
             else:
                 vectorizer = vectorizer_csv

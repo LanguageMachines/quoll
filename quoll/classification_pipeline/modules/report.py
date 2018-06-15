@@ -288,6 +288,7 @@ class ClassifyTask(Task):
     ordinal = BoolParameter()
     jobs = IntParameter()
     iterations = IntParameter()
+    scoring = Parameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -330,10 +331,14 @@ class ClassifyTask(Task):
             return True
         else:
             yield Classify(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testvectors().path,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
             )
 
 #################################################################
@@ -373,7 +378,7 @@ class Report(WorkflowComponent):
     lr_maxiter = Parameter(default='1000')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
@@ -456,7 +461,7 @@ class Report(WorkflowComponent):
             ############################
             ### Prepare trainvectors ###
             ############################
-
+            
             trainlabels = input_feeds['labels_train']
             
             if 'vectorized_train' in input_feeds.keys():
