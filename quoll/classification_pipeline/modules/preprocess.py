@@ -214,22 +214,22 @@ class Frog_doc(StandardWorkflowComponent):
 
 @registercomponent
 class Preprocess(StandardWorkflowComponent):
-"""
-The preprocess module
-==================================
+    """
+    The preprocess module
+    ==================================
 
-The preprocess module is the first module in the pipeline, taking care of basic text preprocessing tasks: tokenization (Ucto_ / Frog_), stemming and part-of-speech tagging (Frog_). Its output provides the input to the Featurize_ module. 
-
-Input
---------
-
---inputfile             + The preprocess module takes text documents as input. They can come in two formats:
-                        1. Extension **.txt** - File with text documents on each line. Note that text documents with a linebreak will be seen as two separate documents
-                        2. Extension **.txtdir** - Directory with text documents (files ending with **.txt**).
-                 
-
-Options
---------
+    The preprocess module is the first module in the pipeline, taking care of basic text preprocessing tasks: tokenization (Ucto_ / Frog_), stemming and part-of-speech tagging (Frog_). Its output provides the input to the Featurize_ module. 
+    
+    Input
+    --------
+    
+    --inputfile             + The preprocess module takes text documents as input. They can come in two formats:
+    1. Extension **.txt** - File with text documents on each line. Note that text documents with a linebreak will be seen as two separate documents
+    2. Extension **.txtdir** - Directory with text documents (files ending with **.txt**).
+    
+    
+    Options
+    --------
 
 --tokconfig             + Give path to Ucto configuration file to tokenize the text documents applying Ucto
                         + Using LaMachine, the path can be found in path-to-lamachine-directory/share/ucto/
@@ -297,7 +297,8 @@ $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess 
 .. _Ucto: https://languagemachines.github.io/ucto/
 .. _Frog: https://languagemachines.github.io/frog/
 .. _Featurize: featurize.rst
-"""
+
+    """
 
     tokconfig = Parameter(default=False)
     frogconfig = Parameter(default=False) # both are set to False to be able to pick one of them

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrainTask, VectorizeTestTask 
+from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrainTask, VectorizeTestTask, Balance 
 from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale
 
 from quoll.classification_pipeline.functions import reporter, linewriter, docreader
@@ -458,9 +458,9 @@ class Report(WorkflowComponent):
             ############################
 
             trainlabels = input_feeds['labels_train']
-
+            
             if 'vectorized_train' in input_feeds.keys():
-                if self.balance and 'balanced' not in input_feeds['vectorized_train'].split('/')[-1].split('.'):
+                if self.balance and 'balanced' not in input_feeds['vectorized_train']().path.split('/')[-1].split('.'):
                     balancetask = workflow.new_task('BalanceTaskVector',Balance,autopass=True)
                     balancetask.in_train = input_feeds['vectorized_train']
                     balancetask.in_trainlabels = trainlabels
