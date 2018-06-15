@@ -120,22 +120,47 @@ class Counts:
             idf[feature] = math.log((num_docs / feature_counts[feature]), 10) if feature_counts[feature] > 0 else 0
         return idf
 
+def return_label_indices(labels):
+    label_indices = defaultdict(list)
+    for i,label in enumerate(labels):
+        label_indices[label].append(i)
+    return label_indices
+
+def upsample_instances(indices,target):
+    upsampled_indices = indices
+    num_indices = len(indices)
+    surplus = target - num_indices
+    while surplus > num_indices:
+        upsampled_indices.append(indices)
+        surplus = target - num_indices
+    upsampled_indices.append(random.sample(indices,surplus))
+    return upsampled_indices
+
 def balance_data(instances, labels):
     # identify lowest frequency]
+    balanced_instances = []
+    balanced_labels = []
+    label_indices = self.return_label_indices(labels)
     unique_labels = list(set(labels))
+    label_count = {}
+    for label in unique_labels:
+        label_count[label] = labels.count(label)
     label_count_sorted = sorted([(label,labels.count(label)) for label in unique_labels], key = lambda k : k[1])
-    least_frequent_indices = [i for i,label in enumerate(labels) if label == label_count_sorted[0][0]]
-    least_frequent_count = label_count_sorted[0][1]
-    balanced_instances = instances[least_frequent_indices,:]
-    balanced_labels = [label_count_sorted[0][0]] * least_frequent_count
-    # impose lowest frequency on other labels
-    for cursorlabel in [lc[0] for lc in label_count_sorted[1:]]:
-        label_indices = [i for i,label in enumerate(labels) if label == cursorlabel]
-        samples = random.sample(label_indices, least_frequent_count)
-        sampled_instances = instances[samples,:]
-        balanced_instances = sparse.vstack((balanced_instances,sampled_instances), format='csr')
-        balanced_labels.extend([cursorlabel] * least_frequent_count)
-    return balanced_instances, balanced_labels
+    if len(unique_labels) == 2: # calculate mean of two label counts
+        target_count = int(numpy.mean(numpy.array([label_count_sorted[0][1],label_count_sorted[1][1]])))
+    elif len(unique_labels) > 2: # take median as target count
+        target_count = numpy.median(numpy.array([x[1] for x in label_count_sorted]))
+    for label in unique_labels:
+        if label_count[label] == target_count:
+            balanced_instances.append(instances[label_indices[label]])
+        elif label_count[label] < target_count: # need to upsample
+            for sample in upsample_instances(label_indices[label],target_count):
+                balanced_instances.append(instances[sample])
+        else: # need to downsample
+            balanced_instances.append(instances[random.sample(label_indices[label],target_count)])
+        balanced_labels.extend([label] * target_count)
+    balanced_instances_stacked = sparse.vstack(balanced_instances)
+    return balanced_instances_stacked, balanced_labels
 
 def return_document_frequency(instances, labels):
 
