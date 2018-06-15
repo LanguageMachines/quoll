@@ -1,7 +1,7 @@
 
 #!/usr/bin/env
 
-from collections import Counter
+from collections import defaultdict, Counter
 import math
 import random
 import numpy
@@ -127,12 +127,14 @@ def return_label_indices(labels):
     return label_indices
 
 def upsample_instances(indices,target):
-    upsampled_indices = indices
+    upsampled_indices = []
     num_indices = len(indices)
-    surplus = target - num_indices
+    surplus = target
+    taken_samples = 0
     while surplus > num_indices:
-        upsampled_indices.append(indices)
-        surplus = target - num_indices
+        upsampled_indices.append(copy.deepcopy(indices))
+        taken_samples += len(indices)
+        surplus = target - taken_samples
     upsampled_indices.append(random.sample(indices,surplus))
     return upsampled_indices
 
@@ -140,7 +142,7 @@ def balance_data(instances, labels):
     # identify lowest frequency]
     balanced_instances = []
     balanced_labels = []
-    label_indices = self.return_label_indices(labels)
+    label_indices = return_label_indices(labels)
     unique_labels = list(set(labels))
     label_count = {}
     for label in unique_labels:
