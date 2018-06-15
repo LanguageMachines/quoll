@@ -3,6 +3,7 @@ from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
 from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegression
 from sklearn.neighbors import KNeighborsClassifier
+from xgboost import XGBClassifier
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
 import warnings
@@ -321,7 +322,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
         return classifications
 
 
-class LinearRegressionClassifier(AbstractSKLearnClassifier):
+class XGBoostClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
         AbstractSKLearnClassifier.__init__(self)
@@ -333,24 +334,116 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
+    def train_classifier(self, trainvectors, labels, 
+        booster='gbtree', silent='0', nthread='12', 
+        learning_rate='0.1', min_child_weight='1', max_depth='6', gamma='0', max_delta_step='0', 
+        subsample='1', colsample_bytree='1.0', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
+        objective='binary:logistic', seed=7, n_estimators='100',
+        scoring='roc_auc', jobs=12):
+        # prepare grid search
+        parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha'] # grid parameters
+        learning_rate = float(learning_rate)
+        max_delta_step = float(max_delta_step)
+        reg_lambda = float(reg_lambda)
+        scale_pos_weight = float(scale_pos_weight)
+        n_estimators_values = [range(100,1000,100)] if n_estimators == 'search' else [int(x) for x in n_estimators.split()]
+        min_child_weight_values = range(1,6,1) if min_child_weight == 'search' else [int(x) for x in min_child_weight.split()]
+        max_depth_values = range(3,10,1) if max_depth == 'search' else [int(x) for x in max_depth.split()]
+        gamma_values = [i/10 for i in range(0,5)] if gamma == 'search' else [float(x) for x in gamma.split()]
+        subsample_values = [i/10 for i in range(6,10)] if subsample == 'search' else [float(x) for x in gamma.split()]
+        colsample_bytree_values = [i/10 for i in range(6,10)] if colcample_bytree == 'search' else [float(x) for x in gamma.split()]
+        reg_alpha_values = [1e-5,1e-2,0.1,1,100] if reg_alpha == 'search' else [float(x) for x in reg_alpha.split()]
+        grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values]
+        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
+            settings = {}
+            for i, parameter in enumerate(parameters):
+                settings[parameter] = grid_values[i][0]
+        else:
+            param_grid = {}
+            for i, parameter in enumerate(parameters):
+                param_grid[parameter] = grid_values[i]
+            model = XGBClassifier(learning_rate=learning_rate,max_delta_step=max_delta_step,reg_lambda=reg_lambda,scale_pos_weight=scale_pos_weight)
+            if [len(x) > 1 for x in grid_values].count(True) <= 2: # exhaustive grid search with two parameters
+                paramsearch = GridSearchCV(estimator = model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=n_jobs)
+            else: # random grid search
+                paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=jobs)
+            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            settings = paramsearch.best_params_
+        # train an SVC classifier with the settings that led to the best performance
+        model = XGBClassifier(
+            learning_rate = learning_rate, 
+            max_delta_step = max_delta_step, 
+            reg_lambda = reg_lambda, 
+            scale_pos_weight = scale_pos_weight,
+            n_estimators = settings[parameters[0]], 
+            min_child_weight = settings[parameters[1]], 
+            max_depth = settings[parameters[2]],
+            gamma = settings[parameters[3]],
+            subsample = settings[parameters[4]],
+            colsample_bytree = settings[parameters[5]],
+            reg_alpha = settings[parameters[6]],
+            verbose = 2
+        )
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
-    # def set_label_encoder(self, raw_labels,labels):
-    #     self.label_encoder = {}
-    #     for label in sorted(list(set(labels))):
-    #         raw_values = [raw_labels[index] for index, lab in enumerate(labels) if lab == label]
-    #         self.label_encoder[label] = [min(raw_values),max(raw_values)]
-                
-    # def return_label_encoder(self):
-    #     return self.label_encoder
-    
-    # def transform_labels(self,labels):
-    #     transformed_labels = []
-    #     for label in labels:
-    #         for target_label in self.label_encoder.keys()::
-    #             if label > self.label_encoder[target_label][0] and label < self.label_encoder[target_label][1]:
-    #                 transformed_labels.append(target_label)
-    #                 break
-    #     return transformed_labels
+    def return_classifier(self):
+        return self.model
+
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
+
+    def return_model_insights(self,vocab):
+        model_insights = []
+        return model_insights
+
+class RandomForestClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
+        jobs = int(jobs)
+        if n_neighbors == 'default' or n_neighbors == '':
+            n_neighbors = 3
+        if weights == 'default' or weights == '':
+            weights = 'uniform'
+        if algorithm == 'default' or algorithm == '':
+            algorithm = 'auto'
+        # train
+        self.model = KNeighborsClassifier(n_neighbors=n_neighbors,weights=weights,algorithm=algorithm,n_jobs=jobs)
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+
+    def return_classifier(self):
+        return self.model
+
+    def apply_classifier(self, testvectors):
+        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
+        return classifications
+
+    def return_model_insights(self,vocab):
+        model_insights = [['coef.txt',self.return_coef(vocab)]]
+        return model_insights
+
+
+class LinearRegressionClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, fit_intercept='True', normalize='False', copy_X='True', jobs=4):
         fit_intercept = False if fit_intercept == 'False' else True
@@ -386,29 +479,6 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
         # model_insights = [['coef.txt',self.return_coef(vocab)]]
         return model_insights
         
-        # return [['feature_log_prob.txt','\n'.join([str(x) for x in self.model.feature_log_prob_.T.tolist()])],['class_log_prior.txt','\n'.join(['\t'.join([self.label_encoder.inverse_transform(self.model.classes_[i]),str(x)]) for i,x in enumerate(self.model.class_log_prior_.tolist())])],['class_count.txt','\n'.join(['\t'.join([self.label_encoder.inverse_transform(self.model.classes_[i]),str(x)]) for i,x in enumerate(self.model.class_count_.tolist())])]]
-
-    # def apply_classifier(self, testvectors):
-    #     predictions_raw = []
-    #     predictions = []
-    #     full_predictions = [sorted(self.label_encoder.keys())]
-    #     for i, instance in enumerate(testvectors):
-    #         prediction_raw = self.model.predict(instance)[0]
-    #         predictions_raw.append(prediction_raw)
-    #         prediction = self.transform_labels([prediction_raw])[0]
-    #         predictions.append(prediction)
-    #         try:
-    #             full_predictions.append([clf.score(numpy.array([instance]),numpy.array(self.transform_labels([c])[0])) for c in self.transform_labels(full_predictions[0])])
-    #         except:
-    #             full_predictions.append(['-' for c in full_predictions[0]])
-    #     return predictions_raw, predictions, full_predictions
-
-
-
-
-
-
-
 class TreeClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
@@ -507,4 +577,5 @@ class KNNClassifier(AbstractSKLearnClassifier):
     def return_model_insights(self,vocab):
         model_insights = [['coef.txt',self.return_coef(vocab)]]
         return model_insights
+
 

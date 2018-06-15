@@ -58,6 +58,7 @@ class Fold(Task):
     ordinal = BoolParameter()
     jobs = IntParameter()
     iterations = IntParameter()
+    scoring = Parameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -74,6 +75,22 @@ class Fold(Task):
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
+
+    xg_booster = Parameter() 
+    xg_silent = Parameter()
+    xg_learning_rate = Parameter() 
+    xg_min_child_weight = Parameter() 
+    xg_max_depth = Parameter() 
+    xg_gamma = Parameter() 
+    xg_max_delta_step = Parameter()
+    xg_subsample = Parameter() 
+    xg_colsample_bytree = Parameter() 
+    xg_reg_lambda = Parameter()
+    xg_reg_alpha = Parameter() 
+    xg_scale_pos_weight = Parameter()
+    xg_objective = Parameter() 
+    xg_seed = IntParameter()
+    xg_n_estimators = Parameter() 
     
     # vectorizer parameters
     weight = Parameter() # options: frequency, binary, tfidf
@@ -176,10 +193,14 @@ class Fold(Task):
         yield Report(
             train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path, 
             weight=self.weight, prune=self.prune, balance=self.balance, 
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
         )
 
 class Folds(Task):
@@ -200,6 +221,7 @@ class Folds(Task):
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
+    scoring = Parameter(default='roc_auc')
     
     nb_alpha = Parameter(default=1.0)
     nb_fit_prior = BoolParameter()
@@ -216,6 +238,22 @@ class Folds(Task):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    xg_booster = Parameter() 
+    xg_silent = Parameter()
+    xg_learning_rate = Parameter() 
+    xg_min_child_weight = Parameter() 
+    xg_max_depth = Parameter() 
+    xg_gamma = Parameter() 
+    xg_max_delta_step = Parameter()
+    xg_subsample = Parameter() 
+    xg_colsample_bytree = Parameter() 
+    xg_reg_lambda = Parameter()
+    xg_reg_alpha = Parameter() 
+    xg_scale_pos_weight = Parameter()
+    xg_objective = Parameter() 
+    xg_seed = IntParameter()
+    xg_n_estimators = Parameter() 
     
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
@@ -236,10 +274,14 @@ class Folds(Task):
                 directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold, 
                 weight=self.weight, prune=self.prune, balance=self.balance, 
-                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
             )
 
 
@@ -264,6 +306,7 @@ class RunFold(WorkflowComponent):
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
+    scoring = Parameter(default='roc_auc')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -280,6 +323,22 @@ class RunFold(WorkflowComponent):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
+    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_gamma = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_max_delta_step = Parameter(default='0')
+    xg_subsample = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_colsample_bytree = Parameter(default='1.0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_reg_lambda = Parameter(default='1')
+    xg_reg_alpha = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_scale_pos_weight = Parameter('1')
+    xg_objective = Parameter(default='binary:logistic') # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
+    xg_seed = IntParameter(default=7)
+    xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
 
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
@@ -308,10 +367,14 @@ class RunFold(WorkflowComponent):
             'run_fold', Fold, autopass=False, 
             i=self.i, 
             weight=self.weight, prune=self.prune, balance=self.balance, 
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
         )
         run_fold.in_directory = input_feeds['directory']
         run_fold.in_instances = input_feeds['instances']
@@ -337,6 +400,7 @@ class Validate(WorkflowComponent):
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
+    scoring = Parameter(default='roc_auc')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -353,6 +417,22 @@ class Validate(WorkflowComponent):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
+    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_gamma = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_max_delta_step = Parameter(default='0')
+    xg_subsample = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_colsample_bytree = Parameter(default='1.0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_reg_lambda = Parameter(default='1')
+    xg_reg_alpha = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
+    xg_scale_pos_weight = Parameter('1')
+    xg_objective = Parameter(default='binary:logistic') # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
+    xg_seed = IntParameter(default=7)
+    xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
 
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
@@ -449,10 +529,14 @@ class Validate(WorkflowComponent):
             'foldrunner', Folds, autopass=False, 
             n=self.n, 
             weight=self.weight, prune=self.prune, balance=self.balance, 
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
         )
         foldrunner.in_bins = bin_maker.out_bins
         foldrunner.in_instances = instances
