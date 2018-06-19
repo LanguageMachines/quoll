@@ -341,9 +341,15 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         objective='binary:logistic', seed=7, n_estimators='100',
         scoring='roc_auc', jobs=12):
         # prepare grid search
+        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+            parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 
+                'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha']
+            multi = True
+        else: # only two classes to distinguish
+            parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha'] 
+            multi = False
         silent = int(silent)
         nthread=int(nthread)
-        parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha'] # grid parameters
         learning_rate = float(learning_rate)
         max_delta_step = float(max_delta_step)
         reg_lambda = float(reg_lambda)
@@ -364,8 +370,11 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             param_grid = {}
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
-            model = XGBClassifier(silent=silent,nthread=nthread,learning_rate=learning_rate,max_delta_step=max_delta_step,reg_lambda=reg_lambda,scale_pos_weight=scale_pos_weight,)
-            if [len(x) > 1 for x in grid_values].count(True) <= 2: # exhaustive grid search with two parameters
+            model = XGBClassifier(silent=silent,nthread=nthread,learning_rate=learning_rate,max_delta_step=max_delta_step,reg_lambda=reg_lambda,scale_pos_weight=scale_pos_weight)
+            if multi:
+                model = OutputCodeClassifier(model)
+                trainvectors = trainvectors.todense()
+            if [len(x) > 1 for x in grid_values].count(True) <= 3: # exhaustive grid search with one to three variant parameters
                 paramsearch = GridSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=1)
             else: # random grid search
                 paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=1)
