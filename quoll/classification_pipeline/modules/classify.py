@@ -59,6 +59,12 @@ class Train(Task):
     xg_seed = IntParameter()
     xg_n_estimators = Parameter() 
 
+    knn_n_neighbors = Parameter()
+    knn_weights = Parameter()
+    knn_algorithm = Parameter()
+    knn_leaf_size = Parameter()
+    knn_metric = Parameter()
+    knn_p = IntParameter()
    
     def in_featureselection(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')   
@@ -85,7 +91,7 @@ class Train(Task):
                         'xgboost':[XGBoostClassifier(),[self.xg_booster, self.xg_silent, self.jobs, self.xg_learning_rate, self.xg_min_child_weight, self.xg_max_depth, self.xg_gamma, 
                             self.xg_max_delta_step, self.xg_subsample, self.xg_colsample_bytree, self.xg_reg_lambda, self.xg_reg_alpha, self.xg_scale_pos_weight, 
                                                         self.xg_objective, self.xg_seed, self.xg_n_estimators, self.scoring, self.jobs]],
-                        'knn':[KNNClassifier(),[]], 
+                        'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
                         'linear_regression':[LinearRegressionClassifier(),[]]
@@ -322,6 +328,13 @@ class Classify(WorkflowComponent):
     xg_seed = IntParameter(default=7)
     xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
 
+    knn_n_neighbors = Parameter(default='3')
+    knn_weights = Parameter(default='uniform')
+    knn_algorithm = Parameter(default='auto')
+    knn_leaf_size = Parameter(default='30')
+    knn_metric = Parameter(default='euclidean')
+    knn_p = IntParameter(default=2)
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
@@ -440,7 +453,9 @@ class Classify(WorkflowComponent):
             xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
             xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
             xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
+            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+            knn_metric=self.knn_metric, knn_p=self.knn_p
         )
         trainer.in_train = trainvectors
         trainer.in_trainlabels = trainlabels            

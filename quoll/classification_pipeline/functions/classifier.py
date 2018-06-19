@@ -379,7 +379,6 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
                 paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=1)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
-        # train an SVC classifier with the settings that led to the best performance
         self.model = XGBClassifier(
             learning_rate = learning_rate, 
             max_delta_step = max_delta_step, 
@@ -398,18 +397,60 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
+class KNNClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+
+    def train_classifier(self, trainvectors, labels, n_neighbors='3', weights='uniform', algorithm='auto', leaf_size='30', metric='euclidean', p=2, scoring='roc_auc', jobs=1):
+        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+            parameters = ['estimator__n_neighbors','estimator__weights', 'estimator__leaf_size', 'estimator__metric']
+            multi = True
+        else: # only two classes to distinguish
+            parameters = ['n_neighbors','weights', 'leaf_size', 'metric'] 
+            multi = False
+        n_neighbours = [3,5,7,9] if n_neighbors == 'search' else [int(x) for x in n_neighbors.split()]
+        weights = ['uniform','distance'] if weights == 'search' else weights.split()
+        leaf_size = [10,20,30,40,50] if n_neighbors == 'search' else [int(x) for x in leaf_size.split()]
+        metric = ['minkowski','euclidean','manhattan','hamming'] if metric == 'search' else metric.split()
+        grid_values = [n_neighbors, weights, leaf_size, metric]
+        if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
+            settings = {}
+            for i, parameter in enumerate(parameters):
+                settings[parameter] = grid_values[i][0]
+        else:
+            param_grid = {}
+            for i, parameter in enumerate(parameters):
+                param_grid[parameter] = grid_values[i]
+            model = KNeighborsClassifier(algorithm=algorithm,p=p) 
+            if multi:
+                model = OutputCodeClassifier(model)
+                trainvectors = trainvectors.todense()
+            paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=jobs)
+            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            settings = paramsearch.best_params_
+        self.model = KNeighborsClassifier(
+            algorithm=algorithm,
+            p=p,
+            n_neighbors=settings[parameters[0]],
+            weights=settings[parameters[1]],
+            leaf_size=settings[parameters[2]],
+            metric=settings[parameters[3]]
+        )
+        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+
     def return_classifier(self):
         return self.model
-
-    def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-        return classifications
-
-    def return_feature_importances(self):
-        return self.model.feature_importances_
     
     def return_model_insights(self,vocab):
-        model_insights = ['feature_importances.txt',self.return_feature_importances()]
+        model_insights = []
         return model_insights
 
 class RandomForestClassifier(AbstractSKLearnClassifier):
