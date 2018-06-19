@@ -342,18 +342,16 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         scoring='roc_auc', jobs=12):
         # prepare grid search
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
-            parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 
-                'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha']
+            parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
             multi = True
         else: # only two classes to distinguish
-            parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha'] 
+            parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha', 'scale_pos_weight'] 
             multi = False
         silent = int(silent)
         nthread=int(nthread)
         learning_rate = float(learning_rate)
         max_delta_step = float(max_delta_step)
         reg_lambda = float(reg_lambda)
-        scale_pos_weight = float(scale_pos_weight)
         n_estimators_values = list(range(100,1000,100)) if n_estimators == 'search' else [int(x) for x in n_estimators.split()]
         min_child_weight_values = list(range(1,6,1)) if min_child_weight == 'search' else [int(x) for x in min_child_weight.split()]
         max_depth_values = list(range(3,10,1)) if max_depth == 'search' else [int(x) for x in max_depth.split()]
@@ -361,7 +359,8 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         subsample_values = [i/10 for i in range(6,10)] if subsample == 'search' else [float(x) for x in subsample.split()]
         colsample_bytree_values = [i/10 for i in range(6,10)] if colsample_bytree == 'search' else [float(x) for x in colsample_bytree.split()]
         reg_alpha_values = [1e-5,1e-2,0.1,1,100] if reg_alpha == 'search' else [float(x) for x in reg_alpha.split()]
-        grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values]
+        scale_pos_weight_values = [1,3,5,7,9] if scale_pos_weight == 'search' else [int(x) for x in scale_pos_weight.split()]
+        grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values, scale_pos_weight_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
             for i, parameter in enumerate(parameters):
@@ -385,7 +384,6 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             learning_rate = learning_rate, 
             max_delta_step = max_delta_step, 
             reg_lambda = reg_lambda, 
-            scale_pos_weight = scale_pos_weight,
             silent = silent,
             nthread = nthread,
             n_estimators = settings[parameters[0]], 
@@ -395,6 +393,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             subsample = settings[parameters[4]],
             colsample_bytree = settings[parameters[5]],
             reg_alpha = settings[parameters[6]],
+            scale_pos_weight = settings[parameters[7]],
             verbose = 2
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
