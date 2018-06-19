@@ -625,39 +625,3 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         model_insights = [['coef.txt',self.return_coef(vocab)]]
         return model_insights
     
-class KNNClassifier(AbstractSKLearnClassifier):
-
-    def __init__(self):
-        AbstractSKLearnClassifier.__init__(self)
-        self.model = False
-
-    def set_label_encoder(self, labels):
-        AbstractSKLearnClassifier.set_label_encoder(self, labels)
-
-    def return_label_encoding(self, labels):
-        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
-
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
-        jobs = int(jobs)
-        if n_neighbors == 'default' or n_neighbors == '':
-            n_neighbors = 3
-        if weights == 'default' or weights == '':
-            weights = 'uniform'
-        if algorithm == 'default' or algorithm == '':
-            algorithm = 'auto'
-        # train
-        self.model = KNeighborsClassifier(n_neighbors=n_neighbors,weights=weights,algorithm=algorithm,n_jobs=jobs)
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
-
-    def return_classifier(self):
-        return self.model
-
-    def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-        return classifications
-
-    def return_model_insights(self,vocab):
-        model_insights = [['coef.txt',self.return_coef(vocab)]]
-        return model_insights
-
-
