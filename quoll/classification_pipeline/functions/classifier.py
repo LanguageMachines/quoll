@@ -397,6 +397,30 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
+    def return_classifier(self):
+        return self.model
+
+    def return_feature_importance(self,vocab=False):
+        feature_importance = []
+        if vocab:
+            for i,vals in enumerate(self.model.feature_importances_.T.tolist()):
+                feature_importance.append('\t'.join([vocab[i]] + [str(x) for x in vals]))
+        else:
+            for i,vals in enumerate(self.model.coef_.T.tolist()):
+                feature_log_prob.append('\t'.join([str(i)] + [str(x) for x in vals]))
+        return '\n'.join(feature_coef) + '\n'
+    
+    def return_parameter_settings(self):
+        parameter_settings = []
+        for param in ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree',
+            'reg_alpha', 'scale_pos_weight','learning_rate','max_delta_step','reg_lambda']:
+            parameter_settings.append([param,str(self.model.get_params()[param])])
+        return '\n'.join([': '.join(x) for x in parameter_settings])
+
+    def return_model_insights(self,vocab=False):
+        model_insights = [['feature_importance.txt',self.return_feature_importance(vocab)],'parameter_settings.txt',self.return_parameter_settings()]
+        return model_insights
+
 class KNNClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
