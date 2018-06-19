@@ -20,7 +20,7 @@ class Balance(Task):
     in_trainlabels = InputSlot()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.vocabulary.txt' if self.in_train().path.split('.')[-1] == 'features' else '.featureselection.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.featureselection.txt')   
 
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.balanced.features.npz' if self.in_train().path.split('.')[-2] == 'features' else '.balanced.vectors.npz')

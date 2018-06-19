@@ -467,7 +467,7 @@ class ValidateAppend(WorkflowComponent):
     lr_maxiter = Parameter(default='1000')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
+    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 

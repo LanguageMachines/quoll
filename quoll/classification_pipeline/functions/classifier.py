@@ -397,8 +397,11 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
+    def return_feature_importances(self):
+        return self.model.feature_importances_
+    
     def return_model_insights(self,vocab):
-        model_insights = []
+        model_insights = ['feature_importances.txt',self.return_feature_importances()]
         return model_insights
 
 class RandomForestClassifier(AbstractSKLearnClassifier):
