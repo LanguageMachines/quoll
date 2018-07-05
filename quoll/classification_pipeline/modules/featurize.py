@@ -264,7 +264,7 @@ class Featurize(StandardWorkflowComponent):
 
         elif 'txt' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
-            if self.tokconfig:
+            if self.tokconfig and not self.tokconfig == 'false':
                 tokenizer = workflow.new_task('tokenize_instances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
                 tokenizer.in_txt = input_feeds['txt']
                 featurizertask = workflow.new_task('FeaturizerTask_txt', Tokenized2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)

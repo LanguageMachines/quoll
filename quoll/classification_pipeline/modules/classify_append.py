@@ -232,20 +232,32 @@ class ClassifyAppend(WorkflowComponent):
             trainlabels = trainvectorizer.out_trainlabels
 
         if self.scale and not self.bow_as_feature:
-            trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-            trainscaler.in_vectors = trainvectors_append
-
-            trainvectors_append = trainscaler.out_vectors
-                        
+            if self.classifier == 'svm':
+                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
+                trainscaler.in_vectors = trainvectors_append
+                trainvectors_append = trainscaler.out_vectors
+            elif self.classifier == 'xgboost':
+                trainvectors_append = trainvectors_append
+            else:
+                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
+                trainscaler.in_vectors = trainvectors_append
+                trainvectors_append = trainscaler.out_vectors
+                
         traincombiner = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
         traincombiner.in_vectors = trainvectors
         traincombiner.in_vectors_append = trainvectors_append
 
         if self.scale and self.bow_as_feature:
-            trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-            trainscaler.in_vectors = traincombiner.out_combined
-            
-            trainvectors_combined = trainscaler.out_vectors
+            if self.classifier == 'svm':
+                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
+                trainscaler.in_vectors = traincombiner.out_combined            
+                trainvectors_combined = trainscaler.out_vectors
+            elif self.classifier == 'xgboost':
+                trainvectors_combined = traincombiner.out_combined
+            else:
+                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
+                trainscaler.in_vectors = traincombiner.out_combined            
+                trainvectors_combined = trainscaler.out_vectors
         else:
             trainvectors_combined = traincombiner.out_combined
                 
@@ -343,7 +355,7 @@ class ClassifyAppend(WorkflowComponent):
 
                 testvectors = testvectorizer.out_vectors
 
-            if self.scale and not self.bow_as_feature:
+            if self.scale and not self.bow_as_feature and not self.classifier == 'xgboost':
                 testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
                 testscaler.in_vectors = testvectors_append
                 testscaler.in_scaler = trainscaler.out_scaler
@@ -354,7 +366,7 @@ class ClassifyAppend(WorkflowComponent):
             testvector_combiner.in_vectors = testvectors
             testvector_combiner.in_vectors_append = testvectors_append
                             
-            if self.scale and self.bow_as_feature:
+            if self.scale and self.bow_as_feature and not self.classifier == 'xgboost':
                 testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
                 testscaler.in_vectors = testvector_combiner.out_combined
                 testscaler.in_scaler = trainscaler.out_scaler

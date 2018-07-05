@@ -138,6 +138,9 @@ class Fold(Task):
         
         if self.complete(): # needed as it will not complete otherwise
             return True
+
+        if self.classifier == 'xgboost':
+            self.scale = False
         
         # make fold directory
         self.setup_output_dir(self.out_fold().path)
@@ -485,7 +488,7 @@ class Validate(WorkflowComponent):
     # ucto / frog parameters
     tokconfig = Parameter(default=False)
     frogconfig = Parameter(default=False)
-    strip_punctuation = BoolParameter(default=True)
+    strip_punctuation = BoolParameter(default=False)
 
     def accepts(self):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
@@ -536,7 +539,9 @@ class Validate(WorkflowComponent):
                 if self.classifier == 'svm':
                     vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
                     vectorizer.in_vectors = vectorizer_csv.out_vectors
-                else:
+                elif self.classifier == 'xgboost': # no scaling needed
+                    vectorizer = vectorizer_csv
+                else: # naive bayes, ...
                     vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
                     vectorizer.in_vectors = vectorizer_csv.out_vectors
 

@@ -41,7 +41,7 @@ class Reporter:
             if strictness>1 and full_predictions[i][0] != '-' and len(self.label_order) >= strictness:
                 fp_numbered = [[j,x] for j,x in enumerate(full_predictions[i])]
                 fp_sorted = sorted(fp_numbered,key = lambda k : k[1],reverse=True)
-                top_n_predictions = [self.label_order[fp_sorted[j][0]] for j in list(range(strictness))]
+                top_n_predictions = [self.label_order[fp_sorted[j][0]] for j in list(range(strictness)) if not fp_sorted[j][0] >= len(self.label_order)]
                 if labels[i] in top_n_predictions:
                     self.ce.append(labels[i],labels[i])
                 else:

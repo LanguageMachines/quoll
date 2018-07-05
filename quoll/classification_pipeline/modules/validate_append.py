@@ -138,6 +138,9 @@ class FoldAppend(Task):
 
         if self.complete(): # needed as it will not complete otherwise
             return True
+
+        if self.classifier == 'xgboost':
+            self.scale = False
         
         # make fold directory
         self.setup_output_dir(self.out_fold().path)
@@ -304,7 +307,7 @@ class FoldsAppend(Task):
     scale = BoolParameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('.')[-3] + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.bow.' + '_'.join(self.in_instances_append().path.split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature else '.bow.' + '_'.join(self.in_instances_append().path.split('.')[:-2]) + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and self.scale else self.in_instances_append().path.split('.')[-3] + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.scale else self.in_instances_append().path.split('.')[-3] + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('/')[-1].split('.')[:-2] + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature else '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and self.scale else '.'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.scale else '.'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp')
                                     
     def run(self):
 
@@ -425,7 +428,7 @@ class RunFoldAppend(WorkflowComponent):
     def setup(self, workflow, input_feeds):
 
         fold_append_runner = workflow.new_task(
-            'run_fold_append', FoldAppend, autopass=True, 
+            'run_fold_append', FoldAppend, autopass=False, 
             i=self.i, 
             weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
@@ -533,7 +536,7 @@ class ValidateAppend(WorkflowComponent):
     # ucto / frog parameters
     tokconfig = Parameter(default=False)
     frogconfig = Parameter(default=False)
-    strip_punctuation = BoolParameter(default=True)
+    strip_punctuation = BoolParameter(default=False)
 
     def accepts(self):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
