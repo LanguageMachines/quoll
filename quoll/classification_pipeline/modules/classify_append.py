@@ -32,6 +32,8 @@ class ClassifyAppend(WorkflowComponent):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
+    bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
+    bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -183,7 +185,7 @@ class ClassifyAppend(WorkflowComponent):
             fold_runner = workflow.new_task('nfold_cv_bow', Folds, autopass=True, 
                 n=5, 
                 weight=self.weight, prune=self.prune, balance=self.balance, 
-                                            classifier=self.bow_classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
+                classifier=self.bow_classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -202,9 +204,14 @@ class ClassifyAppend(WorkflowComponent):
             foldreporter = workflow.new_task('report_folds_bow', ReportFolds, autopass=True)
             foldreporter.in_exp = fold_runner.out_exp
 
-            fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
-            fold_vectorizer.in_predictions = foldreporter.out_predictions
-            fold_vectorizer.in_bins = bin_maker.out_bins
+            if self.bow_prediction_probs:
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
+                fold_vectorizer.in_full_predictions = foldreporter.out_full_predictions
+                fold_vectorizer.in_bins = bin_maker.out_bins
+            else:
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
+                fold_vectorizer.in_predictions = foldreporter.out_predictions
+                fold_vectorizer.in_bins = bin_maker.out_bins
 
             trainvectors = fold_vectorizer.out_vectors
 
@@ -334,8 +341,12 @@ class ClassifyAppend(WorkflowComponent):
                 bow_predictor.in_trainlabels = trainlabels
                 bow_predictor.in_model = bow_trainer.out_model
 
-                prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
-                prediction_vectorizer.in_predictions = bow_predictor.out_predictions
+                if self.bow_prediction_probs:
+                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True, include_labels=self.include_labels)
+                    prediction_vectorizer.in_full_predictions = bow_predictor.out_full_predictions
+                else:
+                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
+                    prediction_vectorizer.in_predictions = bow_predictor.out_predictions
 
                 testvectors = prediction_vectorizer.out_vectors
 

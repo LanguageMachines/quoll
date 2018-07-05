@@ -30,6 +30,8 @@ class FoldAppend(Task):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter()
+    bow_include_labels = Parameter()
+    bow_prediction_probs = BoolParameter()
 
     # classifier parameters
     classifier = Parameter()
@@ -223,7 +225,7 @@ class FoldAppend(Task):
             testinstances=self.out_test().path, testinstances_append=self.out_test_append().path, 
             traindocs=self.out_traindocs().path, 
             weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
+            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -253,6 +255,8 @@ class FoldsAppend(Task):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter()
+    bow_include_labels = Parameter()
+    bow_prediction_probs = BoolParameter()
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -320,7 +324,7 @@ class FoldsAppend(Task):
                 directory=self.out_exp().path, instances=self.in_instances().path, instances_append=self.in_instances_append().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold,
                 weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-                bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
+                bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -354,6 +358,8 @@ class RunFoldAppend(WorkflowComponent):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
+    bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
+    bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -431,7 +437,7 @@ class RunFoldAppend(WorkflowComponent):
             'run_fold_append', FoldAppend, autopass=False, 
             i=self.i, 
             weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
+            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -472,6 +478,8 @@ class ValidateAppend(WorkflowComponent):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
+    bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
+    bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -614,7 +622,7 @@ class ValidateAppend(WorkflowComponent):
             'foldrunner_append', FoldsAppend, autopass=False, 
             n=self.n, 
             weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier,
+            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
