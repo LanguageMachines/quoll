@@ -11,7 +11,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.validate import MakeBins, Folds
 from quoll.classification_pipeline.modules.report import ReportFolds
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTrainCombinedTask, VectorizeTestTask, VectorizeTestCombinedTask
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, VectorizeFoldreporter, VectorizePredictions
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
 
 from quoll.classification_pipeline.functions.classifier import *
 
@@ -342,7 +342,7 @@ class ClassifyAppend(WorkflowComponent):
                 bow_predictor.in_model = bow_trainer.out_model
 
                 if self.bow_prediction_probs:
-                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True, include_labels=self.include_labels)
+                    prediction_vectorizer = workflow.new_task('vectorize_predictions_probs', VectorizePredictionsProbs, autopass=True, include_labels=self.bow_include_labels)
                     prediction_vectorizer.in_full_predictions = bow_predictor.out_full_predictions
                 else:
                     prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)

@@ -364,60 +364,6 @@ class Combine(Task):
         numpy.savez(self.out_combined().path, data=vectors_combined.data, indices=vectors_combined.indices, indptr=vectors_combined.indptr, shape=vectors_combined.shape)
 
 
-class VectorizeFoldreporterProbs(Task):
-
-    in_full_predictions = InputSlot()
-    in_bins = InputSlot()
-
-    include_labels = Parameter()
-
-    def out_vectors(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.vectors.npz')
-
-    def out_vocabulary(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.featureselection.txt')
-    
-    def run(self):
-
-        # open bin indices
-        dr = docreader.Docreader()
-        bins_str = dr.parse_csv(self.in_bins().path)
-        indices = sum([[int(x) for x in bin] for bin in bins_str],[])
-
-        # load full predictions
-        with open(self.in_full_predictions().path) as infile:
-            lines = [line.split('\t') for line in infile.read().strip().split('\n')]
-        label_order = lines[0]
-        full_predictions = lines[1:]
-
-        # extract labels to include
-        if self.included_labels == 'all':
-            included_labels = label_order
-        else:
-            included_labels = self.include_labels.split()
-            if len(list(set(included_labels) & set(label_order))) != len(included_labels):
-                print('Included labels for bow features (',included_labels,') does not match predicted labels (',label_order,'), exiting program.')
-                quit() 
-
-        # initialize vectorcolumn
-        vector = [0] * len(included_labels)
-        vectors = [vector] * len(indices)
-
-        # for each prediction
-        for i,full_prediction in enumerate(full_predictions):
-            index = indices[i]
-            for j,label in enumerate(included_labels):
-                label_index = label_order.index(label):
-                vectors[index][j] = float(full_prediction[label_index])
-        vectors_csr = sparse.csr_matrix(vectors)
-
-        # write output
-        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
-
-        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
-            for label in included_labels:
-                out.write(label + '_prediction_prob')
-
 class VectorizeFoldreporter(Task):
 
     in_predictions = InputSlot()
@@ -459,10 +405,12 @@ class VectorizeFoldreporter(Task):
 
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             out.write('BOW')
-        
-class VectorizePredictionsProb(Task):
+
+
+class VectorizeFoldreporterProbs(Task):
 
     in_full_predictions = InputSlot()
+    in_bins = InputSlot()
 
     include_labels = Parameter()
 
@@ -474,6 +422,11 @@ class VectorizePredictionsProb(Task):
     
     def run(self):
 
+        # open bin indices
+        dr = docreader.Docreader()
+        bins_str = dr.parse_csv(self.in_bins().path)
+        indices = sum([[int(x) for x in bin] for bin in bins_str],[])
+
         # load full predictions
         with open(self.in_full_predictions().path) as infile:
             lines = [line.split('\t') for line in infile.read().strip().split('\n')]
@@ -481,7 +434,7 @@ class VectorizePredictionsProb(Task):
         full_predictions = lines[1:]
 
         # extract labels to include
-        if self.included_labels == 'all':
+        if self.include_labels == 'all':
             included_labels = label_order
         else:
             included_labels = self.include_labels.split()
@@ -493,20 +446,12 @@ class VectorizePredictionsProb(Task):
         vector = [0] * len(included_labels)
         vectors = [vector] * len(indices)
 
-        # generate prediction dict (to convert names to numbrers)
-        predictiondict = {}
-        for i,pred in enumerate(list(set(predictions))):
-            predictiondict[pred] = 0
-
-        # initialize vectorcolumn
-        vector = [0] * len(included_labels)
-        vectors = [vector] * len(full_predictions)
-
         # for each prediction
         for i,full_prediction in enumerate(full_predictions):
+            index = indices[i]
             for j,label in enumerate(included_labels):
-                label_index = label_order.index(label):
-                vectors[i][j] = float(full_prediction[label_index])
+                label_index = label_order.index(label)
+                vectors[index][j] = float(full_prediction[label_index])
         vectors_csr = sparse.csr_matrix(vectors)
 
         # write output
@@ -515,7 +460,7 @@ class VectorizePredictionsProb(Task):
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             for label in included_labels:
                 out.write(label + '_prediction_prob')
-
+            
 class VectorizePredictions(Task):
 
     in_predictions = InputSlot()
@@ -551,6 +496,58 @@ class VectorizePredictions(Task):
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             out.write('BOW')
 
+class VectorizePredictionsProbs(Task):
+ 
+    in_full_predictions = InputSlot()
+
+    include_labels = Parameter()
+
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.vectors.npz')
+
+    def out_vocabulary(self):
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.featureselection.txt')
+    
+    def run(self):
+
+        # load full predictions
+        with open(self.in_full_predictions().path) as infile:
+            lines = [line.split('\t') for line in infile.read().strip().split('\n')]
+        label_order = lines[0]
+        full_predictions = lines[1:]
+
+        # extract labels to include
+        if self.include_labels == 'all':
+            included_labels = label_order
+        else:
+            included_labels = self.include_labels.split()
+            if len(list(set(included_labels) & set(label_order))) != len(included_labels):
+                print('Included labels for bow features (',included_labels,') does not match predicted labels (',label_order,'), exiting program.')
+                quit() 
+
+        # initialize vectorcolumn
+        vector = [0] * len(included_labels)
+        vectors = [vector] * len(indices)
+
+        # initialize vectorcolumn
+        vector = [0] * len(included_labels)
+        vectors = [vector] * len(full_predictions)
+
+        # for each prediction
+        for i,full_prediction in enumerate(full_predictions):
+            for j,label in enumerate(included_labels):
+                label_index = label_order.index(label)
+                vectors[i][j] = float(full_prediction[label_index])
+        vectors_csr = sparse.csr_matrix(vectors)
+
+        # write output
+        numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
+
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            for label in included_labels:
+                out.write(label + '_prediction_prob')
+
+            
 class FeaturizeTask(Task):
 
     in_pre_featurized = InputSlot()
