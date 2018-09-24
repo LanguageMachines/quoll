@@ -1,4 +1,4 @@
-
+3
 from sklearn import preprocessing
 from sklearn import svm, naive_bayes, tree
 from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegression
@@ -209,7 +209,8 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return '\n'.join([': '.join(x) for x in parameter_settings])
 
     def return_model_insights(self,vocab=False):
-        model_insights = [['feature_weights.txt',self.return_feature_weights(vocab)],['parameter_settings.txt',self.return_parameter_settings()]]
+#        model_insights = [['feature_weights.txt',self.return_feature_weights(vocab)],['parameter_settings.txt',self.return_parameter_settings()]]
+        model_insights = [['parameter_settings.txt',self.return_parameter_settings()]]
         return model_insights
 
     def apply_classifier(self, testvectors):

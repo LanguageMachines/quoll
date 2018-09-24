@@ -313,13 +313,9 @@ class ClassifyAppend(WorkflowComponent):
                 
             if self.bow_as_feature:
 
-                print('CLASSIFY_APPEND BOW AS FEATURE')
-
                 if testvectors:
                     print('Bag-of-words as features can only be ran on featurized test instances (ending with \'.features.npz\', exiting programme...')
                     exit()
-
-                print('CLASSIFY_APPEND BOW TRAINER')
 
                 bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
