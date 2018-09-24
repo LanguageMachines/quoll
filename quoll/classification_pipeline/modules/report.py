@@ -22,7 +22,8 @@ class ReportPerformance(Task):
     in_testdocuments = InputSlot()
 
     ordinal = BoolParameter()
-
+    teststart = IntParameter()
+    
     def in_full_predictions(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.full_predictions.txt')
 
@@ -74,7 +75,7 @@ class ReportPerformance(Task):
 
         # load documents
         with open(self.in_testdocuments().path,'r',encoding='utf-8') as infile:
-            testdocuments = infile.read().strip().split('\n')
+            testdocuments = infile.read().strip().split('\n')[self.teststart:]
 
         # initiate reporter
         rp = reporter.Reporter(predictions, full_predictions, label_order, testlabels, self.ordinal, testdocuments)
@@ -191,7 +192,7 @@ class ReportDocpredictions(Task):
 class ReportFolds(Task):
 
     in_exp = InputSlot()
-
+    
     def out_predictions(self):
         return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.predictions.txt')  
 
@@ -609,7 +610,7 @@ class Report(WorkflowComponent):
 
         if 'labels_test' in input_feeds.keys():
 
-            reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal)
+            reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal,teststart=0)
             reporter.in_predictions = predictions
             reporter.in_testlabels = input_feeds['labels_test']
             reporter.in_testdocuments = docs

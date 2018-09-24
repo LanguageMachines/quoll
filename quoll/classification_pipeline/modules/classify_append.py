@@ -313,13 +313,9 @@ class ClassifyAppend(WorkflowComponent):
                 
             if self.bow_as_feature:
 
-                print('CLASSIFY_APPEND BOW AS FEATURE')
-
                 if testvectors:
                     print('Bag-of-words as features can only be ran on featurized test instances (ending with \'.features.npz\', exiting programme...')
                     exit()
-
-                print('CLASSIFY_APPEND BOW TRAINER')
 
                 bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -335,21 +331,17 @@ class ClassifyAppend(WorkflowComponent):
                 bow_trainer.in_train = trainvectors_bow
                 bow_trainer.in_trainlabels = trainlabels            
 
-                print('CLASSIFY_APPEND TESTVECTORIZER BOW')
                 testvectorizer_bow = workflow.new_task('vectorize_test_bow',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
                 testvectorizer_bow.in_trainvectors = trainvectors_bow
                 testvectorizer_bow.in_trainlabels = trainlabels
                 testvectorizer_bow.in_testfeatures = featurized_test
 
-                print('CLASSIFY_APPEND BOW PREDICTOR')
                 bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
                 bow_predictor.in_test = testvectorizer_bow.out_vectors
                 bow_predictor.in_trainlabels = trainlabels
                 bow_predictor.in_model = bow_trainer.out_model
 
                 if self.bow_prediction_probs:
-                    print('CLASSIFY_APPEND BOW PREDICTION PROBS')
-                    print('BOW PREDICTOR OUTPUT:',bow_predictor.out_full_predictions().path)
                     prediction_vectorizer = workflow.new_task('vectorize_predictions_probs', VectorizePredictionsProbs, autopass=True, include_labels=self.bow_include_labels)
                     prediction_vectorizer.in_full_predictions = bow_predictor.out_full_predictions
                 else:
