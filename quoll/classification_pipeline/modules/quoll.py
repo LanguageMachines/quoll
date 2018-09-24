@@ -102,7 +102,6 @@ class Quoll(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_csv_train',extension='.csv',inputparameter='train'),
@@ -324,42 +323,36 @@ class Quoll(WorkflowComponent):
 
         else:
 
-            if 'modeled_train' in input_feeds.keys():
-                trainmodel = input_feeds['modeled_train']
+            if trainvectors_append:
+                if trainvectors:
+                    trainvectorizer = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
+                    trainvectorizer.in_vectors = trainvectors
+                    trainvectorizer.in_vectors_append = trainvectors_append
+
+                    trainvectors_combined = trainvectorizer.out_combined
+
+                else: # featurized train
+
+                    trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    trainvectorizer.in_trainfeatures = featurized_train
+                    trainvectorizer.in_trainvectors_append = trainvectors_append
+                    trainvectorizer.in_trainlabels = trainlabels
+
+                    trainvectors_combined = trainvectorizer.out_train_combined
+                    trainvectors = trainvectorizer.out_train
+                    trainlabels = trainvectorizer.out_trainlabels
 
             else:
 
-                if trainvectors_append:
-                    if trainvectors:
-                        trainvectorizer = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
-                        trainvectorizer.in_vectors = trainvectors
-                        trainvectorizer.in_vectors_append = trainvectors_append
+                trainvectors_combined = False
 
-                        trainvectors_combined = trainvectorizer.out_combined
+                if not trainvectors:
+                    trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
+                    trainvectorizer.in_trainfeatures = featurized_train
+                    trainvectorizer.in_trainlabels = trainlabels
 
-                    else: # featurized train
-
-                        trainvectorizer = workflow.new_task('vectorize_train_combined',VectorizeTrainCombinedTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                        trainvectorizer.in_trainfeatures = featurized_train
-                        trainvectorizer.in_trainvectors_append = trainvectors_append
-                        trainvectorizer.in_trainlabels = trainlabels
-
-                        trainvectors_combined = trainvectorizer.out_train_combined
-                        trainvectors = trainvectorizer.out_train
-                        trainlabels = trainvectorizer.out_trainlabels
-
-                else:
-
-                    trainvectors_combined = False
-
-                    if not trainvectors:
-                        trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                        trainvectorizer.in_trainfeatures = featurized_train
-                        trainvectorizer.in_trainlabels = trainlabels
-
-                        trainvectors = trainvectorizer.out_train
-                        trainlabels = trainvectorizer.out_trainlabels
-        
+                    trainvectors = trainvectorizer.out_train
+                    trainlabels = trainvectorizer.out_trainlabels
 
                 trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -457,7 +450,7 @@ class Quoll(WorkflowComponent):
                 predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
                 predictor.in_test = testvectors
                 predictor.in_trainlabels = trainlabels
-                predictor.in_model = trainmodel
+                predictor.in_train = trainvectors
 
                 predictions = predictor.out_predictions
 
