@@ -4,7 +4,7 @@ from sklearn import svm, naive_bayes, tree
 from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegression
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
-from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
+#from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 from sklearn.multiclass import OutputCodeClassifier
 import warnings
 

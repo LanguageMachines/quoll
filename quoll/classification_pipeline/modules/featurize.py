@@ -31,8 +31,12 @@ def format_tokdoc(docname, lowercase):
     return document
 
 def keyfunc(s): # to sort any directory with an index system numerically
-    return [int(''.join(g)) if k else ''.join(g) for k, g in groupby(s, str.isdigit)]
-
+    try:
+        jg = [int(''.join(g)) for k, g in groupby(s, str.isdigit)]
+    except:
+        jg = [''.join(g) for k, g in groupby(s, str.isdigit)]
+    return jg
+        
 #################################################################
 ### Tasks 
 #################################################################
