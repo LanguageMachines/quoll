@@ -478,7 +478,7 @@ class Report(WorkflowComponent):
             ############################
             ### Prepare trainvectors ###
             ############################
-            
+
             trainlabels = input_feeds['labels_train']
             
             if 'vectorized_train' in input_feeds.keys():

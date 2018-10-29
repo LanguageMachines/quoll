@@ -34,7 +34,10 @@ class AbstractSKLearnClassifier:
             full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
         except ValueError: # classifier trained on dense data
             prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
-            full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]           
+            full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+        except AttributeError: # classifier does not support predict_proba
+            prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
+            full_prediction = [1.0 for c in self.label_encoder.classes_]
         return prediction, full_prediction
 
     def apply_model(self, clf, testvectors):
@@ -74,8 +77,8 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_class_names(self):
-        return [self.label_encoder.inverse_transform(c) for c in self.model.classes_]
-
+        return self.label_encoder.inverse_transform(self.model.classes_)
+        
     def return_feature_count(self,vocab=False):
         feature_count = ['\t'.join(self.return_class_names())]
         if vocab:
@@ -184,7 +187,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return self.model
 
     def return_class_names(self):
-        return [self.label_encoder.inverse_transform(c) for c in self.model.classes_]
+        return self.label_encoder.inverse_transform(self.model.classes_)
 
     def return_feature_weights(self,vocab=False):
         if self.model.get_params()['kernel'] == 'linear':
@@ -315,7 +318,8 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
         return '\n'.join(feature_coef) + '\n'
     
     def return_model_insights(self,vocab=False):
-        model_insights = [['coef.txt',self.return_feature_coef(vocab)]]
+#        model_insights = [['coef.txt',self.return_feature_coef(vocab)]]
+        model_insights = []
         return model_insights
         
     def apply_classifier(self, testvectors):
@@ -581,9 +585,11 @@ class TreeClassifier(AbstractSKLearnClassifier):
     def return_classifier(self):
         return self.model
 
-    def return_model_insights(self):
-        return [['feature_importances_gini.txt','\n'.join([str(x) for x in self.model.feature_importances_.T.tolist()])],['tree.txt',self.model.tree_.__str__()]]
-
+    def return_model_insights(self,vocab):
+        #model_insights = [['feature_importances_gini.txt','\n'.join([str(x) for x in self.model.feature_importances_.T.tolist()])],['tree.txt',self.model.tree_.__str__()]]
+        model_insights = []
+        return model_insights
+        
     def apply_classifier(self, testvectors):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
@@ -623,6 +629,7 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         return classifications
 
     def return_model_insights(self,vocab):
-        model_insights = [['coef.txt',self.return_coef(vocab)]]
+#        model_insights = [['coef.txt',self.return_coef(vocab)]]
+        model_insights = []
         return model_insights
     
