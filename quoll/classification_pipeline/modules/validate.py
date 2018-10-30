@@ -424,6 +424,9 @@ class Validate(WorkflowComponent):
 
     # fold-parameters
     n = IntParameter(default=10)
+    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
+    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
+    testend = IntParameter(default=-1)
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -565,14 +568,14 @@ class Validate(WorkflowComponent):
 
             instances = featurizer.out_featurized
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
         foldrunner = workflow.new_task(
             'foldrunner', Folds, autopass=False, 
             n=self.n, 
             weight=self.weight, prune=self.prune, balance=self.balance, 
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,

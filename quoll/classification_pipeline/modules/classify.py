@@ -164,6 +164,10 @@ class Predict(Task):
         with open(self.in_model().path, 'rb') as fid:
             model = pickle.load(fid)
 
+        # needed to prevent Knn classifier bug
+        if self.classifier == 'knn':
+            model.n_neighbors = int(model.n_neighbors)
+
         # load labels (for the label encoder)
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')

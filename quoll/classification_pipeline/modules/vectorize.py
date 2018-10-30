@@ -527,10 +527,6 @@ class VectorizePredictionsProbs(Task):
 
         # initialize vectorcolumn
         vector = [0] * len(included_labels)
-        vectors = [vector] * len(indices)
-
-        # initialize vectorcolumn
-        vector = [0] * len(included_labels)
         vectors = [vector] * len(full_predictions)
 
         # for each prediction
