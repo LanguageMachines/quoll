@@ -49,10 +49,10 @@ class Tokenized2Features(Task):
     lowercase = BoolParameter()
 
     def out_features(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats[:10].split()) + '.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats[:10].split()) + '.vocabulary.txt')
 
     def run(self):
         
