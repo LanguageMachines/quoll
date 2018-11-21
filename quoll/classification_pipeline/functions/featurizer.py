@@ -152,7 +152,7 @@ class CocoNgrams:
         self.classdecoder = colibricore.ClassDecoder(classfile)
 
         # Train model
-        options = colibricore.PatternModelOptions(mintokens = mt, maxlength = max(self.ngrams), doreverseindex=True)
+        options = colibricore.PatternModelOptions(mintokens = mt, minlength = min(self.ngrams), maxlength = max(self.ngrams), doreverseindex=True)
         self.model = colibricore.IndexedPatternModel()
         self.model.train(corpusfile, options)
         
