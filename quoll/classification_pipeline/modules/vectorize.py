@@ -563,12 +563,9 @@ class FeaturizeTask(Task):
     
     def run(self):
 
-        print('FEATURIZETASK')
         if self.complete(): # necessary as it will not complete otherwise
-            print('COMPLETE, returning TRUE')
             return True
         else:
-            print('NOT COMPLETE')
             yield Featurize(inputfile=self.in_pre_featurized().path,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                 
 #################################################################
