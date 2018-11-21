@@ -695,13 +695,13 @@ class Vectorize(WorkflowComponent):
         labels = input_feeds['labels_train']
 
         if 'featurized_train_csv' in input_feeds.keys():
-            trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
-            traininstances = trainvectorizer_csv.out_vectors
+            trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            trainvectorizer.in_csv = input_feeds['featurized_train_csv']
+            traininstances = trainvectorizer.out_vectors
 
             if self.scale:
                 scaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-                scaler.in_vectors = trainvectorizer_csv.out_vectors
+                scaler.in_vectors = traininstances
                 traininstances = scaler.out_vectors
 
             if self.balance:
@@ -791,4 +791,11 @@ class Vectorize(WorkflowComponent):
         
         else: # only train
 
-            return trainvectorizer
+            if self.select:
+                return selecttask
+            elif self.balance:
+                return balancetask
+            elif self.scale:
+                return scaler
+            else:
+                return trainvectorizer
