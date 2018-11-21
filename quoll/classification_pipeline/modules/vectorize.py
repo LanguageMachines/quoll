@@ -712,10 +712,10 @@ class Vectorize(WorkflowComponent):
                 labels = balancetask.out_labels 
 
             if self.select:
-                selecttask = workflow.new_task('select_features',Select,selector=self.select,threshold=self.selection_threshold,autopass=True)
+                selecttask = workflow.new_task('select_features',Select,selector=self.select,threshold=self.select_threshold,autopass=True)
                 selecttask.in_train = traininstances
                 selecttask.in_labels = labels
-                traininstances = selector.out_train
+                traininstances = selecttask.out_train
 
         else:
 
