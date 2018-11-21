@@ -7,7 +7,7 @@ import pickle
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.functions import vectorizer, docreader
+from quoll.classification_pipeline.functions import vectorizer, featselector, docreader
 from quoll.classification_pipeline.modules.featurize import Featurize
 
 #################################################################
@@ -62,6 +62,60 @@ class Balance(Task):
         with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
             v_out.write('\n'.join(vocabulary))
         
+class Select(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+
+    selector = Parameter()
+    threshold = Parameter()
+
+    def in_vocabulary(self):
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.featureselection.txt')   
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.selection.features.npz' if self.in_train().path.split('.')[-2] == 'features' else '.selection.vectors.npz')
+
+    # def out_labels(self):
+    #     return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.selection.labels')
+
+    def out_vocabulary(self):
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.selection.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.selection.featureselection.txt')   
+    
+    def run(self):
+
+        selection_functions = {'fcbf':featvectorizer.FCBF()}
+
+        # assert that vocabulary file exists (not checked in component)
+        assert os.path.exists(self.in_vocabulary().path), 'Vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary().path 
+    
+        # load vocabulary
+        with open(self.in_vocabulary().path,'r',encoding='utf-8') as infile:
+            vocabulary = infile.read().strip().split('\n')
+        
+        # load featurized traininstances
+        loader = numpy.load(self.in_train().path)
+        featurized_traininstances = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']).toarray()
+
+        # load trainlabels
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+            trainlabels = numpy.array(infile.read().strip().split('\n'))
+           
+        # select features
+        featselector = selection_functions[self.selector]
+        selected_features, traininstances_selected_features = featselector.fit_transform(featurized_traininstances, trainlabels, self.threshold)
+
+        # write traininstances to file
+        numpy.savez(self.out_train().path, data=traininstances_selected_features.data, indices=traininstances_selected_features.indices, indptr=traininstances_selected_features.indptr, shape=traininstances_selected_features.shape)
+
+        # # write trainlabels to file
+        # with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
+        #     l_out.write('\n'.join(trainlabels_balanced))
+
+        # write vocabulary to file
+        with open(self.out_vocabulary().path, 'w', encoding='utf-8') as v_out:
+            v_out.write('\n'.join(selected_features))
+
 
 class FitVectorizer(Task):
 
@@ -146,7 +200,8 @@ class ApplyVectorizer(Task):
     weight = Parameter()
     prune = Parameter()
     balance = BoolParameter()
-    
+    select = Parameter()
+
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vocabulary.txt')
 
@@ -588,6 +643,8 @@ class Vectorize(WorkflowComponent):
     balance = BoolParameter()
     delimiter = Parameter(default=',')
     scale = BoolParameter()
+    select = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -643,18 +700,25 @@ class Vectorize(WorkflowComponent):
         if 'featurized_train_csv' in input_feeds.keys():
             trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
             trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
+            traininstances = trainvectorizer_csv.out_vectors
 
             if self.scale:
-                trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-                trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
-
-            else:
-                trainvectorizer = trainvectorizer_csv
+                scaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+                scaler.in_vectors = trainvectorizer_csv.out_vectors
+                traininstances = scaler.out_vectors
 
             if self.balance:
                 balancetask = workflow.new_task('BalanceTaskCSV',Balance,autopass=True)
-                balancetask.in_train = trainvectorizer.out_vectors
+                balancetask.in_train = traininstances
                 balancetask.in_trainlabels = labels
+                traininstances = balancetask.out_train
+                labels = balancetask.out_labels 
+
+            if self.select:
+                selecttask = workflow.new_task('select_features',Select,selector=self.select,threshold=self.selection_threshold,autopass=True)
+                selecttask.in_train = traininstances
+                selecttask.in_labels = labels
+                traininstances = selector.out_train
 
         else:
 
