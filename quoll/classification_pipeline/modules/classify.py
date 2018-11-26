@@ -4,6 +4,7 @@ import numpy
 from scipy import sparse
 import pickle
 import math
+import random
 from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
@@ -11,7 +12,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, Balance
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.functions import wrapper
+from quoll.classification_pipeline.functions import wrapper, vectorizer
 
 #################################################################
 ### Tasks #######################################################
@@ -57,7 +58,7 @@ class Train(Task):
     xg_reg_alpha = Parameter() 
     xg_scale_pos_weight = Parameter()
     xg_objective = Parameter() 
-    xg_seed = IntParameter()
+    xg_seed = Parameter()
     xg_n_estimators = Parameter() 
 
     knn_n_neighbors = Parameter()
@@ -194,9 +195,8 @@ class Predict(Task):
 
 class RunGA(Task):
 
-    in_train = Parameter()
-    in_trainlabels = Parameter()
-    in_featureselection = Parameter()
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
 
     num_folds = IntParameter()
     fold_steps = IntParameter()
@@ -243,7 +243,7 @@ class RunGA(Task):
     xg_reg_alpha = Parameter() 
     xg_scale_pos_weight = Parameter()
     xg_objective = Parameter() 
-    xg_seed = IntParameter()
+    xg_seed = Parameter()
     xg_n_estimators = Parameter() 
 
     knn_n_neighbors = Parameter()
@@ -265,7 +265,7 @@ class RunGA(Task):
     def out_report(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.ga.report.txt')   
 
-    def setup(self, workflow, input_feeds):
+    def run(self):
 
         # load trainvectors instances
         loader = numpy.load(self.in_train().path)
@@ -276,6 +276,7 @@ class RunGA(Task):
             trainlabels = infile.read().strip().split('\n')
         if self.ordinal:
             trainlabels = [float(x) for x in trainlabels]
+        trainlabels = numpy.array(trainlabels)
 
         # load featureselection
         with open(self.in_featureselection().path,'r',encoding='utf-8') as infile:
@@ -287,7 +288,7 @@ class RunGA(Task):
         ga = wrapper.GA(vectorized_instances,trainlabels,featureselection_names)
         ga.make_folds(self.num_folds,self.fold_steps)
         ga.run(
-            num_iterations=self.num_iterations,population_size=self.population_size,crossover_probability=self.crossover_propability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
+            num_iterations=self.num_iterations,population_size=self.population_size,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
             classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -305,13 +306,18 @@ class RunGA(Task):
         feature_selection_indices = random.choice(feature_selections)
 
         # save featureselection
-        new_featureselection = numpy.array(vocab)[feature_selection_indices].tolist()
+        new_featureselection = [vocab[i] for i in feature_selection_indices]
         with open(self.out_selected_features().path,'w',encoding='utf-8') as f_out:
             f_out.write('\n'.join(new_featureselection))
+
+        # write vectors
+        gavectors = vectorized_instances[:,feature_selection_indices]
+        numpy.savez(self.out_vectors().path, data=gavectors.data, indices=gavectors.indices, indptr=gavectors.indptr, shape=gavectors.shape)
 
         # save report
         with open(self.out_report().path,'w',encoding='utf-8') as r_out:
             r_out.write(ga_report)
+
 
 class TransformVectors(Task):
 
@@ -319,7 +325,7 @@ class TransformVectors(Task):
     in_test = InputSlot()
 
     def in_train_featureselection(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.ga.featureselection.txt')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def in_test_featureselection(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.featureselection.txt')
@@ -328,7 +334,7 @@ class TransformVectors(Task):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.transformed.vectors.npz')
 
     def out_test_featureselection(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.ga.featureselection.txt')        
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.transformed.featureselection.txt')        
 
     def run(self):
 
@@ -349,7 +355,6 @@ class TransformVectors(Task):
             trainlines = infile.read().split('\n')
             featureselection = [line.split('\t') for line in trainlines]
         train_featureselection_vocabulary = [x[0] for x in featureselection]
-        train_featureweights = dict([(i, float(feature[1])) for i, feature in enumerate(featureselection)])
         print('Loaded',len(train_featureselection_vocabulary),'selected trainfeatures, now loading test featureselection...')
 
         # load test featureselection
@@ -357,7 +362,6 @@ class TransformVectors(Task):
             testlines = infile.read().split('\n')
             featureselection = [line.split('\t') for line in testlines]
         test_featureselection_vocabulary = [x[0] for x in featureselection]
-        test_featureweights = dict([(i, float(feature[1])) for i, feature in enumerate(featureselection)])
         print('Loaded',len(test_featureselection_vocabulary),'selected testfeatures, now aligning testvectors...')
 
         # transform vectors
@@ -519,7 +523,7 @@ class Classify(WorkflowComponent):
     xg_reg_alpha = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
     xg_scale_pos_weight = Parameter('1')
     xg_objective = Parameter(default='binary:logistic') # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
-    xg_seed = IntParameter(default=7)
+    xg_seed = Parameter(default='7')
     xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
 
     knn_n_neighbors = Parameter(default='3')
@@ -581,7 +585,7 @@ class Classify(WorkflowComponent):
             )).T.reshape(-1,3)]
 
     def setup(self, workflow, input_feeds):
-
+        
         ######################
         ### Training phase ###
         ######################
@@ -599,6 +603,25 @@ class Classify(WorkflowComponent):
             else:
                 trainvectors = input_feeds['vectorized_train']
 
+            
+            if self.ga and 'ga' not in input_feeds['vectorized_train']().path.split('/')[-1].split('.'):
+                wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
+                    num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
+                    classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                    nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                    xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                    xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                    xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                    xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                    knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                    knn_metric=self.knn_metric, knn_p=self.knn_p)
+                wrapper.in_train = trainvectors
+                wrapper.in_trainlabels = trainlabels
+                trainvectors = wrapper.out_vectors
+                
         else: # pre_vectorized
 
             if 'featurized_train_csv' in input_feeds.keys():
@@ -622,6 +645,24 @@ class Classify(WorkflowComponent):
                 else:
                     trainvectors = trainvectorizer.out_vectors
 
+                if self.ga:
+                    wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
+                        num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                        mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
+                        classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                        nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                        svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                        lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                        xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                        xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                        xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                        xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                        knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                        knn_metric=self.knn_metric, knn_p=self.knn_p)
+                    wrapper.in_train = trainvectors
+                    wrapper.in_trainlabels = trainlabels
+                    trainvectors = wrapper.out_vectors
+                    
             else:
 
                 if 'pre_featurized_train' in input_feeds.keys():
@@ -639,25 +680,25 @@ class Classify(WorkflowComponent):
 
                 trainvectors = trainvectorizer.out_train
                 trainlabels = trainvectorizer.out_trainlabels
-                
-        if self.ga and 'ga' not in input_feeds['vectorized_train'].split('/')[-1].split('.'):
-            wrapper = workflow.new_task('run_ga',runGA,autopass=True,
-                num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
-                nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p)
-            wrapper.in_train = trainvectors
-            wrapper.in_trainlabels = trainlabels
-            trainvectors = wrapper.out_vectors
 
+                if self.ga:
+                    wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
+                        num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                        mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
+                        classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                        nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                        svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                        lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                        xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                        xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                        xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                        xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                        knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                        knn_metric=self.knn_metric, knn_p=self.knn_p)
+                    wrapper.in_train = trainvectors
+                    wrapper.in_trainlabels = trainlabels
+                    trainvectors = wrapper.out_vectors
+                
         trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -681,6 +722,12 @@ class Classify(WorkflowComponent):
             if 'vectorized_test' in input_feeds.keys():
                 testvectors = input_feeds['vectorized_test']
 
+                if self.ga and 'ga' not in input_feeds['vectorized_test'].split('/')[-1].split('.'):
+                    ga_vectorizer = workflow.new_task('ga_vectorizer',TransformVectors,autopass=True)
+                    ga_vectorizer.in_test = testvectors
+                    ga_vectorizer.in_train = trainvectors
+                    testvectors = ga_vectorizer.out_vectors
+
             else: # pre_vectorized
 
                 if 'featurized_test_csv' in input_feeds.keys():
@@ -696,7 +743,13 @@ class Classify(WorkflowComponent):
                         testvectorizer = testvectorizer_csv
 
                     testvectors = testvectorizer.out_vectors
-                    
+
+                    if self.ga:
+                        ga_vectorizer = workflow.new_task('ga_vectorizer',TransformVectors,autopass=True)
+                        ga_vectorizer.in_test = testvectors
+                        ga_vectorizer.in_train = trainvectors
+                        testvectors = ga_vectorizer.out_vectors
+        
                 else:
 
                     if 'pre_featurized_test' in input_feeds.keys():
@@ -714,17 +767,17 @@ class Classify(WorkflowComponent):
                     testvectorizer.in_testfeatures = featurized_test
 
                     testvectors = testvectorizer.out_vectors
+
+                    if self.ga:
+                        ga_vectorizer = workflow.new_task('ga_vectorizer',TransformVectors,autopass=True)
+                        ga_vectorizer.in_test = testvectors
+                        ga_vectorizer.in_train = trainvectors
+                        testvectors = ga_vectorizer.out_vectors
                     
             if 'classifier_model' in input_feeds.keys():
                 model = input_feeds['classifier_model']
             else:
                 model = trainer.out_model
-
-            if self.ga and 'ga' not in input_feeds['vectorized_test'].split('/')[-1].split('.'):
-                ga_vectorizer = workflow.new_task('ga_vectorizer',TransformVectors,autopass=True)
-                ga_vectorizer.in_test = testvectors
-                ga_vectorizer.in_train = trainvectors
-                testvectors = ga_vectorizer.out_vectors
 
             predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
             predictor.in_test = testvectors

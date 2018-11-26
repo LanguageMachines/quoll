@@ -11,7 +11,7 @@ class GA:
     def __init__(self,vectors,labels,featurenames):
         self.vectors = vectors
         self.labels = labels
-        self.featurenames = featurenames
+        self.featurenames = numpy.array(featurenames)
 
     def tournament_selection(self,population_fitness,tournament_size=2,win_condition='highest'):
         """
@@ -44,7 +44,7 @@ class GA:
         point1 = 0
         segments = []
         for crossover in crossover_points:
-            segments.append(return_segment(parents[parent_switch],point1,crossover))
+            segments.append(self.return_segment(parents[parent_switch],point1,crossover))
             parent_switch = 1 if parent_switch == 0 else 0
             point1 = crossover
         offspring = sparse.hstack(segments).tocsr()
@@ -67,7 +67,7 @@ class GA:
         new_parameterpopulation = []
         while len(new_population) < vectorpopulation.shape[0]:
             # select
-            selections = tournament_selection(fitness,tournament_size,win_condition)
+            selections = self.tournament_selection(fitness,tournament_size,win_condition)
             parents = vectorpopulation[selections,:]
             parameterparents = parameterpopulation[selections,:]
             # generate and mutate
@@ -75,8 +75,8 @@ class GA:
                 offspring = []
                 paramoffspring = []
                 for generation in range(2):
-                    child = offspring_crossover(parents,n_crossovers)
-                    child_mutated = mutate(child,mutation_rate)
+                    child = self.offspring_crossover(parents,n_crossovers)
+                    child_mutated = self.mutate(child,mutation_rate)
                     offspring.append(child_mutated)
                     paramoffspring.append(self.random_parameterpopulation(parameter_options, 1)[0])
             else:
@@ -97,6 +97,9 @@ class GA:
 
     def score_fitness(self,trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric):
 
+        # transform trainlabels
+        clf.set_label_encoder(sorted(list(set(trainlabels))))
+
         # train classifier
         clf.train_classifier(trainvectors_solution, trainlabels, *parameters_solution)
 
@@ -104,30 +107,33 @@ class GA:
         predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution)
 
         # assess classifications
-        rp = reporter.Reporter(predictions, full_predictions, full_predictions[0], testlabels, ordinal)
+        rp = reporter.Reporter(predictions, full_predictions[1:], full_predictions[0], testlabels, ordinal)
         if fitness_metric == 'precision':
             fitness = float(rp.assess_micro_performance()[1])
         if fitness_metric == 'recall':
             fitness = float(rp.assess_micro_performance()[2])
         if fitness_metric == 'f1':
             fitness = float(rp.assess_micro_performance()[3])
-        elif fitness_metric == 'auc':
+        elif fitness_metric == 'roc_auc':
             fitness = float(rp.assess_micro_performance()[-4])
         elif fitness_metric == 'mae':
             fitness = rp.assess_overall_ordinal_performance()[7]
         elif fitness_metric == 'rmse':
             fitness = rp.assess_overall_ordinal_performance()[8]
+        else:
+            print('fitness metric \'',fitness_metric,'\' is not included in the options, exiting program...')
+            quit()
 
         return fitness
 
-    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,testvectors,parameters,c,jobs,ordinal,fitness_metric):
+    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric):
         population_fitness = []
-        for i in range(population):
-            vectorsolution = random_vectorpopulation[i]
-            parametersolution = random_parameterpopulation[i]
-            trainvectors_solution = trainvectors[:, vectorsolution]
-            testvectors_solution = testvectors[:, vectorsolution]
-            parameters_solution = [x.split()[random_parameterpopulation[j]] for j,x in enumerate(parameters)]
+        for i in population:
+            vectorsolution = vectorpopulation[i,:].nonzero()[1]
+            parametersolution = parameterpopulation[i,:]
+            trainvectors_solution = trainvectors[:,vectorsolution]
+            testvectors_solution = testvectors[:,vectorsolution]
+            parameters_solution = [x.split()[parameterpopulation[i,j]] for j,x in enumerate(parameters)]
             clf = c()
             solution_fitness = self.score_fitness(trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric)
             population_fitness.append(solution_fitness)
@@ -135,45 +141,49 @@ class GA:
 
     def make_folds(self,n=5,steps=1):
         self.folds = []
-        fold_indices = return_fold_indices(self.vectors.shape[0], num_folds=n, steps=steps)
+        fold_indices = nfold_cv_functions.return_fold_indices(self.vectors.shape[0], num_folds=n, steps=steps)
         for i,fi in enumerate(fold_indices):
             fold = {}
             fold['train'] = sparse.vstack([self.vectors[fi,:] for j,indices in enumerate(fold_indices) if j != i])
-            fold['trainlabels'] = numpy.concatenate([self.labels[indices] for j,indices in enumerate(fold_indices) if j != i])
+            fold['trainlabels'] = numpy.concatenate([self.labels[indices] for j,indices in enumerate(fold_indices) if j != i]).tolist()
             fold['test'] = self.vectors[fold_indices[i]]
-            fold['testlabels'] = self.labels[fold_indices[i]]
+            fold['testlabels'] = self.labels[fold_indices[i]].tolist()
             self.folds.append(fold)
 
-    def write_report(self,population_fitness,vectorpopulation,parameterpopulation,parameter_options,direction='highest'):
+    def write_report(self,population_fitness,vectorpopulation,parameterpopulation,parameters_split,direction='highest'):
         # summarize fitness files
         report = []
         best_fitness_iterations = 0 if direction=='highest' else 1000
         indices_best_fitness_iterations = []
-        report.append('Avg. fitness: ' + str(numpy.mean(population_fitness))
+        report.append('Avg. fitness: ' + str(numpy.mean(population_fitness)))
         report.append('Median_fitness: ' + str(numpy.median(population_fitness)))
-        worst = min(population_fitness) if direction == 'highest' else max(fitness_scores)
+        worst = min(population_fitness) if direction == 'highest' else max(population_fitness)
         report.append('Worst_fitness: ' + str(worst))
-        best = max(fitness_scores) if direction=='highest' else min(fitness_scores))
+        best = max(population_fitness) if direction=='highest' else min(population_fitness)
         report.append('Best_fitness: ' + str(best))
-        best_fitness_indices = [j for j, fitness_score in enumerate(fitness_scores) if fitness_score == best_fitness]
+        best_fitness_indices = [j for j, fitness_score in enumerate(population_fitness) if fitness_score == best]
         report.append('settings best fitness:')
         for i in best_fitness_indices:
             vector = vectorpopulation[i,:]
-            indices = vector.toarray().nonzero()[0].tolist()
-            features = self.featurenames[indices]
+            indices = vector.toarray()[0].nonzero()[0].tolist()
+            features = self.featurenames[indices].tolist()
             parametervector = parameterpopulation[i,:]
-            parameters = [parameter_options[j] for j in parametervector.tolist()]
+            parameters = [parameters_split[j][k] for j,k in enumerate(parametervector.toarray().tolist()[0])]
             report.append(','.join(features) + ' | ' + ','.join(parameters))
         report.append('\n')
         return '\n'.join(report)
 
     def return_overall_report(self):
-        best = max([f[1] for f in self.foldreports]) if f[0[[3]]] == 'highest' else min([f[1] for f in self.foldreports])
+        scores = [f[1] for f in self.foldreports]
+        win_condition = self.foldreports[0][3]
+        best = max(scores) if win_condition == 'highest' else min(scores)
         overall_report = ['\n','Best overall score: ' + str(best)]
         best_features_folds = sum([f[2] for f in self.foldreports if f[1] == best],[])
-        overall_report.extend([','.join(self.featurenames[indices]) for indices in best_features_folds])
+        overall_report.extend([','.join(self.featurenames[indices].tolist()) for indices in best_features_folds])
         overall_report.append('\n')
-        overall_report.extend([f[0] for f in self.foldreports])
+        for i,f in enumerate(self.foldreports):
+            overall_report.append('\n' + 'REPORT FOLD ' + str(i+1) + ':\n\n')
+            overall_report.append(f[0])
         overall_report_str = '\n'.join(overall_report)
         return best_features_folds, overall_report_str
 
@@ -189,9 +199,9 @@ class GA:
         classifierdict = {
                         'naive_bayes':[NaiveBayesClassifier,[nb_alpha,nb_fit_prior]],
                         'logistic_regression':[LogisticRegressionClassifier,[lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter]],
-                        'svm':[SVMClassifier,[svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,iterations]], 
-                        'xgboost':[XGBoostClassifier,[xg_booster,xg_silent,jobs,xg_learning_rate,xg_min_child_weight,xg_max_depth,xg_gamma,
-                            xg_max_delta_step,xg_subsample,xg_colsample_bytree,xg_reg_lambda,xg_reg_alpha,xg_scale_pos_weight,xg_objective,xg_seed,xg_n_estimators,]],
+                        'svm':[SVMClassifier,[svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight]], 
+                        'xgboost':[XGBoostClassifier,[xg_booster,xg_silent,str(jobs),xg_learning_rate,xg_min_child_weight,xg_max_depth,xg_gamma,
+                            xg_max_delta_step,xg_subsample,xg_colsample_bytree,xg_reg_lambda,xg_reg_alpha,xg_scale_pos_weight,xg_objective,xg_seed,xg_n_estimators]],
                         'knn':[KNNClassifier,[knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p]], 
                         'tree':[TreeClassifier,[]], 
                         'perceptron':[PerceptronLClassifier,[]], 
@@ -201,7 +211,7 @@ class GA:
         self.foldreports = []
         # for each fold
         for f,fold in enumerate(self.folds):
-            print('GA FOLD',f)
+            print('GA FOLD',f+1)
             trainvectors = fold['train']
             trainlabels = fold['trainlabels']
             testvectors = fold['test']
@@ -210,43 +220,45 @@ class GA:
             print('Starting with random population')
             # draw random population
             num_dimensions = self.vectors.shape[1]
-            vectorpopulation = self.random_vectorpopulation(num_dimensions, self.population_size)
+            vectorpopulation = self.random_vectorpopulation(num_dimensions, population_size)
 
             # draw random parameter population
             parameters = classifierdict[classifier][1]
-            parameter_options = [[i for i in range(len(x.split()))] for x in parameters]
-            parameterpopulation = self.random_parameterpopulation(parameter_options, self.population_size)
+            parameters_split = [x.split() for x in parameters]
+            parameter_options = [[i for i in range(len(x))] for x in parameters_split]
+            parameterpopulation = self.random_parameterpopulation(parameter_options, population_size)
 
             # score population fitness
-            population_fitness = self.score_population_fitness(population,vectorpopulation,parameterpopulation,trainvectors,testvectors,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
+            population_fitness = self.score_population_fitness(range(population_size),vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
 
             # iterate
             win_condition = 'highest' if fitness_metric in ['precision','recall','f1','auc'] else 'lowest'
-            report = ['INITIAL POPULATION','-----------------------',self.write_report(population_fitness,vectorpopulation,parameterpopulation,parameter_options,direction=wincondition)]
+            report = ['INITIAL POPULATION','-----------------------',self.write_report(population_fitness,vectorpopulation,parameterpopulation,parameters_split,direction=win_condition)]
             highest_streak = 0
             last_best = max(population_fitness) if win_condition == 'highest' else min(population_fitness)
             best_features = []
             cursor = 1
             print('Starting iteration')
-            while highest_streak < stop_condition:
+            while highest_streak < stop_condition and cursor <= num_iterations:
                 print('Iteration',cursor)
                 report.extend(['ITERATION #' + str(cursor),'-----------------------'])
                 # generate offspring
                 offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_fitness,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
                 # score population fitness
-                population_fitness = self.score_population_fitness(population,offspring,parameter_offspring,trainvectors,testvectors,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
+                population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
                 # summarize results
                 best_fitness = max(population_fitness) if win_condition == 'highest' else min(population_fitness)
                 best_fitness_indices = [i for i, fitness_score in enumerate(population_fitness) if fitness_score == best_fitness]
-                best_fitness_features = [vectorpopulation[i,:].toarray().nonzero()[0].tolist() for i in best_fitness_indices]
+                best_fitness_features = [vectorpopulation[i,:].toarray()[0].nonzero()[0].tolist() for i in best_fitness_indices]
                 if (best_fitness > last_best and win_condition == 'highest') or (best_fitness < last_best and win_condition == 'lowest'):
                     last_best = best_fitness
                     best_features = best_fitness_features
                 else:
                     highest_streak += 1
                     best_features.extend(best_fitness_features)
-                report.append(self.write_report(population_fitness,vectorpopulation,parameterpopulation,parameter_options,win_condition))
+                report.append(self.write_report(population_fitness,vectorpopulation,parameterpopulation,parameters_split,win_condition))
+                cursor+=1
 
             print('Breaking iteration; best fitness:',best_fitness)
-            self.foldreports.append('\n'.join(report),best_fitness,best_features,win_condition)
+            self.foldreports.append(['\n'.join(report),best_fitness,best_features,win_condition])
 
