@@ -35,6 +35,13 @@ class GA:
     def return_segment(self,vector,point1,point2):
         return vector[:,range(point1,point2)]
 
+    def draw_trainingsample(self,num_instances):
+        samplesize = random.choice(range(num_instances))
+        print('SAMPLESIZE:',samplesize)
+        sample = random.sample(num_instances,samplesize)
+        print('SAMPLE',sample)
+        return sample
+
     def offspring_crossover(self,parents,npoints=1):
         dimensions = parents.shape[1]
         crossover_points = []
@@ -187,7 +194,7 @@ class GA:
         overall_report_str = '\n'.join(overall_report)
         return best_features_folds, overall_report_str
 
-    def run(self,num_iterations,population_size,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,
+    def run(self,sampling,num_iterations,population_size,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,
         classifier,jobs,ordinal,fitness_metric,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
@@ -228,6 +235,13 @@ class GA:
             parameter_options = [[i for i in range(len(x))] for x in parameters_split]
             parameterpopulation = self.random_parameterpopulation(parameter_options, population_size)
 
+            # draw sample of train instances
+            if sampling:
+                print('SHAPE BEFORE',trainvectors.shape)
+                vectorsample = self.draw_trainingsample(trainvectors.shape[0])
+                trainvectors = trainvectors[vectorsample_indices,:]
+                print('SHAPE AFTER',trainvectors.shape)
+
             # score population fitness
             population_fitness = self.score_population_fitness(range(population_size),vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
 
@@ -238,12 +252,22 @@ class GA:
             last_best = max(population_fitness) if win_condition == 'highest' else min(population_fitness)
             best_features = []
             cursor = 1
+            samplechance = [True,False,False,False]
             print('Starting iteration')
             while highest_streak < stop_condition and cursor <= num_iterations:
                 print('Iteration',cursor)
                 report.extend(['ITERATION #' + str(cursor),'-----------------------'])
                 # generate offspring
                 offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_fitness,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
+                if sampling:
+                    if random.choice(samplechance):
+                        print('TIME TO CHANGE SAMPLE')
+                        print('SHAPE BEFORE',trainvectors.shape)
+                        vectorsample = self.draw_trainingsample(trainvectors.shape[0])
+                        trainvectors = trainvectors[vectorsample_indices,:]
+                        print('SHAPE AFTER',trainvectors.shape)
+                    else:
+                        print('MAINTAINING CURRENT SAMPLE FOR NOW')
                 # score population fitness
                 population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric)
                 # summarize results

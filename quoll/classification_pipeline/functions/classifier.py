@@ -61,7 +61,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, alpha='1.0', fit_prior=False, jobs=1):
+    def train_classifier(self, trainvectors, labels, alpha='1.0', fit_prior=False, jobs=1, v=2):
         if alpha == 'search':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=jobs)
             paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
@@ -141,7 +141,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1):
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1, v=2):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
@@ -167,7 +167,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
             if multi:
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
@@ -179,7 +179,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
             degree = settings[parameters[3]],
             class_weight = class_weight,
             cache_size = 1000,
-            verbose = 2
+            verbose = v
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
@@ -232,7 +232,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='1.0', solver='liblinear', dual=False, penalty='l2', multiclass='ovr', max_iterations='1000', iterations=10, jobs=4):
+    def train_classifier(self, trainvectors, labels, c='1.0', solver='liblinear', dual=False, penalty='l2', multiclass='ovr', max_iterations='1000', iterations=10, jobs=4, v=2):
         parameters = ['C', 'solver', 'penalty', 'dual', 'multi_class']
         c_values = [0.001, 0.005, 0.01, 0.5, 1, 5, 10, 50, 100, 500, 1000] if c == 'search' else [float(x) for x in c.split()]
         solver_values = ['newton-cg', 'lbfgs', 'liblinear', 'sag'] if solver == 'search' else [s for  s in solver.split()]
@@ -287,7 +287,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
             model = LogisticRegression(max_iter=max_iterations)
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = 2, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
             paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         # train a logistic regression classifier with the settings that led to the best performance
@@ -298,7 +298,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             dual = settings[parameters[3]],
             multi_class = settings[parameters[4]],
             max_iter = max_iterations,
-            verbose = 2,
+            verbose = v,
             n_jobs = jobs
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
@@ -344,7 +344,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         learning_rate='0.1', min_child_weight='1', max_depth='6', gamma='0', max_delta_step='0', 
         subsample='1', colsample_bytree='1', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
         objective='binary:logistic', seed=7, n_estimators='100',
-        scoring='roc_auc', jobs=12):
+        scoring='roc_auc', jobs=12, v=2):
         # prepare grid search
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
@@ -379,9 +379,9 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
             if [len(x) > 1 for x in grid_values].count(True) <= 3: # exhaustive grid search with one to three variant parameters
-                paramsearch = GridSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=1)
+                paramsearch = GridSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
             else: # random grid search
-                paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=1)
+                paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         self.model = XGBClassifier(
@@ -398,7 +398,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             colsample_bytree = settings[parameters[5]],
             reg_alpha = settings[parameters[6]],
             scale_pos_weight = settings[parameters[7]],
-            verbose = 2
+            verbose = v
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
@@ -440,7 +440,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, n_neighbors='3', weights='uniform', algorithm='auto', leaf_size='30', metric='euclidean', p=2, scoring='roc_auc', jobs=1):
+    def train_classifier(self, trainvectors, labels, n_neighbors='3', weights='uniform', algorithm='auto', leaf_size='30', metric='euclidean', p=2, scoring='roc_auc', jobs=1, v=2):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_neighbors','estimator__weights', 'estimator__leaf_size', 'estimator__metric']
             multi = True
@@ -464,7 +464,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
             if multi:
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
-            paramsearch = RandomizedSearchCV(model, param_grid, verbose=2, scoring=scoring, cv=5, n_jobs=jobs)
+            paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=jobs)
             paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
             settings = paramsearch.best_params_
         self.model = KNeighborsClassifier(
@@ -473,7 +473,8 @@ class KNNClassifier(AbstractSKLearnClassifier):
             n_neighbors=settings[parameters[0]],
             weights=settings[parameters[1]],
             leaf_size=settings[parameters[2]],
-            metric=settings[parameters[3]]
+            metric=settings[parameters[3]],
+            verbose=v
         )
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
@@ -496,7 +497,7 @@ class RandomForestClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8, v=2):
         jobs = int(jobs)
         if n_neighbors == 'default' or n_neighbors == '':
             n_neighbors = 3
@@ -532,7 +533,7 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, fit_intercept='True', normalize='False', copy_X='True', jobs=4):
+    def train_classifier(self, trainvectors, labels, fit_intercept='True', normalize='False', copy_X='True', jobs=4, v=2):
         fit_intercept = False if fit_intercept == 'False' else True
         normalize = False if normalize == 'False' else True
         copy_X = False if copy_X == 'False' else True
@@ -578,7 +579,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, class_weight=None):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, class_weight=None, v=2):
         self.model = tree.DecisionTreeClassifier(class_weight=class_weight)
         self.model.fit(trainvectors, self.label_encoder.transform(labels))
 
@@ -606,7 +607,7 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='', iterations=50, jobs=10):
+    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='', iterations=50, jobs=10, v=2):
         iterations = int(iterations)
         jobs = int(jobs)
         if alpha == '':

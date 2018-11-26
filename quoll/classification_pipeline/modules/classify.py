@@ -198,6 +198,7 @@ class RunGA(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
+    ga_sample = BoolParameter()
     num_folds = IntParameter()
     fold_steps = IntParameter()
     num_iterations = IntParameter()
@@ -257,13 +258,13 @@ class RunGA(Task):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.featureselection.txt')   
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.ga.vectors.npz')   
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.ga_clf-' + self.classifier + '_sample-' + self.ga_sample + '.vectors.npz')   
 
     def out_selected_features(self):
-        return self.outputfrominput(inputformat='featureselection', stripextension='.featureselection.txt', addextension='.ga.featureselection.txt')
+        return self.outputfrominput(inputformat='featureselection', stripextension='.featureselection.txt', addextension='.ga_clf-' + self.classifier + '_sample-' + self.ga_sample + '.featureselection.txt')
 
     def out_report(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.ga.report.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.ga_clf-' + self.classifier + '_sample-' + self.ga_sample + '.report.txt')   
 
     def run(self):
 
@@ -288,7 +289,7 @@ class RunGA(Task):
         ga = wrapper.GA(vectorized_instances,trainlabels,featureselection_names)
         ga.make_folds(self.num_folds,self.fold_steps)
         ga.run(
-            num_iterations=self.num_iterations,population_size=self.population_size,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
+            sample=self.ga_sample, num_iterations=self.num_iterations,population_size=self.population_size,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
             classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -477,6 +478,7 @@ class Classify(WorkflowComponent):
 
     # featureselection parameters
     ga = BoolParameter()
+    ga_sample = BoolParameter()
     num_folds = IntParameter(default=5)
     fold_steps = IntParameter(default=1)
     num_iterations = IntParameter(default=300)
@@ -606,7 +608,7 @@ class Classify(WorkflowComponent):
             
             if self.ga and 'ga' not in input_feeds['vectorized_train']().path.split('/')[-1].split('.'):
                 wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
-                    num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                    ga_sample=self.ga_sample, num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
                     mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -647,7 +649,7 @@ class Classify(WorkflowComponent):
 
                 if self.ga:
                     wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
-                        num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                        ga_sample=self.ga_sample, num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
                         mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
                         classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                         nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -683,7 +685,7 @@ class Classify(WorkflowComponent):
 
                 if self.ga:
                     wrapper = workflow.new_task('run_ga',RunGA,autopass=True,
-                        num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                        ga_sample=self.ga_sample, num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
                         mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
                         classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                         nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
