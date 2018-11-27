@@ -199,8 +199,6 @@ class TrainGA(Task):
     in_trainlabels = InputSlot()
 
     weight_feature_size = Parameter()
-    num_folds = IntParameter()
-    fold_steps = IntParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
     crossover_probability = Parameter()
@@ -208,6 +206,7 @@ class TrainGA(Task):
     tournament_size = IntParameter()
     n_crossovers = IntParameter()
     stop_condition = IntParameter()
+    instance_steps = IntParameter()
 
     classifier = Parameter()
     ordinal = BoolParameter()
@@ -258,37 +257,37 @@ class TrainGA(Task):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.vectors.npz')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.vectors.npz')   
 
     def out_selected_features(self):
-        return self.outputfrominput(inputformat='featureselection', stripextension='.featureselection.txt', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.featureselection.txt')
+        return self.outputfrominput(inputformat='featureselection', stripextension='.featureselection.txt', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.featureselection.txt')
 
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.model.pkl')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.model.pkl')
 
     def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.le')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.le')
     
     def out_model_insights(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.model_insights')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.model_insights')
 
     def out_report(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.report.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.report.txt')   
 
     def out_clf_fitness(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.clf_fitness.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.clf_fitness.txt')   
 
     def out_features_fitness(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.features_fitness.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.features_fitness.txt')   
 
     def out_weighted_fitness(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.weighted_fitness.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.weighted_fitness.txt')   
 
     def out_best_features(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.best_features.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.best_features.txt')   
 
     def out_best_parameters(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.ga.best_parameters.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.best_parameters.txt')   
 
     def run(self):
 
@@ -316,7 +315,7 @@ class TrainGA(Task):
         ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
         best_features, best_parameters, best_features_output, best_parameters_output, clf_output, features_output, weighted_output, ga_report = ga_instance.run(
             num_iterations=self.num_iterations,population_size=self.population_size,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
-            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),
+            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -554,8 +553,6 @@ class Classify(WorkflowComponent):
 
     # featureselection parameters
     ga = BoolParameter()
-    num_folds = IntParameter(default=5)
-    fold_steps = IntParameter(default=1)
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
     crossover_probability = Parameter(default='0.9')
@@ -564,6 +561,7 @@ class Classify(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
+    instance_steps = IntParameter(default=0)
     
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -724,7 +722,7 @@ class Classify(WorkflowComponent):
 
         if self.ga:
             trainer = workflow.new_task('train_ga',TrainGA,autopass=True,
-                num_folds=self.num_folds,fold_steps=self.fold_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,

@@ -285,6 +285,17 @@ class ClassifyTask(Task):
     in_testvectors = InputSlot()
     in_trainlabels = InputSlot()
 
+    ga = BoolParameter()
+    num_iterations = IntParameter()
+    population_size = IntParameter()
+    crossover_probability = Parameter()
+    mutation_rate = Parameter()
+    tournament_size = IntParameter()
+    n_crossovers = IntParameter()
+    stop_condition = IntParameter()
+    weight_feature_size = Parameter()
+    instance_steps = IntParameter()
+
     classifier = Parameter()
     ordinal = BoolParameter()
     jobs = IntParameter()
@@ -331,7 +342,7 @@ class ClassifyTask(Task):
     knn_p = IntParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga' + str(self.weight_feature_size) + '.transformed.' + '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
 
     def run(self):
 
@@ -340,6 +351,8 @@ class ClassifyTask(Task):
         else:
             yield Classify(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testvectors().path,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -363,6 +376,18 @@ class Report(WorkflowComponent):
     trainlabels = Parameter()
     testlabels = Parameter(default = 'xxx.xxx')
     testdocs = Parameter(default = 'xxx.xxx') # can also be fed through 'test'
+
+    # featureselection parameters
+    ga = BoolParameter()
+    num_iterations = IntParameter(default=300)
+    population_size = IntParameter(default=100)
+    crossover_probability = Parameter(default='0.9')
+    mutation_rate = Parameter(default='0.3')
+    tournament_size = IntParameter(default=2)
+    n_crossovers = IntParameter(default=1)
+    stop_condition = IntParameter(default=5)
+    weight_feature_size = Parameter(default='0.0')
+    instance_steps = IntParameter(default=1)
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -586,6 +611,8 @@ class Report(WorkflowComponent):
             ############################
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
+                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,

@@ -36,11 +36,17 @@ class GA:
     def return_segment(self,vector,point1,point2):
         return vector[:,range(point1,point2)]
 
-    def draw_sample(self):
-        trainsample_size = random.choice(range(20,self.vectors.shape[0]))
-        trainsample = random.sample(range(self.vectors.shape[0]),trainsample_size)
-        testsample = [i for i in range(self.vectors.shape[0]) if i not in trainsample]
-        return trainsample, testsample
+    def draw_sample(self,steps):
+        trainsample_size = random.choice(range(10,self.vectors.shape[0]/steps))
+        trainsample = random.sample(range(self.vectors.shape[0]/steps),trainsample_size)
+        testsample = [i for i in range(self.vectors.shape[0]/steps) if i not in trainsample]
+        print('TRAINSAMPLE BEFORE',trainsample)
+        trainsample_full = sum([[x*2,(x*2)+1] for x in trainsample],[])
+        print('TRAINSAMPLE AFTER',trainsample_full)
+        print('TESTSAMPLE BEFORE',testsample)
+        testsample_full = sum([[x*2,(x*2)+1] for x in testsample],[])
+        print('TESTSAMPLE AFTER',testsample_full)
+        return trainsample_full, testsample_full
 
     def offspring_crossover(self,parents,npoints=1):
         dimensions = parents.shape[1]
@@ -207,7 +213,7 @@ class GA:
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
 
     def run(self,num_iterations,population_size,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,
-            classifier,jobs,ordinal,fitness_metric,weight_feature_size,
+            classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
@@ -228,7 +234,7 @@ class GA:
                         }
 
         # draw sample of train instances
-        trainsample, testsample  = self.draw_sample()
+        trainsample, testsample  = self.draw_sample(steps=steps)
         trainvectors = self.vectors[trainsample,:]
         testvectors = self.vectors[testsample,:]
         trainlabels = numpy.array(self.labels)[trainsample].tolist()
@@ -276,7 +282,7 @@ class GA:
             # generate offspring
             offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_fitness,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
             if random.choice(samplechance):
-                trainsample, testsample  = self.draw_sample()
+                trainsample, testsample  = self.draw_sample(steps=steps)
                 trainvectors = self.vectors[trainsample,:]
                 testvectors = self.vectors[testsample,:]
                 trainlabels = numpy.array(self.labels)[trainsample].tolist()
