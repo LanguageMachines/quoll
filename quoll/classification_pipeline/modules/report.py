@@ -342,10 +342,10 @@ class ClassifyTask(Task):
     knn_p = IntParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga' + str(self.weight_feature_size) + '.transformed.' + '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
 
     def run(self):
-
+        
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:

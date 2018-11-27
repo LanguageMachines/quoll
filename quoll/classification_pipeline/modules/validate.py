@@ -236,6 +236,9 @@ class Folds(Task):
     in_labels = InputSlot()
     in_docs = InputSlot()
 
+    # fold parameters
+    n = IntParameter()
+    
     # feature selection parameters
     ga = BoolParameter()
     num_iterations = IntParameter()
@@ -300,7 +303,7 @@ class Folds(Task):
     balance = BoolParameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp')
                                     
     def run(self):
 

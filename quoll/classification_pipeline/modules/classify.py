@@ -403,7 +403,7 @@ class TransformVectors(Task):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def in_test_featureselection(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.featureselection.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.vocabulary.txt')
 
     def out_vectors(self):
         return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.'.join(self.in_train().path.split('/')[-1].split('.')[2:-2]) + '.transformed.vectors.npz')
