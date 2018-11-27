@@ -24,12 +24,12 @@ class GA:
             contestants = []
             for i in range(tournament_size):
                 contestant=random.choice(candidate_keys)
-                contestants.append((contestant,population_fitness[contestant]))
-            sorted_contestants = sorted(contestants,key = lambda k : k[1],reverse=True)
+                contestants.append((contestant,population_fitness[contestant][0],population_fitness[contestant][1]))
+            sorted_contestants = sorted(contestants,key = lambda k : k[2],reverse=True)
             if win_condition=='highest':
-                winner = sorted_contestants[0][0]
+                winner = sorted_contestants[0][1]
             else:
-                winner = sorted_contestants[-1][0]
+                winner = sorted_contestants[-1][1]
             winners.append(winner)
         return winners
 
@@ -75,12 +75,15 @@ class GA:
         mutated_child_sparse = sparse.csr_matrix(mutated_child)
         return mutated_child_sparse
 
-    def generate_offspring(self,vectorpopulation,parameterpopulation,parameter_options,fitness,tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest'):
-        new_population = []
-        new_parameterpopulation = []
+    def generate_offspring(self,vectorpopulation,parameterpopulation,parameter_options,fitness,elite='0.1',tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest'):
+        fitness_numbered = [[i,x] for i,x in enumerate(fitness)]
+        fitness_sorted = sorted(fitness_numbered,key = lambda k : k[1],reverse=True) if win_condition == 'highest' else sorted(fitness_numbered,key = lambda k : k[1])
+        new_population = [vectorpopulation[i] for i,x in fitness_sorted[:int(elite*vectorpopulation.shape[0])]]
+        new_parameterpopulation = [parameterpopulation[i] for i,x in fitness_sorted[:int(elite*vectorpopulation.shape[0])]]
+        fitness_candidates = fitness_sorted[int(elite*vectorpopulation.shape[0]):]
         while len(new_population) < vectorpopulation.shape[0]:
             # select
-            selections = self.tournament_selection(fitness,tournament_size,win_condition)
+            selections = self.tournament_selection(fitness_candidates,tournament_size,win_condition)
             parents = vectorpopulation[selections,:]
             parameterparents = parameterpopulation[selections,:]
             # generate and mutate
@@ -139,7 +142,7 @@ class GA:
 
         return fitness
 
-    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric, weight_feature_size, win_condition):
+    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric,weight_feature_size, win_condition):
         population_fitness = []
         for i in population:
             vectorsolution = vectorpopulation[i,:].nonzero()[1]
@@ -212,8 +215,7 @@ class GA:
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
 
-    def run(self,num_iterations,population_size,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,
-            classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
+    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
@@ -281,7 +283,7 @@ class GA:
         while highest_streak < stop_condition and cursor <= num_iterations:
             print('Iteration',cursor)
             # generate offspring
-            offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_weighted_fitness,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
+            offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_weighted_fitness,elite=elite,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
             if random.choice(samplechance):
                 trainsample, testsample  = self.draw_sample(steps=steps)
                 trainvectors = self.vectors[trainsample,:]

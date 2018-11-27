@@ -288,6 +288,7 @@ class ClassifyTask(Task):
     ga = BoolParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
+    elite = Parameter()
     crossover_probability = Parameter()
     mutation_rate = Parameter()
     tournament_size = IntParameter()
@@ -351,7 +352,7 @@ class ClassifyTask(Task):
         else:
             yield Classify(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testvectors().path,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
-                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
@@ -381,6 +382,7 @@ class Report(WorkflowComponent):
     ga = BoolParameter()
     num_iterations = IntParameter(default=300)
     population_size = IntParameter(default=100)
+    elite = Parameter(default='0.1')
     crossover_probability = Parameter(default='0.9')
     mutation_rate = Parameter(default='0.3')
     tournament_size = IntParameter(default=2)
@@ -611,7 +613,7 @@ class Report(WorkflowComponent):
             ############################
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
-                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
