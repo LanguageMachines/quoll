@@ -30,19 +30,24 @@ class AbstractSKLearnClassifier:
 
     def predict(self,clf,testvector):
         try:
-            prediction = self.label_encoder.inverse_transform([clf.predict(testvector)[0]])[0]
+            prediction = clf.predict(testvector)[0]
             full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
         except ValueError: # classifier trained on dense data
             prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
             full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+            print('PREDICTION VALUE ERROR')
         except AttributeError: # classifier does not support predict_proba
             prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
             full_prediction = [1.0 for c in self.label_encoder.classes_]
+            print('PREDICTION ATTRIBUTE ERROR')
         return prediction, full_prediction
 
-    def apply_model(self, clf, testvectors):
+    def apply_model(self,clf,testvectors):
         predictions = []
-        full_predictions = [list(self.label_encoder.classes_)]
+        try:
+            full_predictions = [list(self.label_encoder.classes_)]
+        except:
+            full_predictions = ['-']
         for i, instance in enumerate(testvectors):
             prediction, full_prediction = self.predict(clf,instance)
             predictions.append(prediction)
@@ -64,14 +69,14 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
     def train_classifier(self, trainvectors, labels, alpha='1.0', fit_prior=False, jobs=1, v=2):
         if alpha == 'search':
             paramsearch = GridSearchCV(estimator=naive_bayes.MultinomialNB(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:]), n_jobs=jobs)
-            paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors,labels)
             selected_alpha = paramsearch.best_estimator_.alpha
         else:
             selected_alpha = float(alpha)
         self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
 
 
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -168,7 +173,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
             paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
-            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors, labels)
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
         self.model = svm.SVC(
@@ -181,7 +186,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
             cache_size = 1000,
             verbose = v
         )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -288,7 +293,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
                 param_grid[parameter] = grid_values[i]
             model = LogisticRegression(max_iter=max_iterations)
             paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
-            paramsearch.fit(trainvectors.toarray(), self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors.toarray(), labels)
             settings = paramsearch.best_params_
         # train a logistic regression classifier with the settings that led to the best performance
         self.model = LogisticRegression(
@@ -301,7 +306,7 @@ class LogisticRegressionClassifier(AbstractSKLearnClassifier):
             verbose = v,
             n_jobs = jobs
         )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -382,7 +387,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
                 paramsearch = GridSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
             else: # random grid search
                 paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
-            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors, labels)
             settings = paramsearch.best_params_
         self.model = XGBClassifier(
             learning_rate = learning_rate, 
@@ -400,7 +405,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             scale_pos_weight = settings[parameters[7]],
             verbose = v
         )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -465,7 +470,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
             paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=jobs)
-            paramsearch.fit(trainvectors, self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors, labels)
             settings = paramsearch.best_params_
         self.model = KNeighborsClassifier(
             algorithm=algorithm,
@@ -476,7 +481,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
             metric=settings[parameters[3]],
             verbose=v
         )
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -497,7 +502,7 @@ class RandomForestClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, n_neighbors=3, weights='uniform', algorithm='auto', jobs=8, v=2):
+    def train_classifier(self, trainvectors, labels, n_neighbors='3', weights='uniform', algorithm='auto', jobs=8, v=2):
         jobs = int(jobs)
         if n_neighbors == 'default' or n_neighbors == '':
             n_neighbors = 3
@@ -507,7 +512,7 @@ class RandomForestClassifier(AbstractSKLearnClassifier):
             algorithm = 'auto'
         # train
         self.model = KNeighborsClassifier(n_neighbors=n_neighbors,weights=weights,algorithm=algorithm,n_jobs=jobs)
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -533,16 +538,13 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, fit_intercept='True', normalize='False', copy_X='True', jobs=4, v=2):
+    def train_classifier(self, trainvectors, labels, fit_intercept=True, normalize=False, copy_X=True, jobs=4, v=2):
         fit_intercept = False if fit_intercept == 'False' else True
         normalize = False if normalize == 'False' else True
         copy_X = False if copy_X == 'False' else True
         jobs = int(jobs)
         self.model = LinearRegression(fit_intercept=fit_intercept,normalize=normalize,copy_X=copy_X,n_jobs=jobs)
-        if no_label_encoding:
-            self.model.fit(trainvectors, labels)
-        else:
-            self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -563,8 +565,7 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
         return '\n'.join(coef) + '\n'
 
     def return_model_insights(self,vocab):
-        model_insights = []
-        # model_insights = [['coef.txt',self.return_coef(vocab)]]
+        model_insights = [['coef.txt',self.return_coef(vocab)]]
         return model_insights
         
 class TreeClassifier(AbstractSKLearnClassifier):
@@ -581,7 +582,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
     
     def train_classifier(self, trainvectors, labels, no_label_encoding=False, class_weight=None, v=2):
         self.model = tree.DecisionTreeClassifier(class_weight=class_weight)
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
@@ -612,7 +613,7 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
         jobs = int(jobs)
         if alpha == '':
             paramsearch = GridSearchCV(estimator=Perceptron(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:],n_iter=[iterations]), n_jobs=jobs)
-            paramsearch.fit(trainvectors,self.label_encoder.transform(labels))
+            paramsearch.fit(trainvectors,labels)
             selected_alpha = paramsearch.best_estimator_.alpha
         elif alpha == 'default':
             selected_alpha = 1.0
@@ -620,7 +621,7 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
             selected_alpha = alpha
         # train a perceptron with the settings that led to the best performance
         self.model = Perceptron(alpha=selected_alpha,n_iter=iterations,n_jobs=jobs)
-        self.model.fit(trainvectors, self.label_encoder.transform(labels))
+        self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model

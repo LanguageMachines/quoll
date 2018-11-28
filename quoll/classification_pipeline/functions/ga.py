@@ -111,16 +111,20 @@ class GA:
         parameterpopulation = sparse.csr_matrix([[random.choice(parametervals) for parametervals in parameter_options] for i in range(population_size)])
         return parameterpopulation
 
-    def score_fitness(self,trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric):
-
-        # transform trainlabels
-        clf.set_label_encoder(sorted(list(set(trainlabels))))
+    def score_fitness(self,trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric,linear_raw):
 
         # train classifier
-        clf.train_classifier(trainvectors_solution, trainlabels, *parameters_solution, v=0)
+        if ordinal or linear_raw:
+            clflabels = [float(x) for x in trainlabels]
+        else:
+            clf.set_label_encoder(sorted(list(set(trainlabels))))
+            clflabels = self.label_encoder.transform(trainlabels)
+        clf.train_classifier(trainvectors_solution, clflabels, *parameters_solution, v=0)
 
         # apply classifier
         predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution)
+        if not ordinal or linear_raw:
+            predictions = [self.label_encoder.inverse_transform(prediction) for prediction in predictions]
 
         # assess classifications
         rp = reporter.Reporter(predictions, full_predictions[1:], full_predictions[0], testlabels, ordinal)
@@ -142,7 +146,7 @@ class GA:
 
         return fitness
 
-    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric,weight_feature_size, win_condition):
+    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric,weight_feature_size, win_condition, linear_raw):
         population_fitness = []
         for i in population:
             vectorsolution = vectorpopulation[i,:].nonzero()[1]
@@ -151,7 +155,7 @@ class GA:
             testvectors_solution = testvectors[:,vectorsolution]
             parameters_solution = [x.split()[parameterpopulation[i,j]] for j,x in enumerate(parameters)]
             clf = c()
-            solution_fitness_clf = self.score_fitness(trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric)
+            solution_fitness_clf = self.score_fitness(trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric,linear_raw)
             feature_size = len(vectorpopulation[i,:].nonzero()[0])
             feature_size_fraction = feature_size / vectorpopulation.shape[1]
             weighted_fitness = round(((1-weight_feature_size) * solution_fitness_clf) - (weight_feature_size*feature_size_fraction),2) if win_condition == 'highest' else round(solution_fitness_clf + (weight_feature_size*feature_size_fraction),2)
@@ -216,11 +220,12 @@ class GA:
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
 
     def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
-        nb_alpha,nb_fit_prior,
+        nb_alpha,nb_fit_prior,ordinal,linear_raw,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
         xg_booster,xg_silent,xg_learning_rate,xg_min_child_weight,xg_max_depth,xg_gamma,xg_max_delta_step,xg_subsample,xg_colsample_bytree,xg_reg_lambda,xg_reg_alpha,xg_scale_pos_weight,xg_objective,xg_seed,xg_n_estimators,
-        knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p
+        knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p,
+        linreg_normalize, linreg_fit_intercept, linreg_copy_X
         ):
 
         classifierdict = {
@@ -232,7 +237,7 @@ class GA:
                         'knn':[KNNClassifier,[knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p]], 
                         'tree':[TreeClassifier,[]], 
                         'perceptron':[PerceptronLClassifier,[]], 
-                        'linear_regression':[LinearRegressionClassifier,[]]
+                        'linear_regression':[LinearRegressionClassifier,[linreg_fit_intercept, linreg_normalize, linreg_copy_X]]
                         }
 
         # draw sample of train instances
@@ -265,7 +270,7 @@ class GA:
 
         # score population fitness
         win_condition = 'highest' if fitness_metric in ['precision_micro','recall_micro','f1_micro','roc_auc'] else 'lowest'
-        population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition)
+        population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition,linear_raw)
         population_weighted_fitness = [x[2] for x in population_fitness]
 
         # iterate
@@ -292,7 +297,7 @@ class GA:
                 print('NEW TRAINSAMPLE',trainvectors.shape,'NEW TESTSAMPLE',testvectors.shape)
                     
             # score population fitness
-            population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition)
+            population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition,linear_raw)
             # summarize results
             population_weighted_fitness = [x[2] for x in population_fitness]
             best_fitness = max(population_weighted_fitness) if win_condition == 'highest' else min(population_weighted_fitness)

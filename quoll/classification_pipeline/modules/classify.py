@@ -28,7 +28,8 @@ class Train(Task):
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
-    
+    linear_raw = BoolParameter()
+
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
     
@@ -44,6 +45,10 @@ class Train(Task):
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
+
+    linreg_fit_intercept = BoolParameter()
+    linreg_normalize = BoolParameter()
+    linreg_copy_X = BoolParameter()
 
     xg_booster = Parameter() 
     xg_silent = Parameter()
@@ -73,9 +78,6 @@ class Train(Task):
 
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.model.pkl')
-
-    def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.le')
     
     def out_model_insights(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.model_insights')
@@ -96,7 +98,7 @@ class Train(Task):
                         'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p, self.scoring, self.jobs]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
-                        'linear_regression':[LinearRegressionClassifier(),[]]
+                        'linear_regression':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
                         }
         clf = classifierdict[self.classifier][0]
 
@@ -107,8 +109,6 @@ class Train(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
-        if self.ordinal:
-            trainlabels = [float(x) for x in trainlabels]
 
         # load featureselection
         with open(self.in_featureselection().path,'r',encoding='utf-8') as infile:
@@ -116,11 +116,13 @@ class Train(Task):
             featureselection = [line.split('\t') for line in vocab]
             featureselection_names = [x[0] for x in featureselection]
 
-        # transform trainlabels
-        clf.set_label_encoder(sorted(list(set(trainlabels))))
-
         # train classifier
-        clf.train_classifier(vectorized_instances, trainlabels, *classifierdict[self.classifier][1])
+        if self.ordinal or self.linear_raw:
+            clflabels = [float(x) for x in trainlabels]
+        else:
+            clf.set_label_encoder(sorted(list(set(trainlabels))))
+            clflabels = self.label_encoder.transform(trainlabels)
+        clf.train_classifier(vectorized_instances, clflabels, *classifierdict[self.classifier][1])
 
         # save classifier
         model = clf.return_classifier()
@@ -133,11 +135,6 @@ class Train(Task):
             with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
                 outfile.write(mi[1])
 
-        # save label encoding
-        label_encoding = clf.return_label_encoding(sorted(list(set(trainlabels))))
-        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
-
 class Predict(Task):
 
     in_train = InputSlot()
@@ -146,6 +143,7 @@ class Predict(Task):
 
     classifier = Parameter()
     ordinal = BoolParameter()
+    linear_raw = BoolParameter()
 
     def in_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.model.pkl')
@@ -170,20 +168,22 @@ class Predict(Task):
         if self.classifier == 'knn':
             model.n_neighbors = int(model.n_neighbors)
 
-        # load labels (for the label encoder)
-        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
-            trainlabels = infile.read().strip().split('\n')
-        if self.ordinal:
-            trainlabels = [float(x) for x in labels]
-
         # inititate classifier
         clf = AbstractSKLearnClassifier()
 
-        # transform labels
-        clf.set_label_encoder(trainlabels)
-
+        # load labels (for the label encoder)
+        with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
+            trainlabels = infile.read().strip().split('\n')
+        
         # apply classifier
         predictions, full_predictions = clf.apply_model(model,vectorized_instances)
+        
+        # convert labels
+        if self.ordinal or self.linear_raw:
+            predictions = [str(x) for x in predictions]
+        else:
+            clf.set_label_encoder(trainlabels)
+            predictions = [self.label_encoder.inverse_transform(prediction) for prediction in predictions]
 
         # write predictions to file
         with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
@@ -211,6 +211,7 @@ class TrainGA(Task):
 
     classifier = Parameter()
     ordinal = BoolParameter()
+    linear_raw = BoolParameter()
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
@@ -230,6 +231,10 @@ class TrainGA(Task):
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
+
+    linreg_fit_intercept = BoolParameter()
+    linreg_normalize = BoolParameter()
+    linreg_copy_X = BoolParameter()
 
     xg_booster = Parameter() 
     xg_silent = Parameter()
@@ -265,9 +270,6 @@ class TrainGA(Task):
 
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.model.pkl')
-
-    def out_label_encoding(self):
-        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.le')
     
     def out_model_insights(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.model_insights')
@@ -302,7 +304,7 @@ class TrainGA(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
-        if self.ordinal:
+        if self.ordinal or self.linear_raw::
             trainlabels = [float(x) for x in trainlabels]
         trainlabels = numpy.array(trainlabels)
 
@@ -316,7 +318,7 @@ class TrainGA(Task):
         ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
         best_features, best_parameters, best_features_output, best_parameters_output, clf_output, features_output, weighted_output, ga_report = ga_instance.run(
             num_iterations=self.num_iterations,population_size=self.population_size,elite=float(self.elite),crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
-            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,
+            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,ordinal=self.ordinal,linear_raw=self.linear_raw,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -325,7 +327,8 @@ class TrainGA(Task):
             xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
             xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
             knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p
+            knn_metric=self.knn_metric, knn_p=self.knn_p,
+            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
             )
 
         # collect output
@@ -346,11 +349,15 @@ class TrainGA(Task):
                         'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p, self.scoring, self.jobs]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
-                        'linear_regression':[LinearRegressionClassifier(),[]]
+                        'linear_regression':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
                         }
         clf = classifierdict[self.classifier][0]
-        clf.set_label_encoder(sorted(list(set(trainlabels))))
-        clf.train_classifier(new_trainvectors, trainlabels, *new_parameters)
+        if self.ordinal or self.linear_raw:
+            clflabels = [float(x) for x in trainlabels]
+        else:
+            clf.set_label_encoder(sorted(list(set(trainlabels))))
+            clflabels = self.label_encoder.transform(trainlabels)
+        clf.train_classifier(new_trainvectors, clflabels, *new_parameters)
 
         # save classifier
         model = clf.return_classifier()
@@ -362,11 +369,6 @@ class TrainGA(Task):
         for mi in model_insights:
             with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
                 outfile.write(mi[1])
-
-        # save label encoding
-        label_encoding = clf.return_label_encoding(sorted(list(set(trainlabels))))
-        with open(self.out_label_encoding().path,'w',encoding='utf-8') as le_out:
-            le_out.write('\n'.join([' '.join(le) for le in label_encoding]))
         
         # save featureselection
         with open(self.out_selected_features().path,'w',encoding='utf-8') as f_out:
@@ -451,6 +453,84 @@ class TransformVectors(Task):
         with open(self.out_test_featureselection().path, 'w', encoding = 'utf-8') as t_out:
             t_out.write('\n'.join(trainlines))
  
+class TranslatePredictions(Task):
+
+    in_linear_labels = InputSlot()
+    in_predictions = InputSlot()
+
+    def in_nominal_labels(self):
+        return self.outputfrominput(inputformat='linear_labels', stripextension='.raw.labels', addextension='.labels')
+
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.full_predictions.txt')
+
+    def out_translator(self):
+        return self.outputfrominput(inputformat='linear_labels', stripextension='.labels', addextension='.labeltranslator.txt')
+
+    def run(self):
+
+        # open linear labels
+        with open(self.in_linear_labels().path,'r',encoding='utf-8') as linear_labels_in:
+            linear_labels = [float(x) for x in linear_labels_in.read().strip().split('\n')]
+            
+        # open nominal labels
+        with open(self.in_nominal_labels().path,'r',encoding='utf-8') as nominal_labels_in:
+            nominal_labels = nominal_labels_in.read().strip().split('\n')
+
+        # open predictions
+        with open(self.in_predictions().path,'r',encoding='utf-8') as predictions_in:
+            predictions = [float(x) for x in predictions_in.read().strip().split('\n')]
+
+        # check if both lists have the same length
+        if len(linear_labels) != len(nominal_labels):
+            print('Linear labels (',len(linear_labels),') and nominal labels (',len(nominal_labels),') do not have the same length; exiting program...')
+            quit()
+
+        # generate dictionary (1 0 14.4\n2 14.4 15.6)
+        translated_labels = []
+        for label in sorted(list(set(nominal_labels))):
+            fitting_linear_labels = [x for i,x in enumerate(linear_labels) if nominal_labels[i] == label]
+            translated_labels.append([label,min(fitting_linear_labels),max(fitting_linear_labels)])
+        translated_labels_sorted = sorted(translated_labels,key = lambda k : k[1])
+        translator = []
+        for i,tl in enumerate(translated_labels_sorted):
+            if i == 0:
+                new_min = translated_labels_sorted[i][1] - 500000
+            else:
+                new_min = translated_labels_sorted[i-1][2]
+            if i == len(translated_labels_sorted)-1:
+                new_max = translated_labels_sorted[i][2] * 50
+            else:
+                new_max = translated_labels_sorted[i][2]
+            new_tl = [str(translated_labels_sorted[i][0]),new_min,new_max]
+            translator.append(new_tl)
+
+        # translate predictions
+        translated_predictions = []
+        for prediction in predictions:
+            for candidate in translator:
+                if prediction > candidate[1] and prediction < candidate[2]:
+                    translated_predictions.append(candidate[0])
+                    break
+
+        # write translated predictions to files
+        with open(self.out_predictions().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(translated_predictions))
+
+        with open(self.out_full_predictions().path,'w',encoding='utf-8') as out:
+            classes = sorted([x[0] for x in translator])
+            full_predictions = [classes]
+            for i,x in enumerate(translated_predictions):
+                full_predictions.append(['-'] * len(classes)) # dummy output
+            out.write('\n'.join(['\t'.join([prob for prob in full_prediction]) for full_prediction in full_predictions]))
+
+        # write translator to file
+        with open(self.out_translator().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join([' '.join([str(x) for x in line]) for line in translator]))
+
 class VectorizeTrainTask(Task):
 
     in_trainfeatures = InputSlot()
@@ -571,6 +651,7 @@ class Classify(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc') # optimization metric for grid search
+    linear_raw = BoolParameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -587,6 +668,10 @@ class Classify(WorkflowComponent):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    linreg_fit_intercept = BoolParameter()
+    linreg_normalize = BoolParameter()
+    linreg_copy_X = BoolParameter()
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
@@ -726,7 +811,7 @@ class Classify(WorkflowComponent):
             trainer = workflow.new_task('train_ga',TrainGA,autopass=True,
                 instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -735,13 +820,15 @@ class Classify(WorkflowComponent):
                 xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
                 xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                 knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p)
+                knn_metric=self.knn_metric, knn_p=self.knn_p,
+                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+            )
             trainer.in_train = trainvectors
             trainer.in_trainlabels = trainlabels
             
         else:
             trainer = workflow.new_task('train',Train,autopass=True,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -750,7 +837,8 @@ class Classify(WorkflowComponent):
                 xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
                 xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                 knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p
+                knn_metric=self.knn_metric, knn_p=self.knn_p,
+                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
             )
             trainer.in_train = trainvectors
             trainer.in_trainlabels = trainlabels            
@@ -814,7 +902,16 @@ class Classify(WorkflowComponent):
             predictor.in_trainlabels = trainlabels
             predictor.in_model = model
 
-            return predictor
+            if self.linear_raw:
+                translator = workflow.new_task('predictor',TranslatePredictions,autopass=True)
+                translator.in_linear_labels = trainlabels
+                translator.in_predictions = predictor.out_predictions
+
+                return translator
+
+            else:
+
+                return predictor
 
         else:
 
