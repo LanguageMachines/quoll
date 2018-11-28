@@ -254,13 +254,13 @@ class GA:
         print('Starting with random population')
         # draw random population
         num_dimensions = self.vectors.shape[1]
-        vectorpopulation = self.random_vectorpopulation(num_dimensions, population_size)
+        offspring = self.random_vectorpopulation(num_dimensions, population_size)
 
         # draw random parameter population
         parameters = classifierdict[classifier][1]
         parameters_split = [x.split() for x in parameters]
         parameter_options = [[i for i in range(len(x))] for x in parameters_split]
-        parameterpopulation = self.random_parameterpopulation(parameter_options, population_size)
+        parameter_offspring = self.random_parameterpopulation(parameter_options, population_size)
 
         # score population fitness
         win_condition = 'highest' if fitness_metric in ['precision_micro','recall_micro','f1_micro','roc_auc'] else 'lowest'
