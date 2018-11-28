@@ -35,11 +35,13 @@ class AbstractSKLearnClassifier:
         except ValueError: # classifier trained on dense data
             prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
             full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
-            print('PREDICTION VALUE ERROR')
         except AttributeError: # classifier does not support predict_proba
-            prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
-            full_prediction = [1.0 for c in self.label_encoder.classes_]
-            print('PREDICTION ATTRIBUTE ERROR')
+            try:
+                prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
+                full_prediction = [1.0 for c in self.label_encoder.classes_]
+            except: # no label encoding
+                prediction = clf.predict(testvector)[0]
+                full_prediction = ['-']
         return prediction, full_prediction
 
     def apply_model(self,clf,testvectors):
@@ -539,9 +541,9 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, fit_intercept=True, normalize=False, copy_X=True, jobs=4, v=2):
-        fit_intercept = False if fit_intercept == 'False' else True
-        normalize = False if normalize == 'False' else True
-        copy_X = False if copy_X == 'False' else True
+        fit_intercept = False if fit_intercept == '0' else True
+        normalize = False if normalize == '0' else True
+        copy_X = False if copy_X == '0' else True
         jobs = int(jobs)
         self.model = LinearRegression(fit_intercept=fit_intercept,normalize=normalize,copy_X=copy_X,n_jobs=jobs)
         self.model.fit(trainvectors, labels)
@@ -549,23 +551,8 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
     def return_classifier(self):
         return self.model
 
-    def return_coef(self,vocab=False):
-        sorted_classes = sorted([[self.label_encoder.inverse_transform(self.model.classes_[i]),i] for i,x in enumerate(self.model.class_count_.tolist())],key = lambda k : k[0])
-        coef = []
-        features_all_targets = []
-        for i,c in enumerate(sorted_classes):
-            if vocab:
-                features_target = [[vocab[j],vals[i]] for j,vals in enumerate(self.model.coef_.T.tolist())]
-            else:
-                features_target = [[str(j),vals[i]] for j,vals in enumerate(self.model.coef_.T.tolist())]
-            features_target_str = [' '.join([x,str(y)]) for x,y in features_target]
-            features_all_targets.append(sorted_features_log_prob_class_str)
-        for i,s in enumerate(features_all_targets):
-            coef.append('\t'.join([features_all_targets[j][i] for j,x in enumerate(features_all_targets)]))
-        return '\n'.join(coef) + '\n'
-
     def return_model_insights(self,vocab):
-        model_insights = [['coef.txt',self.return_coef(vocab)]]
+        model_insights = []
         return model_insights
         
 class TreeClassifier(AbstractSKLearnClassifier):

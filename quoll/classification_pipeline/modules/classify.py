@@ -46,9 +46,9 @@ class Train(Task):
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
 
-    linreg_fit_intercept = BoolParameter()
-    linreg_normalize = BoolParameter()
-    linreg_copy_X = BoolParameter()
+    linreg_fit_intercept = Parameter()
+    linreg_normalize = Parameter()
+    linreg_copy_X = Parameter()
 
     xg_booster = Parameter() 
     xg_silent = Parameter()
@@ -98,7 +98,7 @@ class Train(Task):
                         'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p, self.scoring, self.jobs]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
-                        'linear_regression':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
+                        'linreg':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
                         }
         clf = classifierdict[self.classifier][0]
 
@@ -232,9 +232,9 @@ class TrainGA(Task):
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
 
-    linreg_fit_intercept = BoolParameter()
-    linreg_normalize = BoolParameter()
-    linreg_copy_X = BoolParameter()
+    linreg_fit_intercept = Parameter()
+    linreg_normalize = Parameter()
+    linreg_copy_X = Parameter()
 
     xg_booster = Parameter() 
     xg_silent = Parameter()
@@ -304,7 +304,7 @@ class TrainGA(Task):
         # load trainlabels
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
             trainlabels = infile.read().strip().split('\n')
-        if self.ordinal or self.linear_raw::
+        if self.ordinal or self.linear_raw:
             trainlabels = [float(x) for x in trainlabels]
         trainlabels = numpy.array(trainlabels)
 
@@ -318,7 +318,7 @@ class TrainGA(Task):
         ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
         best_features, best_parameters, best_features_output, best_parameters_output, clf_output, features_output, weighted_output, ga_report = ga_instance.run(
             num_iterations=self.num_iterations,population_size=self.population_size,elite=float(self.elite),crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
-            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,ordinal=self.ordinal,linear_raw=self.linear_raw,
+            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,linear_raw=self.linear_raw,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -349,7 +349,7 @@ class TrainGA(Task):
                         'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p, self.scoring, self.jobs]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
-                        'linear_regression':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
+                        'linreg':[LinearRegressionClassifier(),[self.linreg_fit_intercept, self.linreg_normalize, self.linreg_copy_X]]
                         }
         clf = classifierdict[self.classifier][0]
         if self.ordinal or self.linear_raw:
@@ -643,7 +643,7 @@ class Classify(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    instance_steps = IntParameter(default=0)
+    instance_steps = IntParameter(default=1)
     
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -669,9 +669,9 @@ class Classify(WorkflowComponent):
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
 
-    linreg_fit_intercept = BoolParameter()
-    linreg_normalize = BoolParameter()
-    linreg_copy_X = BoolParameter()
+    linreg_fit_intercept = Parameter(default='1')
+    linreg_normalize = Parameter(default='0')
+    linreg_copy_X = Parameter(default='1')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress

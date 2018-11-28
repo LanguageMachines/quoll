@@ -36,16 +36,22 @@ class GA:
     def return_segment(self,vector,point1,point2):
         return vector[:,range(point1,point2)]
 
-    def draw_sample(self,steps):
+    def draw_sample(self,steps,linear_raw):
         labels_array = numpy.array(self.labels)
         sample_labels = []
         while len(list(set(self.labels)-set(sample_labels))) > 0:
             trainsample_size = random.choice(range(10,int(self.vectors.shape[0]/steps)-10))
             trainsample = random.sample(range(int(self.vectors.shape[0]/steps)),trainsample_size)
             testsample = [i for i in range(int(self.vectors.shape[0]/steps)) if i not in trainsample]
-            trainsample_full = sum([[x*2,(x*2)+1] for x in trainsample],[])
-            testsample_full = sum([[x*2,(x*2)+1] for x in testsample],[])
+            if steps > 1:
+                trainsample_full = sum([[x*steps,(x*steps)+1] for x in trainsample],[])
+                testsample_full = sum([[x*steps,(x*steps)+1] for x in testsample],[])
+            else:
+                trainsample_full = trainsample
+                testsample_full = testsample
             sample_labels = labels_array[testsample_full].tolist()
+            if linear_raw:
+                break
         return trainsample_full, testsample_full
 
     def offspring_crossover(self,parents,npoints=1):
@@ -112,7 +118,7 @@ class GA:
         return parameterpopulation
 
     def score_fitness(self,trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric,linear_raw):
-
+        
         # train classifier
         if ordinal or linear_raw:
             clflabels = [float(x) for x in trainlabels]
@@ -123,8 +129,8 @@ class GA:
 
         # apply classifier
         predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution)
-        if not ordinal or linear_raw:
-            predictions = [self.label_encoder.inverse_transform(prediction) for prediction in predictions]
+        if not ordinal and not linear_raw:
+            predictions = [clf.label_encoder.inverse_transform(prediction) for prediction in predictions]
 
         # assess classifications
         rp = reporter.Reporter(predictions, full_predictions[1:], full_predictions[0], testlabels, ordinal)
@@ -219,8 +225,8 @@ class GA:
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
 
-    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
-        nb_alpha,nb_fit_prior,ordinal,linear_raw,
+    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,linear_raw,
+        nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
         xg_booster,xg_silent,xg_learning_rate,xg_min_child_weight,xg_max_depth,xg_gamma,xg_max_delta_step,xg_subsample,xg_colsample_bytree,xg_reg_lambda,xg_reg_alpha,xg_scale_pos_weight,xg_objective,xg_seed,xg_n_estimators,
@@ -237,11 +243,11 @@ class GA:
                         'knn':[KNNClassifier,[knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p]], 
                         'tree':[TreeClassifier,[]], 
                         'perceptron':[PerceptronLClassifier,[]], 
-                        'linear_regression':[LinearRegressionClassifier,[linreg_fit_intercept, linreg_normalize, linreg_copy_X]]
+                        'linreg':[LinearRegressionClassifier,[linreg_fit_intercept, linreg_normalize, linreg_copy_X]]
                         }
 
         # draw sample of train instances
-        trainsample, testsample  = self.draw_sample(steps=steps)
+        trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw)
         trainvectors = self.vectors[trainsample,:]
         testvectors = self.vectors[testsample,:]
         trainlabels = numpy.array(self.labels)[trainsample].tolist()
@@ -289,7 +295,7 @@ class GA:
             # generate offspring
             offspring, parameter_offspring = self.generate_offspring(offspring,parameter_offspring,parameter_options,population_weighted_fitness,elite=elite,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
             if random.choice(samplechance):
-                trainsample, testsample  = self.draw_sample(steps=steps)
+                trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw)
                 trainvectors = self.vectors[trainsample,:]
                 testvectors = self.vectors[testsample,:]
                 trainlabels = numpy.array(self.labels)[trainsample].tolist()
