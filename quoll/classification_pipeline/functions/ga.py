@@ -24,12 +24,12 @@ class GA:
             contestants = []
             for i in range(tournament_size):
                 contestant=random.choice(candidate_keys)
-                contestants.append((contestant,population_fitness[contestant]))
-            sorted_contestants = sorted(contestants,key = lambda k : k[1],reverse=True)
+                contestants.append((contestant,population_fitness[contestant][0],population_fitness[contestant][1]))
+            sorted_contestants = sorted(contestants,key = lambda k : k[2],reverse=True)
             if win_condition=='highest':
-                winner = sorted_contestants[0][0]
+                winner = sorted_contestants[0][1]
             else:
-                winner = sorted_contestants[-1][0]
+                winner = sorted_contestants[-1][1]
             winners.append(winner)
         return winners
 
@@ -75,12 +75,15 @@ class GA:
         mutated_child_sparse = sparse.csr_matrix(mutated_child)
         return mutated_child_sparse
 
-    def generate_offspring(self,vectorpopulation,parameterpopulation,parameter_options,fitness,tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest'):
-        new_population = []
-        new_parameterpopulation = []
+    def generate_offspring(self,vectorpopulation,parameterpopulation,parameter_options,fitness,elite='0.1',tournament_size=2,crossover_prob=0.9,n_crossovers=1,mutation_rate=0.3,win_condition='highest'):
+        fitness_numbered = [[i,x] for i,x in enumerate(fitness)]
+        fitness_sorted = sorted(fitness_numbered,key = lambda k : k[1],reverse=True) if win_condition == 'highest' else sorted(fitness_numbered,key = lambda k : k[1])
+        new_population = [vectorpopulation[x[0],:] for x in fitness_sorted[:int(elite*vectorpopulation.shape[0])]]
+        new_parameterpopulation = [parameterpopulation[x[0]] for x in fitness_sorted[:int(elite*vectorpopulation.shape[0])]]
+        fitness_candidates = fitness_sorted[int(elite*vectorpopulation.shape[0]):]
         while len(new_population) < vectorpopulation.shape[0]:
             # select
-            selections = self.tournament_selection(fitness,tournament_size,win_condition)
+            selections = self.tournament_selection(fitness_candidates,tournament_size,win_condition)
             parents = vectorpopulation[selections,:]
             parameterparents = parameterpopulation[selections,:]
             # generate and mutate
@@ -139,7 +142,7 @@ class GA:
 
         return fitness
 
-    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric, weight_feature_size, win_condition):
+    def score_population_fitness(self,population,vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,c,jobs,ordinal,fitness_metric,weight_feature_size, win_condition):
         population_fitness = []
         for i in population:
             vectorsolution = vectorpopulation[i,:].nonzero()[1]
@@ -212,8 +215,7 @@ class GA:
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
 
-    def run(self,num_iterations,population_size,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,
-            classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
+    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
@@ -239,8 +241,7 @@ class GA:
         testvectors = self.vectors[testsample,:]
         trainlabels = numpy.array(self.labels)[trainsample].tolist()
         testlabels = numpy.array(self.labels)[testsample].tolist()
-        print('TRAINSAMPLE',trainvectors.shape)
-        print('TESTSAMPLE',testvectors.shape)
+        print('TRAINSAMPLE',trainvectors.shape,'TESTSAMPLE',testvectors.shape)
         
         # self.foldreports = []
         # # for each fold
@@ -264,16 +265,16 @@ class GA:
 
         # score population fitness
         win_condition = 'highest' if fitness_metric in ['precision_micro','recall_micro','f1_micro','roc_auc'] else 'lowest'
-        population_fitness = self.score_population_fitness(range(population_size),vectorpopulation,parameterpopulation,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition)
+        population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition)
         population_weighted_fitness = [x[2] for x in population_fitness]
 
         # iterate
-        report = [[len(trainlabels),len(testlabels),population_fitness,self.write_report('Initialization',len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],vectorpopulation,parameterpopulation,parameters_split,win_condition)]]
+        report = [[len(trainlabels),len(testlabels),population_fitness,self.write_report('Initialization',len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)]]
         highest_streak = 1
         last_best = max([x[2] for x in population_fitness]) if win_condition == 'highest' else min([x[2] for x in population_fitness])
         best_indices = [i for i, fitness_score in enumerate(population_fitness) if fitness_score[2] == last_best]
-        best_features = [vectorpopulation[i,:].toarray()[0].nonzero()[0].tolist() for i in best_indices]
-        best_parameters = [[parameters_split[j][k] for j,k in enumerate(parameterpopulation[i,:].toarray().tolist()[0])] for i in best_indices]
+        best_features = [offspring[i,:].toarray()[0].nonzero()[0].tolist() for i in best_indices]
+        best_parameters = [[parameters_split[j][k] for j,k in enumerate(parameter_offspring[i,:].toarray().tolist()[0])] for i in best_indices]
         cursor = 1
         print('BEST FITNESS',last_best,population_fitness[population_weighted_fitness.index(last_best)][0],population_fitness[population_weighted_fitness.index(last_best)][1],'NUM BEST FEATURES:',len(best_features),'NUM BEST PARAMETERS:',len(best_parameters),'HIGHEST STREAK',highest_streak)
         samplechance = [True,False,False,False]
@@ -281,7 +282,7 @@ class GA:
         while highest_streak < stop_condition and cursor <= num_iterations:
             print('Iteration',cursor)
             # generate offspring
-            offspring, parameter_offspring = self.generate_offspring(vectorpopulation,parameterpopulation,parameter_options,population_weighted_fitness,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
+            offspring, parameter_offspring = self.generate_offspring(offspring,parameter_offspring,parameter_options,population_weighted_fitness,elite=elite,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
             if random.choice(samplechance):
                 trainsample, testsample  = self.draw_sample(steps=steps)
                 trainvectors = self.vectors[trainsample,:]
@@ -303,14 +304,13 @@ class GA:
             else:
                 highest_streak += 1
             best_fitness_indices = [i for i, fitness_score in enumerate(population_weighted_fitness) if fitness_score == last_best]
-            best_fitness_features = [vectorpopulation[i,:].toarray()[0].nonzero()[0].tolist() for i in best_fitness_indices]
-            best_fitness_parameters = [[parameters_split[j][k] for j,k in enumerate(parameterpopulation[i,:].toarray().tolist()[0])] for i in best_fitness_indices]
+            best_fitness_features = [offspring[i,:].toarray()[0].nonzero()[0].tolist() for i in best_fitness_indices]
+            best_fitness_parameters = [[parameters_split[j][k] for j,k in enumerate(parameter_offspring[i,:].toarray().tolist()[0])] for i in best_fitness_indices]
             best_features.extend(best_fitness_features)
             best_parameters.extend(best_fitness_parameters)
-            report.append([len(trainlabels),len(testlabels),population_fitness,self.write_report(cursor,len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],vectorpopulation,parameterpopulation,parameters_split,win_condition)])
+            report.append([len(trainlabels),len(testlabels),population_fitness,self.write_report(cursor,len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)])
             print('LAST BEST',last_best,'BEST FITNESS',best_fitness,population_fitness[population_weighted_fitness.index(best_fitness)][0],population_fitness[population_weighted_fitness.index(best_fitness)][1],'NUM BEST FEATURES:',len(best_features),'NUM BEST PARAMETERS:',len(best_parameters),'HIGHEST STREAK',highest_streak)
             cursor+=1
 
         print('Breaking iteration; best fitness:',last_best)
         return self.return_overall_report(report,best_features,best_parameters)
-

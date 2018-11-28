@@ -57,6 +57,7 @@ class Fold(Task):
     ga = BoolParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
+    elite = Parameter()
     crossover_probability = Parameter()
     mutation_rate = Parameter()
     tournament_size = IntParameter()
@@ -215,7 +216,7 @@ class Fold(Task):
         yield Report(
             train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path, 
             weight=self.weight, prune=self.prune, balance=self.balance,
-            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -243,6 +244,7 @@ class Folds(Task):
     ga = BoolParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
+    elite = Parameter()
     crossover_probability = Parameter()
     mutation_rate = Parameter()
     tournament_size = IntParameter()
@@ -316,7 +318,7 @@ class Folds(Task):
                 directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold, 
                 weight=self.weight, prune=self.prune, balance=self.balance,
-                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -351,6 +353,7 @@ class RunFold(WorkflowComponent):
     ga = BoolParameter()
     num_iterations = IntParameter()
     population_size = IntParameter()
+    elite = Parameter()
     crossover_probability = Parameter()
     mutation_rate = Parameter()
     tournament_size = IntParameter()
@@ -432,7 +435,7 @@ class RunFold(WorkflowComponent):
             'run_fold', Fold, autopass=False, 
             i=self.i, 
             weight=self.weight, prune=self.prune, balance=self.balance,
-            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -470,6 +473,7 @@ class Validate(WorkflowComponent):
     # featureselection parameters
     ga = BoolParameter()
     num_iterations = IntParameter(default=300)
+    elite = Parameter(default='0.1')
     population_size = IntParameter(default=100)
     crossover_probability = Parameter(default='0.9')
     mutation_rate = Parameter(default='0.3')
@@ -625,7 +629,7 @@ class Validate(WorkflowComponent):
             'foldrunner', Folds, autopass=False, 
             n=self.n, 
             weight=self.weight, prune=self.prune, balance=self.balance,
-            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, crossover_probability=self.crossover_probability,
+            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
