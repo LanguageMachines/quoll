@@ -125,6 +125,9 @@ class Fold(Task):
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
 
+    def in_nominal_labels(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
+            
     def out_fold(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
 
@@ -135,19 +138,19 @@ class Fold(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.exp/fold' + str(self.i) + '/train.raw.labels')
 
     def out_testlabels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
+
+    def out_nominal_trainlabels(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
 
     def out_trainvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt')
-
-    def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
 
     def out_testdocs(self):
         return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
@@ -202,6 +205,16 @@ class Fold(Task):
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
 
+        # set nominal labels and write to files
+        if self.linear_raw:
+            # open labels
+            with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
+                nominal_labels = numpy.array(infile.read().strip().split('\n'))        
+            train_labels_nominal = numpy.concatenate([nominal_labels[indices] for j,indices in enumerate(bins) if j != self.i] + [nominal_labels[fixed_train_indices]])
+            test_labels = nominal_labels[bins[self.i]]
+            with open(self.out_nominal_trainlabels().path,'w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(train_labels_nominal))
+            
         # write experiment data to files in fold directory
         numpy.savez(self.out_train().path, data=train_instances.data, indices=train_instances.indices, indptr=train_instances.indptr, shape=train_instances.shape)
         numpy.savez(self.out_test().path, data=test_instances.data, indices=test_instances.indices, indptr=test_instances.indptr, shape=test_instances.shape)

@@ -121,7 +121,7 @@ class Train(Task):
             clflabels = [float(x) for x in trainlabels]
         else:
             clf.set_label_encoder(sorted(list(set(trainlabels))))
-            clflabels = self.label_encoder.transform(trainlabels)
+            clflabels = clf.label_encoder.transform(trainlabels)
         clf.train_classifier(vectorized_instances, clflabels, *classifierdict[self.classifier][1])
 
         # save classifier
