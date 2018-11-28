@@ -302,6 +302,7 @@ class ClassifyTask(Task):
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
+    linear_raw = BoolParameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -318,6 +319,10 @@ class ClassifyTask(Task):
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
+
+    linreg_fit_intercept = Parameter()
+    linreg_normalize = Parameter()
+    linreg_copy_X = Parameter()
 
     xg_booster = Parameter() 
     xg_silent = Parameter()
@@ -343,7 +348,7 @@ class ClassifyTask(Task):
     knn_p = IntParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + 'translated.predictions.txt' if self.ga and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
 
     def run(self):
         
@@ -351,7 +356,7 @@ class ClassifyTask(Task):
             return True
         else:
             yield Classify(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testvectors().path,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -362,7 +367,8 @@ class ClassifyTask(Task):
                 xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
                 xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                 knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p
+                knn_metric=self.knn_metric, knn_p=self.knn_p,
+                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
             )
 
 #################################################################
@@ -397,6 +403,7 @@ class Report(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
+    linear_raw = BoolParameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -413,6 +420,10 @@ class Report(WorkflowComponent):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    linreg_fit_intercept = Parameter(default='1')
+    linreg_normalize = Parameter(default='0')
+    linreg_copy_X = Parameter(default='1')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
@@ -615,14 +626,17 @@ class Report(WorkflowComponent):
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
                 xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
                 xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
                 xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators
+                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                knn_metric=self.knn_metric, knn_p=self.knn_p,
+                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
             )
             classifier.in_trainvectors = trainvectors
             classifier.in_testvectors = testvectors
