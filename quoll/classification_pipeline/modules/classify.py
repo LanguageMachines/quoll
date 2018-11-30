@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale, Combine, Balance
+from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 from quoll.classification_pipeline.functions.classifier import *
 from quoll.classification_pipeline.functions import ga, vectorizer
@@ -533,27 +533,153 @@ class TranslatePredictions(Task):
         with open(self.out_translator().path,'w',encoding='utf-8') as out:
             out.write('\n'.join([' '.join([str(x) for x in line]) for line in translator]))
 
-class VectorizeTrainTask(Task):
+class FitTransformScale(Task):
 
-    in_trainfeatures = InputSlot()
+    in_vectors = InputSlot()
+
+    min_scale = IntParameter()
+    max_scale = IntParameter()
+    
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled_' + str(self.min_scale) + '_' + str(self.max_scale) + '.vectors.npz')
+
+    def out_scaler(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaler_' + str(self.min_scale) + '_' + str(self.max_scale) + '.pkl')
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled_' + str(self.min_scale) + '_' + str(self.max_scale) + '.featureselection.txt')       
+    
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+        
+        # scale vectors
+        scaler = vectorizer.fit_scale(vectors,self.min_scale,self.max_scale)
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write scaler
+        with open(self.out_scaler().path, 'wb') as fid:
+            pickle.dump(scaler, fid)
+
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
+
+
+class TransformScale(Task):
+
+    in_vectors = InputSlot()
+    in_train = InputSlot()
+
+    min_scale = IntParameter()
+    max_scale = IntParameter()
+
+    def in_scaler(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.scaler_' + str(self.min_scale) + '_' + str(self.max_scale) + '.pkl')
+
+    def in_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.featureselection.txt')       
+    
+    def out_vectors(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.vectors.npz')
+
+    def out_featureselection(self):
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.scaled.featureselection.txt')       
+    
+    def run(self):
+
+        # read vectors
+        loader = numpy.load(self.in_vectors().path)
+        vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+
+        # read vocabulary
+        with open(self.in_featureselection().path,'r',encoding='utf-8') as file_in:
+            featureselection = file_in.read().strip().split('\n')
+
+        # read scaler
+        with open(self.in_scaler().path, 'rb') as fid:
+            scaler = pickle.load(fid)
+
+        # scale vectors
+        scaled_vectors = vectorizer.scale_vectors(vectors,scaler)
+
+        # write vectors
+        numpy.savez(self.out_vectors().path, data=scaled_vectors.data, indices=scaled_vectors.indices, indptr=scaled_vectors.indptr, shape=scaled_vectors.shape)
+
+        # write vocabulary
+        with open(self.out_featureselection().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(featureselection))
+
+class VectorizeTrain(Task):
+
+    in_train = InputSlot()
     in_trainlabels = InputSlot()
 
     weight = Parameter()
     prune = IntParameter()
     balance = BoolParameter()
+    select = Parameter()
+    select_threshold = Parameter()
+    traincsv = BoolParameter()
+    testcsv = BoolParameter()
+    delimiter=Parameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='trainfeatures', stripextension='.features.npz', addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.select + '.' + self.select_threshold + '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def out_trainlabels(self):
-           return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
-    
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
+
     def run(self):
         
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
-            yield Vectorize(traininstances=self.in_trainfeatures().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance)
+            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
+
+class VectorizeTrainTest(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+    in_test = InputSlot()
+
+    weight = Parameter()
+    prune = IntParameter()
+    balance = BoolParameter()
+    select = Parameter()
+    select_threshold = Parameter()
+    traincsv = BoolParameter()
+    testcsv = BoolParameter()
+    delimiter=Parameter()
+
+    def out_train(self):
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.select + '.' + self.select_threshold + '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+
+    def out_trainlabels(self):
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
+
+    def out_test(self):
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.testcsv else '.' + self.select + '.' + self.select_threshold + '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.testcsv else '.balanced.vectors.npz' if self.balance and self.testcsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+
+    def run(self):
+        
+        if self.complete(): # necessary as it will not complete otherwise
+            return True
+        else:
+            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_test().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
+
 
 class VectorizeTrainCombinedTask(Task):
 
@@ -654,6 +780,7 @@ class Classify(WorkflowComponent):
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc') # optimization metric for grid search
     linear_raw = BoolParameter()
+    scale = BoolParameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -703,7 +830,8 @@ class Classify(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    scale = BoolParameter()
+    select = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -722,8 +850,8 @@ class Classify(WorkflowComponent):
             [
                 (                
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='traininstances'),
+                InputFormat(self, format_id='vectorized_train_csv',extension='.csv',inputparameter='traininstances'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
@@ -737,8 +865,8 @@ class Classify(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='testinstances'),
+                InputFormat(self, format_id='vectorized_test_csv',extension='.csv',inputparameter='testinstances'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),
@@ -752,62 +880,87 @@ class Classify(WorkflowComponent):
     def setup(self, workflow, input_feeds):
         
         ######################
-        ### Training phase ###
+        ### vectorize ########
         ######################
         
         trainlabels = input_feeds['labels_train']
-        
+
         if 'vectorized_train' in input_feeds.keys():
-            if self.balance and 'balanced' not in input_feeds['vectorized_train'].split('/')[-1].split('.'):
-                balancetask = workflow.new_task('BalanceTaskVector',Balance,autopass=True)
-                balancetask.in_train = input_feeds['vectorized_train']
-                balancetask.in_trainlabels = trainlabels
+            traininstances = input_feeds['vectorized_train']
 
-                trainvectors = balancetask.out_train
-                trainlabels = balancetask.out_labels
+        elif 'vectorized_train_csv' in input_feeds.keys():
+            traininstances = input_feeds['vectorized_train_csv']
+
+        elif 'featurized_train_csv' in input_feeds.keys():
+            traininstances = input_feeds['featurized_train']
+
+        elif 'pre_featurized_train' in input_feeds.keys():
+            trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+
+            traininstances = trainfeaturizer.out_featurized
+
+        traincsv=True if 'vectorized_train_csv' in input_feeds.keys() else False
+
+        if len(list(set(['vectorized_test','featurized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
+ 
+            if 'vectorized_test' in input_feeds.keys():
+                testinstances = input_feeds['vectorized_test']
+
+            elif 'vectorized_test_csv' in input_feeds.keys():
+                testinstances = input_feeds['vectorized_test_csv']
+
+            elif 'featurized_test' in input_feeds.keys():
+                testinstances = input_feeds['featurized_test']
+
             else:
-                trainvectors = input_feeds['vectorized_train']
-                
-        else: # pre_vectorized
+                testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
-            if 'featurized_train_csv' in input_feeds.keys():
-                trainvectorizer_csv = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                trainvectorizer_csv.in_csv = input_feeds['featurized_train_csv']
+                testinstances = trainfeaturizer.out_featurized
 
-                if self.scale:
-                    trainvectorizer = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
-                    trainvectorizer.in_vectors = trainvectorizer_csv.out_vectors
-
+            if (self.select and self.select_threshold in testinstances.split('.')) or (self.balance and 'balanced' in testinstances.split('.')):
+                trainvectors = traininstances
+                testvectors = testinstances
+            elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
+                if not 'vectorized_test' in input_feeds.keys():
+                    print('Testinstances can not be vectorized when the classifier model is given as input (traininstances required), exiting program...')
+                    quit()
                 else:
-                    trainvectorizer = trainvectorizer_csv
-
-                if self.balance:
-                    balancetask = workflow.new_task('BalanceTaskCSV',Balance,autopass=True)
-                    balancetask.in_train = trainvectorizer.out_vectors
-                    balancetask.in_trainlabels = labels
-
-                    trainvectors = balancetask.out_train
-                    trainlabels = balancetask.out_labels
-                else:
-                    trainvectors = trainvectorizer.out_vectors
-                    
+                    testvectors = testinstances
             else:
+                testcsv=True if 'vectorized_test_csv' in input_feeds.keys() else False
+                vectorizer = workflow.new_task('vectorize',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv)
+                vectorizer.in_train = traininstances
+                vectorizer.in_trainlabels = trainlabels
+                vectorizer.in_test = testinstances
 
-                if 'pre_featurized_train' in input_feeds.keys():
-                    trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                    trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+                trainvectors = vectorizer.out_train
+                trainlabels = vectorizer.out_trainlabels
+                testvectors = vectorizer.out_test
 
-                    featurized_train = trainfeaturizer.out_featurized
+        else: # only train
 
-                else:
-                    featurized_train = input_feeds['featurized_train']
+            if (self.select and self.select_threshold in traininstances.split('.')) or (self.balance and 'balanced' in traininstances.split('.')):
+                trainvectors = traininstances
+            else:
+                vectorizer = workflow.new_task('vectorize',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv)
+                vectorizer.in_train = traininstances
+                vectorizer.in_trainlabels = trainlabels
+                vectorizer.in_test = testinstances
 
-                trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                trainvectorizer.in_trainfeatures = featurized_train
-                trainvectorizer.in_trainlabels = trainlabels
+                trainvectors = vectorizer.out_train
+                trainlabels = vectorizer.out_trainlabels
 
-                trainvectors = trainvectorizer.out_train
-                trainlabels = trainvectorizer.out_trainlabels
+        ######################
+        ### Training phase ###
+        ######################
+
+        if self.scale:
+            scaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True)
+            scaler.in_vectors = trainvectors
+
+            trainvectors = scaler.out_vectors
 
         if self.ga:
             trainer = workflow.new_task('train_ga',TrainGA,autopass=True,
@@ -850,43 +1003,13 @@ class Classify(WorkflowComponent):
         ######################
 
         if len(list(set(['vectorized_test','featurized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
- 
-            if 'vectorized_test' in input_feeds.keys():
-                testvectors = input_feeds['vectorized_test']
 
-            else: # pre_vectorized
+            if self.scale:
+                scaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
+                scaler.in_vectors = testvectors
+                scaler.in_train = trainvectors
 
-                if 'featurized_test_csv' in input_feeds.keys():
-                    testvectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer_csv.in_csv = input_feeds['featurized_test_csv']
-
-                    if self.scale:
-                        testvectorizer = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
-                        testvectorizer.in_vectors = testvectorizer_csv.out_vectors
-                        testvectorizer.in_scaler = trainvectorizer.out_scaler
-
-                    else:
-                        testvectorizer = testvectorizer_csv
-
-                    testvectors = testvectorizer.out_vectors
-        
-                else:
-
-                    if 'pre_featurized_test' in input_feeds.keys():
-                        testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                        testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
-
-                        featurized_test = testfeaturizer.out_featurized
-
-                    else:
-                        featurized_test = input_feeds['featurized_test']
-                    
-                    testvectorizer = workflow.new_task('vectorize_test',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                    testvectorizer.in_trainvectors = trainvectors
-                    testvectorizer.in_trainlabels = trainlabels
-                    testvectorizer.in_testfeatures = featurized_test
-
-                    testvectors = testvectorizer.out_vectors
+                testvectors = scaler.out_vectors
 
             if self.ga:
                 transformer = workflow.new_task('tranformer',TransformVectors,autopass=True)

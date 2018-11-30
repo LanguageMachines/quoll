@@ -404,6 +404,7 @@ class Report(WorkflowComponent):
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
+    scale = BoolParameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -453,7 +454,6 @@ class Report(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    scale = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
