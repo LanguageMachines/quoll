@@ -5,7 +5,7 @@ from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask, FitTransformScale, TransformScale
+from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
 
@@ -74,6 +74,8 @@ class Fold(Task):
     scoring = Parameter()
     linear_raw = BoolParameter()
     scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
 
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -122,6 +124,8 @@ class Fold(Task):
     weight = Parameter() # options: frequency, binary, tfidf
     prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    select = Parameter()
+    select_threshold = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
@@ -234,10 +238,10 @@ class Fold(Task):
 
         yield Report(
             train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path, 
-            weight=self.weight, prune=self.prune, balance=self.balance,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
             ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -281,6 +285,8 @@ class Folds(Task):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
 
     nb_alpha = Parameter(default=1.0)
     nb_fit_prior = BoolParameter()
@@ -329,6 +335,8 @@ class Folds(Task):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
+    select = Parameter()
+    select_threshold = Parameter()
     
     def out_exp(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp')
@@ -343,10 +351,10 @@ class Folds(Task):
             yield RunFold(
                 directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
                 i=fold, 
-                weight=self.weight, prune=self.prune, balance=self.balance,
+                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
-                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
+                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -397,6 +405,8 @@ class RunFold(WorkflowComponent):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
 
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -445,7 +455,9 @@ class RunFold(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    
+    select = Parameter()
+    select_threshold = Parameter()
+
     def accepts(self):
         return [ ( 
             InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
@@ -467,7 +479,7 @@ class RunFold(WorkflowComponent):
         run_fold = workflow.new_task(
             'run_fold', Fold, autopass=False, 
             i=self.i, 
-            weight=self.weight, prune=self.prune, balance=self.balance,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
             ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,
@@ -524,6 +536,8 @@ class Validate(WorkflowComponent):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
 
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -573,6 +587,8 @@ class Validate(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    select = Parameter()
+    select_threshold = Parameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -612,6 +628,10 @@ class Validate(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
+        ########################
+        ### Prepare data #######
+        ########################
+
         if 'docs_instances' in input_feeds.keys():
             docs = input_feeds['docs_instances']
         else:
@@ -626,24 +646,6 @@ class Validate(WorkflowComponent):
             vectorizer = workflow.new_task('vectorize_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
             vectorizer.in_csv = input_feeds['featurized_csv']
                 
-            instances = vectorizer.out_vectors
-
-            vectorizer_csv = workflow.new_task('vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            vectorizer_csv.in_csv = input_feeds['featurized_csv']
-
-            if self.scale:
-                if self.classifier == 'svm':
-                    vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
-                    vectorizer.in_vectors = vectorizer_csv.out_vectors
-                elif self.classifier == 'xgboost': # no scaling needed
-                    vectorizer = vectorizer_csv
-                else: # naive bayes, ...
-                    vectorizer = workflow.new_task('scale_vectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
-                    vectorizer.in_vectors = vectorizer_csv.out_vectors
-
-            else:
-                vectorizer = vectorizer_csv
-
             instances = vectorizer.out_vectors
 
         else:
@@ -667,10 +669,10 @@ class Validate(WorkflowComponent):
         foldrunner = workflow.new_task(
             'foldrunner', Folds, autopass=False, 
             n=self.n, 
-            weight=self.weight, prune=self.prune, balance=self.balance,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
             ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,
+            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw, scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
