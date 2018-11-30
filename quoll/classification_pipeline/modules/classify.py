@@ -680,8 +680,10 @@ class VectorizeTrainTest(Task):
     def run(self):
         
         if self.complete(): # necessary as it will not complete otherwise
+            print('COMPLETE')
             return True
         else:
+            print('RUN VECTORIZE',self.traincsv,self.testcsv,self.trainshort)
             yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_test().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
 
 
@@ -906,7 +908,7 @@ class Classify(WorkflowComponent):
 
                 testinstances = trainfeaturizer.out_featurized
 
-            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')):
+            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (self.select == 'False' and self.balance == False):
                 trainvectors = traininstances
                 testvectors = testinstances
             elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
@@ -916,6 +918,7 @@ class Classify(WorkflowComponent):
                 else:
                     testvectors = testinstances
             else:
+                print('CLASSIFY VECTORIZE TRAIN TEST')
                 testcsv=True if ('vectorized_test_csv' in input_feeds.keys() or ('vectorized_test' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in testinstances().path.split('.')])) else False
                 vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainshort=trainshort)
                 vectorizer.in_train = traininstances
@@ -927,7 +930,7 @@ class Classify(WorkflowComponent):
                 testvectors = vectorizer.out_test
 
         else: # only train
-            if (self.select in traininstances().path.split('.')) or (self.balance and 'balanced' in traininstances().path.split('.')):
+            if (self.select in traininstances().path.split('.')) or (self.balance and 'balanced' in traininstances().path.split('.')) or (not self.select and not self.balance):
                 trainvectors = traininstances
             else:
                 vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainshort=trainshort)

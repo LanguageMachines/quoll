@@ -7,6 +7,7 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrain, VectorizeTrainTest, FitTransformScale, TransformScale 
+from quoll.classification_pipeline.modules.vectorize import FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, linewriter, docreader
 
@@ -350,7 +351,7 @@ class ClassifyTask(Task):
     knn_p = IntParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.ga and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.ga and self.linear_raw and self.scale else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.ga and self.linear_raw else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale and self.ga else '.scaled.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.scaled.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
     
     def run(self):
         
@@ -407,6 +408,8 @@ class Report(WorkflowComponent):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -456,6 +459,8 @@ class Report(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
+    select = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -487,8 +492,8 @@ class Report(WorkflowComponent):
                 (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectorized_test_csv',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
@@ -548,13 +553,13 @@ class Report(WorkflowComponent):
             elif 'featurized_test' in input_feeds.keys():
                 testinstances = input_feeds['featurized_test']
 
-            else:
+            elif 'pre_featurized_test' in input_feeds.keys():
                 testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                 testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
                 testinstances = trainfeaturizer.out_featurized
 
-            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')):
+            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (not self.select and not self.balance):
                 trainvectors = traininstances
                 testvectors = testinstances
             elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
@@ -581,7 +586,7 @@ class Report(WorkflowComponent):
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,scale_min=self.scale_min,scale_max=self.scale_max,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
