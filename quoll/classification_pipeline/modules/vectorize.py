@@ -76,9 +76,6 @@ class Select(Task):
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.threshold + '.features.npz' if self.in_train().path.split('.')[-2] == 'features' else '.' + self.selector + '.' + self.threshold + '.vectors.npz')
 
-    # def out_labels(self):
-    #     return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.selection.labels')
-
     def out_vocabulary(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.threshold + '.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.' + self.selector + '.' + self.threshold + '.featureselection.txt')   
 
@@ -87,7 +84,10 @@ class Select(Task):
     
     def run(self):
 
-        selection_functions = {'fcbf':featselector.FCBF()}
+        selection_functions = {
+            'fcbf':featselector.FCBF(),
+            'mrmr_linear'featselector.MRMRLinear()
+        }
 
         # assert that vocabulary file exists (not checked in component)
         assert os.path.exists(self.in_vocabulary().path), 'Vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary().path 
@@ -110,10 +110,6 @@ class Select(Task):
 
         # write traininstances to file
         numpy.savez(self.out_train().path, data=traininstances_selected_features.data, indices=traininstances_selected_features.indices, indptr=traininstances_selected_features.indptr, shape=traininstances_selected_features.shape)
-
-        # # write trainlabels to file
-        # with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
-        #     l_out.write('\n'.join(trainlabels_balanced))
 
         # write vocabulary to file
         selected_features = numpy.array(vocabulary)[indices_selected_features].tolist()

@@ -200,3 +200,112 @@ class FCBF:
         self.fit(X.toarray(), y, threshold)
         filtered_X = self.transform(X)
         return filtered_X, self.sus, self.indices
+
+
+class MRMRLinear:
+
+    def __init__(self):
+        self.feature_strength = []
+        self.feature_correlation = []
+
+    def rank_relevance(self,X,y):
+        # calculate correlation by feature
+        feature_strength = []
+        for i in range(X.shape[1]):
+            feature_vals = X[:,i].transpose().toarray()[0]
+            try:
+                corr,p = stats.pearsonr(feature_vals,y)
+                if math.isnan(corr):
+                    corr = 0
+            except:
+                corr = 0
+            feature_strength.append([i,abs(corr),corr,p])
+        sorted_feature_strength = sorted(feature_strength,key=lambda k : k[1],reverse=True)
+        self.feature_strength = feature_strength
+
+    def compute_correlations(self,X):
+        # calculate correlation by feature
+        correlations = []
+        for i in range(X.shape[1]):
+            feature_vals_i = X[:,i].transpose().toarray()[0]
+            for j in range(i+1,X.shape[1]):
+                feature_vals_j = X[:,j].transpose().toarray()[0]
+                try:
+                    corr,p = stats.pearsonr(feature_vals_i,feature_vals_j)
+                    if math.isnan(corr):
+                        corr = 0
+                except:
+                    corr = 0
+                correlations.append([i,j,abs(corr),corr,p])
+        self.feature_correlation = correlations
+
+    def summarize_feature_weights(self):
+        feature_weights = []
+        for i in range(len(self.feature_strength)):
+            strength = self.feature_strength
+            correlations = [x[2] for x in sorted([row for row in self.feature_correlation if row[0] == i],key = lambda k : k[1])]
+            feature_weights.append([strength] + correlations)
+        return feature_weights
+
+    def filter_features(self, strength_threshold, correlation_threshold):
+        selected_features = []
+        discarded = []
+        print('Starting feature filter with strength threshold ' + str(strength_threshold) + ' and correlation_threshold ' + str(correlation_threshold))
+        sorted_keys = [kv[0] for kv in sorted(self.feature_strength.items(), key=operator.itemgetter(1), reverse=True)]
+        for feature_index in sorted_keys:
+            try:
+                print('Inspecting feature ' + str(feature_index))
+                if not feature_index in discarded:
+                    strength = self.feature_strength[feature_index]
+                    print('Strength = ' + str(strength))
+                    if strength > strength_threshold:
+                        print('Threshold met, adding to selected features.')
+                        selected_features.append(feature_index)
+                        correlating_features = [feature[0] for feature in list(feature_feature_correlation[feature_index].items()) if feature[1] > correlation_threshold]
+                        print('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
+                        discarded.extend(correlating_features)
+                        print('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
+                        # for cf in correlating_features:
+                        #     del feature_strength[cf]
+                    else:
+                        print('Feature did not meet threshold, moving on to next feature')
+                else:
+                    print('Feature was discarded, moving on to next feature')
+            except: # feature index already deleted
+                continue
+        return selected_features
+
+    def fit(self, X, y, thresh):
+        """
+        Perform filtering
+        
+        Parameters:
+        -----------
+        X : 2-D ndarray
+            Feature matrix
+        y : ndarray
+            Class label vector
+        thresh : float
+            A value in [0,1) used as threshold for selecting 'relevant' features. 
+            A negative value suggest the use of minimum SU[i,c] value as threshold.
+        
+        Returns:
+        --------
+        sbest : 2-D ndarray
+            An array containing SU[i,c] values and feature index i.
+        """
+        self.rank_relevance(X,y)
+        self.compute_correlations(X)
+        strength_treshold = float(thresh.split('_')[0])
+        correlation_threshold = float(thresh.split('_')[1])
+        self.indices = self.filter_features(strength_threshold,correlation_threshold)
+        print('Selected features:',self.indices)
+        quit()
+
+    def transform(self, X):
+        return vectorizer.compress_vectors(X,self.indices)
+
+    def fit_transform(self, X, y, threshold):
+        self.fit(X, y, threshold)
+        filtered_X = self.transform(X)
+        return filtered_X, self.summarize_feature_weights(), self.indices
