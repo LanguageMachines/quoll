@@ -86,7 +86,7 @@ class Select(Task):
 
         selection_functions = {
             'fcbf':featselector.FCBF(),
-            'mrmr_linear'featselector.MRMRLinear()
+            'mrmr_linear':featselector.MRMRLinear()
         }
 
         # assert that vocabulary file exists (not checked in component)
