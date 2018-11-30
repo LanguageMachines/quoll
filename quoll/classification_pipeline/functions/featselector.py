@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import sys
-import os
-import argparse
+import operator
+from collections import defaultdict
 import numpy as np
+from scipy import sparse, stats
 
 from quoll.classification_pipeline.functions import vectorizer
 
@@ -147,6 +147,7 @@ class FCBF:
         sbest : 2-D ndarray
             An array containing SU[i,c] values and feature index i.
         """
+        thresh = float.thresh
         n = X.shape[1]
         slist = np.zeros((n, 3))
         slist[:, -1] = 1
@@ -210,41 +211,30 @@ class MRMRLinear:
 
     def rank_relevance(self,X,y):
         # calculate correlation by feature
-        feature_strength = []
+        feature_strength = {}
         for i in range(X.shape[1]):
             feature_vals = X[:,i].transpose().toarray()[0]
-            try:
-                corr,p = stats.pearsonr(feature_vals,y)
-                if math.isnan(corr):
-                    corr = 0
-            except:
-                corr = 0
-            feature_strength.append([i,abs(corr),corr,p])
-        sorted_feature_strength = sorted(feature_strength,key=lambda k : k[1],reverse=True)
+            corr,p = stats.pearsonr(feature_vals,y)
+            feature_strength[i] = abs(corr)
         self.feature_strength = feature_strength
 
     def compute_correlations(self,X):
         # calculate correlation by feature
-        correlations = []
+        correlations = defaultdict(list)
         for i in range(X.shape[1]):
             feature_vals_i = X[:,i].transpose().toarray()[0]
-            for j in range(i+1,X.shape[1]):
+            for j in range(X.shape[1]):
                 feature_vals_j = X[:,j].transpose().toarray()[0]
-                try:
-                    corr,p = stats.pearsonr(feature_vals_i,feature_vals_j)
-                    if math.isnan(corr):
-                        corr = 0
-                except:
-                    corr = 0
-                correlations.append([i,j,abs(corr),corr,p])
+                corr,p = stats.pearsonr(feature_vals_i,feature_vals_j)
+                correlations[i].append([j,abs(corr),corr,p])
         self.feature_correlation = correlations
 
     def summarize_feature_weights(self):
         feature_weights = []
-        for i in range(len(self.feature_strength)):
-            strength = self.feature_strength
-            correlations = [x[2] for x in sorted([row for row in self.feature_correlation if row[0] == i],key = lambda k : k[1])]
-            feature_weights.append([strength] + correlations)
+        for i in range(len(self.feature_strength.keys())):
+            strength = self.feature_strength[i]
+            correlations = [x[1] for x in self.feature_correlation[i]]
+            feature_weights.append([str(x) for x in [strength] + correlations])
         return feature_weights
 
     def filter_features(self, strength_threshold, correlation_threshold):
@@ -252,27 +242,23 @@ class MRMRLinear:
         discarded = []
         print('Starting feature filter with strength threshold ' + str(strength_threshold) + ' and correlation_threshold ' + str(correlation_threshold))
         sorted_keys = [kv[0] for kv in sorted(self.feature_strength.items(), key=operator.itemgetter(1), reverse=True)]
+        report=[]
         for feature_index in sorted_keys:
-            try:
-                print('Inspecting feature ' + str(feature_index))
-                if not feature_index in discarded:
-                    strength = self.feature_strength[feature_index]
-                    print('Strength = ' + str(strength))
-                    if strength > strength_threshold:
-                        print('Threshold met, adding to selected features.')
-                        selected_features.append(feature_index)
-                        correlating_features = [feature[0] for feature in list(feature_feature_correlation[feature_index].items()) if feature[1] > correlation_threshold]
-                        print('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
-                        discarded.extend(correlating_features)
-                        print('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
-                        # for cf in correlating_features:
-                        #     del feature_strength[cf]
-                    else:
-                        print('Feature did not meet threshold, moving on to next feature')
+            report.append('Inspecting feature ' + str(feature_index))
+            if not feature_index in discarded:
+                strength = self.feature_strength[feature_index]
+                report.append('Strength = ' + str(strength))
+                if strength > strength_threshold:
+                    report.append('Threshold met, adding to selected features.')
+                    selected_features.append(feature_index)
+                    correlating_features = [feature[0] for feature in self.feature_correlation[feature_index] if feature[1] > correlation_threshold]
+                    report.append('Correlating features: ' + ', '.join([str(x) for x in correlating_features]) + '; deleting...')
+                    discarded.extend(correlating_features)
+                    report.append('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
                 else:
-                    print('Feature was discarded, moving on to next feature')
-            except: # feature index already deleted
-                continue
+                    report.append('Feature did not meet threshold, moving on to next feature')
+            else:
+                report.append('Feature was discarded, moving on to next feature')
         return selected_features
 
     def fit(self, X, y, thresh):
@@ -294,13 +280,13 @@ class MRMRLinear:
         sbest : 2-D ndarray
             An array containing SU[i,c] values and feature index i.
         """
+        y = [float(x) for x in y]
         self.rank_relevance(X,y)
         self.compute_correlations(X)
-        strength_treshold = float(thresh.split('_')[0])
+        strength_threshold = float(thresh.split('_')[0])
         correlation_threshold = float(thresh.split('_')[1])
         self.indices = self.filter_features(strength_threshold,correlation_threshold)
         print('Selected features:',self.indices)
-        quit()
 
     def transform(self, X):
         return vectorizer.compress_vectors(X,self.indices)

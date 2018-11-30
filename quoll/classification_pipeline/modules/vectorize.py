@@ -106,7 +106,7 @@ class Select(Task):
            
         # select features
         selectionclass = selection_functions[self.selector]
-        traininstances_selected_features, weights_selected_features, indices_selected_features = selectionclass.fit_transform(featurized_traininstances, trainlabels, float(self.threshold))
+        traininstances_selected_features, weights_selected_features, indices_selected_features = selectionclass.fit_transform(featurized_traininstances, trainlabels, self.threshold)
 
         # write traininstances to file
         numpy.savez(self.out_train().path, data=traininstances_selected_features.data, indices=traininstances_selected_features.indices, indptr=traininstances_selected_features.indptr, shape=traininstances_selected_features.shape)
@@ -204,7 +204,7 @@ class ApplyVectorizer(Task):
     prune = Parameter()
     balance = BoolParameter()
     select = Parameter()
-    select_threshold = parameter()
+    select_threshold = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vocabulary.txt')
@@ -285,31 +285,31 @@ class VectorizeCsv(Task):
 
 class VectorizeTransformCsv(Task):
 
-    in_csv = InputSlot()
+    in_test = InputSlot()
     in_train = InputSlot()
 
     delimiter = Parameter()
     balance = BoolParameter()
     select = Parameter()
-    select_threshold = parameter()
+    select_threshold = Parameter()
 
     def in_featureselection(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.featureselection.txt')        
+        return self.outputfrominput(inputformat='test', stripextension='.csv', addextension='.featureselection.txt')        
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='csv', stripextension='.csv', addextension= '.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select else '.balanced.vectors.npz' if self.balance else '.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.csv', addextension= '.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select else '.balanced.vectors.npz' if self.balance else '.vectors.npz')
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='csv', stripextension='.csv', addextension= '.' + self.select + '.' + self.select_threshold + '.balanced.featureselection.txt' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.featureselection.txt' if self.select else '.balanced.featureselection.txt' if self.balance else '.featureselection.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.csv', addextension= '.' + self.select + '.' + self.select_threshold + '.balanced.featureselection.txt' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.featureselection.txt' if self.select else '.balanced.featureselection.txt' if self.balance else '.featureselection.txt')
 
     def run(self):
 
         # load instances
         loader = docreader.Docreader()
-        instances = loader.parse_csv(self.in_csv().path,delim=self.delimiter)
+        instances = loader.parse_csv(self.in_test().path,delim=self.delimiter)
         instances_float = [[0.0 if feature == 'NA' else 0.0 if feature == '#NULL!' else float(feature.replace(',','.')) for feature in instance] for instance in instances]
         instances_sparse = sparse.csr_matrix(instances_float)
 
@@ -318,7 +318,6 @@ class VectorizeTransformCsv(Task):
             lines = infile.read().split('\n')
             featureselection = [line.split('\t') for line in lines]
         featureselection_vocabulary = [x[0] for x in featureselection]
-        featureweights = dict([(i, float(feature[1])) for i, feature in enumerate(featureselection)])
         print('Loaded',len(featureselection_vocabulary),'selected features, now loading sourcevocabulary...')
 
         # align the test instances to the top features to get the right indices
@@ -795,7 +794,7 @@ class Vectorize(WorkflowComponent):
         
             if 'featurized_test_csv' in input_feeds.keys():
                 testvectorizer = workflow.new_task('vectorizer_csv',VectorizeTransformCsv,autopass=True,delimiter=self.delimiter,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
-                testvectorizer.in_csv = input_feeds['featurized_test_csv']
+                testvectorizer.in_test = input_feeds['featurized_test_csv']
                 testvectorizer.in_train = traininstances
         
             else:
