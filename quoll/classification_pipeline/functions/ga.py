@@ -120,19 +120,29 @@ class GA:
     def score_fitness(self,trainvectors_solution,trainlabels,testvectors_solution,testlabels,clf,parameters_solution,jobs,ordinal,fitness_metric,linear_raw):
         
         # train classifier
-        if ordinal or linear_raw:
+        if linear_raw:
             clflabels = [float(x) for x in trainlabels]
+        elif ordinal:
+            clflabels = [int(x) for x in trainlabels]
         else:
             clf.set_label_encoder(sorted(list(set(trainlabels))))
-            clflabels = self.label_encoder.transform(trainlabels)
+            clflabels = clf.label_encoder.transform(trainlabels)
         clf.train_classifier(trainvectors_solution, clflabels, *parameters_solution, v=0)
 
         # apply classifier
-        predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution)
-        if not ordinal and not linear_raw:
-            predictions = [clf.label_encoder.inverse_transform(prediction) for prediction in predictions]
+        if linear_raw:
+            predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution,['raw'])
+            predictions = [str(x) for x in predictions]
+        elif ordinal:
+            predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution,sorted(list(set(clflabels))))
+            predictions = [str(int(x)) for x in predictions]
+        else:
+            predictions, full_predictions = clf.apply_model(clf.model,testvectors_solution)
+            predictions = clf.label_encoder.inverse_transform(predictions)
 
         # assess classifications
+        if linear_raw:
+            ordinal = True
         rp = reporter.Reporter(predictions, full_predictions[1:], full_predictions[0], testlabels, ordinal)
         if fitness_metric == 'precision_micro':
             fitness = float(rp.assess_micro_performance()[1])
@@ -245,7 +255,7 @@ class GA:
                         'perceptron':[PerceptronLClassifier,[]], 
                         'linreg':[LinearRegressionClassifier,[linreg_fit_intercept, linreg_normalize, linreg_copy_X]]
                         }
-
+        
         # draw sample of train instances
         trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw)
         trainvectors = self.vectors[trainsample,:]
@@ -314,7 +324,7 @@ class GA:
                 highest_streak = 1
             else:
                 highest_streak += 1
-            best_fitness_indices = [i for i, fitness_score in enumerate(population_weighted_fitness) if fitness_score == last_best]
+            best_fitness_indices = [i for i, fitness_score in enumerate(population_weighted_fitness) if fitness_score == best_fitness]
             best_fitness_features = [offspring[i,:].toarray()[0].nonzero()[0].tolist() for i in best_fitness_indices]
             best_fitness_parameters = [[parameters_split[j][k] for j,k in enumerate(parameter_offspring[i,:].toarray().tolist()[0])] for i in best_fitness_indices]
             best_features.extend(best_fitness_features)
@@ -324,4 +334,4 @@ class GA:
             cursor+=1
 
         print('Breaking iteration; best fitness:',last_best)
-        return self.return_overall_report(report,best_features,best_parameters)
+        return self.return_overall_report(report,best_fitness_features,best_fitness_parameters)

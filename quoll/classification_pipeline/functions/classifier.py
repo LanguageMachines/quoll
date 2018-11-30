@@ -28,30 +28,26 @@ class AbstractSKLearnClassifier:
         label_encoding = list(zip(labels,encoding))
         return label_encoding
 
-    def predict(self,clf,testvector):
+    def predict(self,clf,testvector,classes):
         try:
             prediction = clf.predict(testvector)[0]
-            full_prediction = [clf.predict_proba(testvector)[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+            full_prediction = [clf.predict_proba(testvector)[0][i] for i,c in enumerate(classes)]
         except ValueError: # classifier trained on dense data
-            prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
-            full_prediction = [clf.predict_proba(testvector.toarray())[0][c] for c in self.label_encoder.transform(sorted(list(self.label_encoder.classes_)))]
+            prediction = clf.predict(testvector.todense())[0]
+            full_prediction = [clf.predict_proba(testvector.toarray())[0][i] for ic in enumerate(classes)]
         except AttributeError: # classifier does not support predict_proba
-            try:
-                prediction = self.label_encoder.inverse_transform([clf.predict(testvector.todense())[0]])[0]
-                full_prediction = [1.0 for c in self.label_encoder.classes_]
-            except: # no label encoding
-                prediction = clf.predict(testvector)[0]
-                full_prediction = ['-']
+            prediction = clf.predict(testvector.todense())[0]
+            full_prediction = [1.0 for c in classes]
+ 
         return prediction, full_prediction
 
-    def apply_model(self,clf,testvectors):
+    def apply_model(self,clf,testvectors,classes=False):
+        if not classes:
+            classes = sorted(list(self.label_encoder.classes_))
         predictions = []
-        try:
-            full_predictions = [list(self.label_encoder.classes_)]
-        except:
-            full_predictions = ['-']
+        full_predictions = [classes]
         for i, instance in enumerate(testvectors):
-            prediction, full_prediction = self.predict(clf,instance)
+            prediction, full_prediction = self.predict(clf,instance,classes)
             predictions.append(prediction)
             full_predictions.append(full_prediction)
         return predictions, full_predictions
@@ -353,7 +349,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         objective='binary:logistic', seed=7, n_estimators='100',
         scoring='roc_auc', jobs=12, v=2):
         # prepare grid search
-        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+        if len(list(set(labels))) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
             multi = True
         else: # only two classes to distinguish

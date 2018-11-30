@@ -176,14 +176,16 @@ class Predict(Task):
             trainlabels = infile.read().strip().split('\n')
         
         # apply classifier
-        predictions, full_predictions = clf.apply_model(model,vectorized_instances)
-        
-        # convert labels
-        if self.ordinal or self.linear_raw:
+        if self.ordinal:
+            predictions, full_predictions = clf.apply_model(model,vectorized_instances,sorted(list(set([int(x) for x in trainlabels]))))
+            predictions = [str(int(x)) for x in predictions]
+        elif self.linear_raw:
+            predictions, full_predictions = clf.apply_model(model,vectorized_instances,['raw'])
             predictions = [str(x) for x in predictions]
         else:
             clf.set_label_encoder(trainlabels)
-            predictions = [self.label_encoder.inverse_transform(prediction) for prediction in predictions]
+            predictions, full_predictions = clf.apply_model(model,vectorized_instances)
+            predictions = clf.label_encoder.inverse_transform(predictions)
 
         # write predictions to file
         with open(self.out_predictions().path,'w',encoding='utf-8') as pr_out:
@@ -356,7 +358,7 @@ class TrainGA(Task):
             clflabels = [float(x) for x in trainlabels]
         else:
             clf.set_label_encoder(sorted(list(set(trainlabels))))
-            clflabels = self.label_encoder.transform(trainlabels)
+            clflabels = clf.label_encoder.transform(trainlabels)
         clf.train_classifier(new_trainvectors, clflabels, *new_parameters)
 
         # save classifier

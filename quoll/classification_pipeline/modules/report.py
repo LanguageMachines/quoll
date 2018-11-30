@@ -76,7 +76,7 @@ class ReportPerformance(Task):
         # load documents
         with open(self.in_testdocuments().path,'r',encoding='utf-8') as infile:
             testdocuments = infile.read().strip().split('\n')[self.teststart:]
-
+            
         # initiate reporter
         rp = reporter.Reporter(predictions, full_predictions, label_order, testlabels, self.ordinal, testdocuments)
 
@@ -653,6 +653,8 @@ class Report(WorkflowComponent):
 
         if 'labels_test' in input_feeds.keys():
 
+            if self.linear_raw:
+                self.ordinal=False
             reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal,teststart=0)
             reporter.in_predictions = predictions
             reporter.in_testlabels = input_feeds['labels_test']

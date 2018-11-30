@@ -19,8 +19,8 @@ class Reporter:
                 quit()
             if ordinal:
                 self.ce = evaluation.OrdinalEvaluation()
-                self.labels = [int(label) for label in labels]
-                self.predictions = [int(prediction) for prediction in predictions]
+                self.labels = [int(float(label)) for label in labels]
+                self.predictions = [int(float(prediction)) for prediction in predictions]
             else:
                 self.ce = evaluation.ClassEvaluation()
                 self.labels = labels
@@ -66,6 +66,7 @@ class Reporter:
         performance_headers = ["Cat", "Pr", "Re", "F1", "TPR", "FPR", "AUC", "MAE", "RMSE", "ACC", "Tot", "Clf", "Cor"]
         performance = [performance_headers]
         for label in self.label_order:
+            label = int(label)
             if label in self.labels or label in self.predictions:
                 performance.append(self.assess_ordinal_label_performance(label))
             else:
