@@ -906,7 +906,7 @@ class Classify(WorkflowComponent):
 
                 testinstances = trainfeaturizer.out_featurized
 
-            if (self.select and self.select_threshold in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')):
+            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')):
                 trainvectors = traininstances
                 testvectors = testinstances
             elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
@@ -927,7 +927,7 @@ class Classify(WorkflowComponent):
                 testvectors = vectorizer.out_test
 
         else: # only train
-            if (self.select and self.select_threshold in traininstances().path.split('.')) or (self.balance and 'balanced' in traininstances().path.split('.')):
+            if (self.select in traininstances().path.split('.')) or (self.balance and 'balanced' in traininstances().path.split('.')):
                 trainvectors = traininstances
             else:
                 vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainshort=trainshort)
