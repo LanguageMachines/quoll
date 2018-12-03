@@ -8,7 +8,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.modules.validate import Validate
 from quoll.classification_pipeline.modules.report import ReportPerformance, ReportDocpredictions, ReportFolds, ClassifyTask
-from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizedTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TransformScale, FitTransformScale, TranslatePredictions 
+from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TransformScale, FitTransformScale, TranslatePredictions 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
@@ -115,10 +115,8 @@ class ValidateTask(Task):
             instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,
             n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
             weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
-            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-            mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -174,8 +172,8 @@ class Quoll(WorkflowComponent):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
+    min_scale = Parameter(default='0')
+    max_scale = Parameter(default='1')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -360,10 +358,8 @@ class Quoll(WorkflowComponent):
                     n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
                     bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
                     weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
-                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -385,10 +381,8 @@ class Quoll(WorkflowComponent):
                 validator = workflow.new_task('validate', ValidateTask, autopass=True, 
                     n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
                     weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
-                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
