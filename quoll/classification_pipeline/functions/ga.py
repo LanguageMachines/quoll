@@ -230,10 +230,13 @@ class GA:
         output_clf = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[0]) for x in row[2]]) for row in report])
         output_features = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[1]) for x in row[2]]) for row in report])
         output_weighted = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[2]) for x in row[2]]) for row in report])
-        output_overview = '\n'.join([row[3] for row in report])
+        output_clf = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[0]) for x in row[2]]) for row in report])
+        output_evolution = '\n'.join([','.join([str(x) for x in row[3]]) for row in report])
+        output_parameter_evolution = '\n'.join([','.join([str(x) for x in row[4]]) for row in report])
+        output_overview = '\n'.join([row[5] for row in report])
         best_features_overview = '\n'.join([','.join(self.featurenames[indices].tolist()) for indices in best_features])
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
-        return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_features, output_weighted, output_overview
+        return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_evolution, output_parameter_evolution, output_features, output_weighted, output_overview
 
     def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,linear_raw,
         nb_alpha,nb_fit_prior,
@@ -329,7 +332,7 @@ class GA:
             best_fitness_parameters = [[parameters_split[j][k] for j,k in enumerate(parameter_offspring[i,:].toarray().tolist()[0])] for i in best_fitness_indices]
             best_features.extend(best_fitness_features)
             best_parameters.extend(best_fitness_parameters)
-            report.append([len(trainlabels),len(testlabels),population_fitness,self.write_report(cursor,len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)])
+            report.append([len(trainlabels),len(testlabels),population_fitness,offspring.sum(axis=0),parameter_offspring.sum(axis=0),self.write_report(cursor,len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)])
             print('LAST BEST',last_best,'BEST FITNESS',best_fitness,population_fitness[population_weighted_fitness.index(best_fitness)][0],population_fitness[population_weighted_fitness.index(best_fitness)][1],'NUM BEST FEATURES:',len(best_features),'NUM BEST PARAMETERS:',len(best_parameters),'HIGHEST STREAK',highest_streak)
             cursor+=1
 

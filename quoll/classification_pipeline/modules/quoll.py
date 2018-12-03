@@ -8,7 +8,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.modules.validate import  MakeBins, Folds
 from quoll.classification_pipeline.modules.report import ReportPerformance, ReportDocpredictions, ReportFolds, ClassifyTask
-from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrainTask, VectorizeTrainCombinedTask, VectorizeTestTask, VectorizeTestCombinedTask
+from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizedTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TransformScale, FitTransformScale, TranslatePredictions 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
@@ -38,6 +38,10 @@ class Quoll(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
+    linear_raw = BoolParameter()
+    scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()

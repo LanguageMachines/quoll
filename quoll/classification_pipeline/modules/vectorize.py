@@ -207,16 +207,16 @@ class ApplyVectorizer(Task):
     select_threshold = Parameter()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vocabulary.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]), addextension='.vocabulary.txt' if self.in_test().path.split('.')[-2] == 'features' else '.featureselection.txt')
 
     def in_featureselection(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.' + self.select + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance and self.in_test().path.split('.')[-2] == 'features' else '.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.in_test().path.split('.')[-2] == 'vectors' else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.in_test().path.split('.')[-2] == 'features' else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.in_test().path.split('.')[-2] == 'vectors' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance and self.in_test().path.split('.')[-2] == 'features' else '.balanced.vectors.npz' if self.balance and self.in_test().path.split('.')[-2] == 'vectors' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.' + self.select + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.select and self.balance and self.in_test().path.split('.')[-2] == 'features' else '.' + self.select + '.' + self.select_threshold + '.balanced.featureselection.txt' if self.select and self.balance and self.in_test().path.split('.')[-2] == 'vectors' else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.select and self.in_test().path.split('.')[-2] == 'features' else '.' + self.select + '.' + self.select_threshold + '.featureselection.txt' if self.select and self.in_test().path.split('.')[-2] == 'vectors' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt' if self.balance and self.in_test().path.split('.')[-2] == 'features' else '.balanced.featureselection.txt' if self.balance and self.in_test().path.split('.')[-2] == 'vectors' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
 
     def run(self):
 
@@ -227,6 +227,7 @@ class ApplyVectorizer(Task):
                             }
 
         # assert that vocabulary file exists (not checked in component)
+        print('TESTCUE',self.in_test().path.split('.')[-2])
         assert os.path.exists(self.in_vocabulary().path), 'Vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary().path 
         
         # load featurized instances
@@ -241,7 +242,10 @@ class ApplyVectorizer(Task):
             lines = infile.read().split('\n')
             featureselection = [line.split('\t') for line in lines]
         featureselection_vocabulary = [x[0] for x in featureselection]
-        featureweights = dict([(i, float(feature[1])) for i, feature in enumerate(featureselection)])
+        try:
+            featureweights = dict([(i, float(feature[1])) for i, feature in enumerate(featureselection)])
+        except:
+            featureweights = False
         print('Loaded',len(featureselection_vocabulary),'selected features, now loading sourcevocabulary...')
 
         # align the test instances to the top features to get the right indices
@@ -252,9 +256,10 @@ class ApplyVectorizer(Task):
         print('Done. Shape of testvectors:',testvectors.shape,', now setting feature weights...')
 
         # set feature weights
-        if weight_functions[self.weight]:
-            testvectors = weight_functions[self.weight](testvectors, featureweights)
-        print('Done. Writing instances to file...')
+        if featureweights:
+            if weight_functions[self.weight]:
+                testvectors = weight_functions[self.weight](testvectors, featureweights)
+            print('Done. Writing instances to file...')
 
         # write instances to file
         numpy.savez(self.out_test().path, data=testvectors.data, indices=testvectors.indices, indptr=testvectors.indptr, shape=testvectors.shape)
@@ -729,6 +734,7 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
+                InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='testinstances'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
                 InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='testinstances'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
@@ -772,8 +778,6 @@ class Vectorize(WorkflowComponent):
             trainvectorizer.in_trainlabels = labels
 
             traininstances = trainvectorizer.out_train
-
-        print('VECTORIZE TRAININSTANCES',traininstances().path)
             
         if self.select:
             selecttask = workflow.new_task('select_features',Select,selector=self.select,threshold=self.select_threshold,autopass=True)
@@ -792,16 +796,19 @@ class Vectorize(WorkflowComponent):
         ### Testing phase ####
         ######################
 
-        if len(list(set(['featurized_test_csv','featurized_test_txt','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
-        
+        if len(list(set(['vectorized_test','featurized_test_csv','featurized_test_txt','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
+                        
             if 'featurized_test_csv' in input_feeds.keys():
                 testvectorizer = workflow.new_task('vectorizer_csv',VectorizeTransformCsv,autopass=True,delimiter=self.delimiter,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
                 testvectorizer.in_test = input_feeds['featurized_test_csv']
                 testvectorizer.in_train = traininstances
         
             else:
-                
-                if 'featurized_test' in input_feeds.keys():
+
+                if 'vectorized_test' in input_feeds.keys():
+                    testinstances=input_feeds['vectorized_test']
+
+                elif 'featurized_test' in input_feeds.keys():
                     testinstances = input_feeds['featurized_test']
             
                 else: # pre_featurized
