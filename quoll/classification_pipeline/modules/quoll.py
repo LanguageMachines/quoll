@@ -26,6 +26,8 @@ class ReportTask(Task):
     in_testlabels = InputSlot()
     in_testdocs = InputSlot()
 
+    testlabels_true = BoolParameter()
+    
     # featureselection parameters
     ga = BoolParameter()
     num_iterations = IntParameter()
@@ -37,7 +39,7 @@ class ReportTask(Task):
     n_crossovers = IntParameter()
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
-    instance_steps = IntParameter(1)
+    instance_steps = IntParameter()
 
     # classifier parameters
     classifier = Parameter()
@@ -98,33 +100,53 @@ class ReportTask(Task):
     prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter()
-    select = Parameter()
-    select_threshold = Parameter(e)
+    select = BoolParameter()
+    selector = Parameter()
+    select_threshold = Parameter()
 
     def out_report(self):
-        return self.outputfrominput(inputformat='test', stripextension='.' + '.'.join(self.in_test().path.split('.')[-2:]), addextension='.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.report' if self.ga and self.linear_raw and self.scale else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.report' if self.ga and self.linear_raw else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.scale and self.ga else '.scaled.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.scaled.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.scale else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report')
+        return self.outputfrominput(inputformat='test', stripextension='.' + '.'.join(self.in_test().path.split('.')[-2:]), addextension='.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.report' if self.ga and self.linear_raw and self.scale and self.testlabels_true else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.report' if self.ga and self.linear_raw and self.testlabels_true else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.scale and self.ga and self.testlabels_true else '.scaled.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.scale and self.linear_raw and self.testlabels_true else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.ga and self.testlabels_true else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.report' if self.linear_raw and self.testlabels_true else '.scaled.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.scale and self.testlabels_true else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.report' if self.testlabels_true else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.docpredictions.csv' if self.ga and self.linear_raw and self.scale else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.docpredictions.csv' if self.ga and self.linear_raw else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.docpredictions.csv' if self.scale and self.ga else '.scaled.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.docpredictions.csv' if self.scale and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.docpredictions.csv' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.scaled.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.docpredictions.csv' if self.scale else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.docpredictions.csv')
 
     def run(self):
 
+        print(self.out_report().path)
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
+        # if self.in_testlabels().path == 'xxx.xxx':
+        #     yield Report(
+        #         train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testdocs=self.in_testdocs().path,
+        #         weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+        #         ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
+        #         classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+        #         nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+        #         svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+        #         lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+        #         xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+        #         xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+        #         xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+        #         xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+        #         knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+        #         knn_metric=self.knn_metric, knn_p=self.knn_p,
+        #         linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+        #     )
+        # else:
         yield Report(
-            train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
-            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-            classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-            nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p,
-            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
-        )
+                train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,
+                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
+                ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                knn_metric=self.knn_metric, knn_p=self.knn_p,
+                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+            )
 
 class ValidateAppendTask(Task):
 
@@ -216,7 +238,8 @@ class ValidateAppendTask(Task):
     weight = Parameter() # options: frequency, binary, tfidf
     prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    select = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
     select_threshold = Parameter()
    
     def out_exp(self):
@@ -230,7 +253,7 @@ class ValidateAppendTask(Task):
         yield ValidateAppend(
             instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,
             n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
             ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -329,7 +352,8 @@ class ValidateTask(Task):
     weight = Parameter()
     prune = IntParameter()
     balance = BoolParameter()
-    select = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
     select_threshold = Parameter()
    
     def out_exp(self):
@@ -344,7 +368,7 @@ class ValidateTask(Task):
             instances=self.in_instances().path,instances_append=self.in_instances_append().path,labels=self.in_labels().path,docs=self.in_docs().path,
             n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
             bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
             ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
@@ -454,7 +478,8 @@ class Quoll(WorkflowComponent):
     balance = BoolParameter()
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     delimiter = Parameter(default=',')
-    select = Parameter(default=False)
+    select = BoolParameter()
+    selector = Parameter(default=False)
     select_threshold = Parameter(default=False)
 
     # featurizer parameters
@@ -553,14 +578,14 @@ class Quoll(WorkflowComponent):
             trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
             trainfeaturizer.in_pre_featurized = pre_featurized
 
-            featurized_train = trainfeaturizer.out_featurized
+            traininstances = trainfeaturizer.out_featurized
 
         elif 'featurized_train' in input_feeds.keys(): 
-            featurized_train = input_feeds['featurized_train']
+            traininstances = input_feeds['featurized_train']
         elif 'vectorized_csv_train' in input_feeds.keys():
-            trainvectors = input_feeds['vectorized_csv_train']
+            traininstances = input_feeds['vectorized_csv_train']
         elif 'vectorized_train' in input_feeds.keys():
-            trainvectors = input_feeds['vectorized_train']
+            traininstances = input_feeds['vectorized_train']
 
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
 
@@ -587,7 +612,7 @@ class Quoll(WorkflowComponent):
                 validator = workflow.new_task('validate_append', ValidateAppendTask, autopass=True, 
                     n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
                     bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                     ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -610,7 +635,7 @@ class Quoll(WorkflowComponent):
 
                 validator = workflow.new_task('validate', ValidateTask, autopass=True, 
                     n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
-                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                     ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
@@ -748,18 +773,14 @@ class Quoll(WorkflowComponent):
                 #     testvectors_append = input_feeds['vectorized_csv_test_append']
                 # else:
                 #     testvectors_append = False
-
-            if 'labels_test' in input_feeds.keys():
-                testlabels = input_feeds['labels_test']
-            else:
-                testlabels = 'xxx' 
-
+                
             if 'vectorized_test' in input_feeds.keys():
                 testinstances = input_feeds['vectorized_test']
-            elif 'vectorized_csv_test' in input_feeds.keys():
-                testinstances = input_feeds['vectorized_csv_test']
             else:
-                testinstances = False
+                if 'vectorized_csv_test' in input_feeds.keys():
+                    testinstances = input_feeds['vectorized_csv_test']
+                else:
+                    testinstances = False
                 
                 if 'docs_test' in input_feeds.keys() or 'pre_featurized_test' in input_feeds.keys():
 
@@ -778,6 +799,27 @@ class Quoll(WorkflowComponent):
                 else:
                     testinstances = input_feeds['featurized_test']
 
+                traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) else False
+                trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
+                testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
+                testvec=True if ('vectorized_test' in input_feeds.keys()) else False
+                    
+                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainvec=trainvec,testcsv=testcsv,testvec=testvec)
+                vectorizer.in_train = traininstances
+                vectorizer.in_trainlabels = trainlabels
+                vectorizer.in_test = testinstances
+
+                traininstances = vectorizer.out_train
+                trainlabels = vectorizer.out_trainlabels
+                testinstances = vectorizer.out_test
+                    
+            if 'labels_test' in input_feeds.keys():
+                testlabels = input_feeds['labels_test']
+                testlabels_true = True
+            else:
+                testlabels = testinstances
+                testlabels_true = False
+                
             if 'docs' in input_feeds.keys():
                 docs = input_feeds['docs']
             else:
@@ -786,7 +828,8 @@ class Quoll(WorkflowComponent):
                     quit()
 
             reporter = workflow.new_task('report', ReportTask, autopass=True, 
-                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+                testlabels_true=testlabels_true,
+                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                 ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,

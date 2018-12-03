@@ -633,14 +633,15 @@ class VectorizeTrain(Task):
     weight = Parameter()
     prune = IntParameter()
     balance = BoolParameter()
-    select = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
     select_threshold = Parameter()
     traincsv = BoolParameter()
     delimiter=Parameter()
-    trainshort = BoolParameter()
+    trainvec = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv and not self.trainshort else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.trainvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
@@ -650,7 +651,7 @@ class VectorizeTrain(Task):
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
-            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
+            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold)
 
 class VectorizeTrainTest(Task):
 
@@ -661,29 +662,31 @@ class VectorizeTrainTest(Task):
     weight = Parameter()
     prune = IntParameter()
     balance = BoolParameter()
-    select = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
     select_threshold = Parameter()
     traincsv = BoolParameter()
     testcsv = BoolParameter()
     delimiter=Parameter()
-    trainshort = BoolParameter()
-    testshort = BoolParameter()
+    trainvec = BoolParameter()
+    testvec = BoolParameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv and not self.trainshort else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv or self.trainvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
     
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.csv' if self.testcsv and not self.testshort else '.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.select + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.testcsv else '.' + self.select + '.' + self.select_threshold + '.vectors.npz' if self.select and self.testcsv else '.balanced.vectors.npz' if self.balance and self.testcsv else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.select + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.csv' if self.testcsv else '.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.testcsv else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and self.testcsv else '.balanced.vectors.npz' if self.balance and self.testcsv else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv or self.testvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def run(self):
         
+        print(self.out_train().path,self.out_trainlabels().path,self.out_test().path)
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
-            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_test().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold)
+            yield Vectorize(traininstances=self.in_train().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_test().path,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold)
 
 
 class VectorizeTrainCombinedTask(Task):
@@ -817,7 +820,8 @@ class Classify(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    select = Parameter(default=False)
+    select = BoolParameter()
+    selector = Parameter(default=False)
     select_threshold = Parameter(default=False)
 
     # featurizer parameters
@@ -869,6 +873,8 @@ class Classify(WorkflowComponent):
         ######################
         ### vectorize ########
         ######################
+
+        print("PRUNE TRAIN",self.prune)
         
         trainlabels = input_feeds['labels_train']
 
@@ -887,8 +893,8 @@ class Classify(WorkflowComponent):
 
             traininstances = trainfeaturizer.out_featurized
 
-        traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) or ('vectorized_train' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in traininstances().path.split('.')]) else False
-        trainshort=True if ('vectorized_train' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in traininstances().path.split('.')]) else False
+        traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) else False
+        trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
 
         if len(list(set(['vectorized_test','vectorized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
  
@@ -907,7 +913,9 @@ class Classify(WorkflowComponent):
 
                 testinstances = trainfeaturizer.out_featurized
 
-            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (self.select == 'False' and self.balance == False):
+            testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
+            testvec=True if ('vectorized_test' in input_feeds.keys()) else False
+            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (testcsv and self.select == 'False' and self.balance == False):
                 trainvectors = traininstances
                 testvectors = testinstances
             elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
@@ -917,10 +925,7 @@ class Classify(WorkflowComponent):
                 else:
                     testvectors = testinstances
             else:
-                print('CLASSIFY VECTORIZE TRAIN TEST')
-                testcsv=True if ('vectorized_test_csv' in input_feeds.keys() or ('vectorized_test' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in testinstances().path.split('.')])) else False
-                testshort=True if ('vectorized_test' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in testinstances().path.split('.')]) else False
-                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainshort=trainshort)
+                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainvec=trainvec,testvec=testvec)
                 vectorizer.in_train = traininstances
                 vectorizer.in_trainlabels = trainlabels
                 vectorizer.in_test = testinstances
@@ -933,7 +938,7 @@ class Classify(WorkflowComponent):
             if (self.select in traininstances().path.split('.')) or (self.balance and 'balanced' in traininstances().path.split('.')) or (not self.select and not self.balance):
                 trainvectors = traininstances
             else:
-                vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainshort=trainshort)
+                vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainvec=trainvec)
                 vectorizer.in_train = traininstances
                 vectorizer.in_trainlabels = trainlabels
 

@@ -408,8 +408,8 @@ class Report(WorkflowComponent):
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
     scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
+    min_scale = Parameter(default='0')
+    max_scale = Parameter(default='1')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -459,7 +459,8 @@ class Report(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    select = Parameter(default=False)
+    select = BoolParameter()
+    selector = Parameter(default=False)
     select_threshold = Parameter(default=False)
 
     # featurizer parameters
@@ -514,6 +515,8 @@ class Report(WorkflowComponent):
             )).T.reshape(-1,5)]
 
     def setup(self, workflow, input_feeds):
+        
+        print('input_feeds report',input_feeds.keys())
 
         if 'classified_test' in input_feeds.keys(): # reporter can be started
             predictions = input_feeds['classified_test']
@@ -541,9 +544,8 @@ class Report(WorkflowComponent):
 
                 traininstances = trainfeaturizer.out_featurized
 
-            traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) or ('vectorized_train' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in traininstances().path.split('.')]) else False
-            trainshort=True if ('vectorized_train' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in traininstances().path.split('.')]) else False
-    
+            traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) else False
+            trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
             if 'vectorized_test' in input_feeds.keys():
                 testinstances = input_feeds['vectorized_test']
 
@@ -553,13 +555,21 @@ class Report(WorkflowComponent):
             elif 'featurized_test' in input_feeds.keys():
                 testinstances = input_feeds['featurized_test']
 
-            elif 'pre_featurized_test' in input_feeds.keys():
+            else:
+                if 'pre_featurized_test' in input_feeds.keys():
+                    pftest = input_feeds['pre_featurized_test']
+                elif 'docs_test' in input_feeds.keys():
+                    pftest = input_feeds['docs_test']
+                    docs_test = input_feeds['docs_test']
+                    
                 testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
+                testfeaturizer.in_pre_featurized = pftest
 
-                testinstances = trainfeaturizer.out_featurized
+                testinstances = testfeaturizer.out_featurized
 
-            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (not self.select and not self.balance):
+            testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
+            testvec=True if ('vectorized_test' in input_feeds.keys()) else False
+            if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (testcsv and not self.select and not self.balance):
                 trainvectors = traininstances
                 testvectors = testinstances
             elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
@@ -569,9 +579,7 @@ class Report(WorkflowComponent):
                 else:
                     testvectors = testinstances
             else:
-                testcsv=True if ('vectorized_test_csv' in input_feeds.keys() or ('vectorized_test' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in testinstances().path.split('.')])) else False
-                testshort=True if ('vectorized_test' in input_feeds.keys() and not 'weight' in [x.split('_')[0] for x in testinstances().path.split('.')]) else False
-                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainshort=trainshort,testshort=testshort)
+                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainvec=trainvec,testvec=testvec)
                 vectorizer.in_train = traininstances
                 vectorizer.in_trainlabels = trainlabels
                 vectorizer.in_test = testinstances
@@ -610,7 +618,7 @@ class Report(WorkflowComponent):
         ######################
 
         if 'docs' in input_feeds.keys():
-            docs = input_feeds['docs']
+            docs_test = input_feeds['docs']
 
         if 'labels_test' in input_feeds.keys():
 
@@ -619,12 +627,12 @@ class Report(WorkflowComponent):
             reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal,teststart=0)
             reporter.in_predictions = predictions
             reporter.in_testlabels = input_feeds['labels_test']
-            reporter.in_testdocuments = docs
+            reporter.in_testdocuments = docs_test
 
         else: # report docpredictions
 
             reporter = workflow.new_task('report_docpredictions',ReportDocpredictions,autopass=True)
             reporter.in_predictions = predictions
-            reporter.in_testdocuments = docs
+            reporter.in_testdocuments = docs_test
 
         return reporter
