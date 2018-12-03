@@ -6,12 +6,134 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.validate import  MakeBins, Folds
+from quoll.classification_pipeline.modules.validate import Validate
 from quoll.classification_pipeline.modules.report import ReportPerformance, ReportDocpredictions, ReportFolds, ClassifyTask
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizedTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TransformScale, FitTransformScale, TranslatePredictions 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
+
+#################################################################
+### Tasks #######################################################
+#################################################################
+
+class ValidateTask(Task):
+
+    in_instances = InputSlot()
+    in_labels = InputSlot()
+    in_docs = InputSlot()
+
+    # fold parameters
+    n = IntParameter()
+    steps = IntParameter() 
+    teststart = IntParameter() 
+    testend = IntParameter()
+    
+    # feature selection parameters
+    ga = BoolParameter()
+    num_iterations = IntParameter()
+    population_size = IntParameter()
+    elite = Parameter()
+    crossover_probability = Parameter()
+    mutation_rate = Parameter()
+    tournament_size = IntParameter()
+    n_crossovers = IntParameter()
+    stop_condition = IntParameter()
+    weight_feature_size = Parameter()
+    instance_steps = IntParameter()
+
+    # classifier parameters
+    classifier = Parameter()
+    ordinal = BoolParameter()
+    jobs = IntParameter()
+    iterations = IntParameter()
+    scoring = Parameter()
+    linear_raw = BoolParameter()
+    scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
+
+    nb_alpha = Parameter()
+    nb_fit_prior = BoolParameter()
+    
+    svm_c = Parameter()
+    svm_kernel = Parameter()
+    svm_gamma = Parameter()
+    svm_degree = Parameter()
+    svm_class_weight = Parameter()
+
+    lr_c = Parameter()
+    lr_solver = Parameter()
+    lr_dual = BoolParameter()
+    lr_penalty = Parameter()
+    lr_multiclass = Parameter()
+    lr_maxiter = Parameter()
+
+    linreg_fit_intercept = Parameter()
+    linreg_normalize = Parameter()
+    linreg_copy_X = Parameter()
+
+    xg_booster = Parameter() 
+    xg_silent = Parameter()
+    xg_learning_rate = Parameter() 
+    xg_min_child_weight = Parameter() 
+    xg_max_depth = Parameter() 
+    xg_gamma = Parameter() 
+    xg_max_delta_step = Parameter()
+    xg_subsample = Parameter() 
+    xg_colsample_bytree = Parameter() 
+    xg_reg_lambda = Parameter()
+    xg_reg_alpha = Parameter() 
+    xg_scale_pos_weight = Parameter()
+    xg_objective = Parameter() 
+    xg_seed = IntParameter()
+    xg_n_estimators = Parameter()
+
+    knn_n_neighbors = Parameter()
+    knn_weights = Parameter()
+    knn_algorithm = Parameter()
+    knn_leaf_size = Parameter()
+    knn_metric = Parameter()
+    knn_p = IntParameter()
+    
+    # vectorizer parameters
+    weight = Parameter() # options: frequency, binary, tfidf
+    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
+    balance = BoolParameter()
+    select = Parameter()
+    select_threshold = Parameter()
+   
+    def out_exp(self):
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp')
+                                    
+    def run(self):
+
+        if self.complete(): # necessary as it will not complete otherwise
+            return True
+
+        yield Validate(
+            instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,
+            n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
+            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+            classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
+            mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
+            nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+            knn_metric=self.knn_metric, knn_p=self.knn_p,
+            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+        )
+
+################################################################################
+### Component ##################################################################
+################################################################################
 
 @registercomponent
 class Quoll(WorkflowComponent):
@@ -31,6 +153,18 @@ class Quoll(WorkflowComponent):
     steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
     teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
     testend = IntParameter(default=-1)
+
+    # featureselection parameters
+    ga = BoolParameter()
+    num_iterations = IntParameter(default=300)
+    elite = Parameter(default='0.1')
+    population_size = IntParameter(default=100)
+    crossover_probability = Parameter(default='0.9')
+    mutation_rate = Parameter(default='0.3')
+    tournament_size = IntParameter(default=2)
+    n_crossovers = IntParameter(default=1)
+    stop_condition = IntParameter(default=5)
+    weight_feature_size = Parameter(default='0.0')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -59,6 +193,10 @@ class Quoll(WorkflowComponent):
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
 
+    linreg_fit_intercept = Parameter(default='1')
+    linreg_normalize = Parameter(default='0')
+    linreg_copy_X = Parameter(default='1')
+
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space
@@ -81,14 +219,15 @@ class Quoll(WorkflowComponent):
     knn_leaf_size = Parameter(default='30')
     knn_metric = Parameter(default='euclidean')
     knn_p = IntParameter(default=2)
-                                                                                   
-    
+                                                                                    
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     delimiter = Parameter(default=',')
+    select = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -107,8 +246,8 @@ class Quoll(WorkflowComponent):
             [
                 (
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
+                InputFormat(self, format_id='vectorized_csv_train',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='featurized_csv_train',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
@@ -118,13 +257,13 @@ class Quoll(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='vectorized_train_append',extension='.vectors.npz',inputparameter='train_append'),
-                InputFormat(self, format_id='featurized_csv_train_append',extension='.csv',inputparameter='train_append'),
+                InputFormat(self, format_id='vectorized_csv_train_append',extension='.csv',inputparameter='train_append'),
                 ),
                 (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectorized_csv_test',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='featurized_csv_test',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
@@ -134,7 +273,7 @@ class Quoll(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='vectorized_test_append',extension='.vectors.npz',inputparameter='test_append'),
-                InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='test_append')
+                InputFormat(self, format_id='vectorized_csv_test_append',extension='.csv',inputparameter='test_append')
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
@@ -169,11 +308,8 @@ class Quoll(WorkflowComponent):
 
         if 'vectorized_train_append' in input_feeds.keys():
             trainvectors_append = input_feeds['vectorized_train_append']
-        elif 'featurized_csv_train_append' in input_feeds.keys():
-            trainvectorizer_append = workflow.new_task('vectorize_train_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer_append.in_csv = input_feeds['featurized_csv_train_append']
-                
-            trainvectors_append = trainvectorizer_append.out_vectors
+        elif 'vectorized_csv_train_append' in input_feeds.keys():
+            trainvectors_append = input_feeds['vectorized_csv_train_append']
         else:
             trainvectors_append = False
 
@@ -193,13 +329,8 @@ class Quoll(WorkflowComponent):
 
         elif 'featurized_train' in input_feeds.keys(): 
             featurized_train = input_feeds['featurized_train']
-
-        elif 'featurized_csv_train' in input_feeds.keys():
-            trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer.in_csv = input_feeds['featurized_csv_train']
-
-            trainvectors = trainvectorizer.out_vectors
-
+        elif 'vectorized_csv_train' in input_feeds.keys():
+            trainvectors = input_feeds['vectorized_csv_train']
         elif 'vectorized_train' in input_feeds.keys():
             trainvectors = input_feeds['vectorized_train']
 
@@ -223,15 +354,16 @@ class Quoll(WorkflowComponent):
                     'give either \'.txt\', \'.tok.txt\', \'frog.json\', \'.txtdir\', \'.tok.txtdir\', \'.frog.jsondir\', \'.features.npz\', \'.vectors.npz\' or \'.csv\'')
                 exit()
 
-            bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, teststart=self.teststart, testend=self.testend)
-            bin_maker.in_labels = trainlabels
-
             if trainvectors_append:
 
-                fold_runner = workflow.new_task('nfold_cv_append', FoldsAppend, autopass=True, 
-                    n=self.n, 
-                    weight=self.weight, prune=self.prune, balance=self.balance, 
-                    classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
+                validator = workflow.new_task('validate_append', ValidateAppendTask, autopass=True, 
+                    n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
+                    bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
+                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+                    classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -240,20 +372,23 @@ class Quoll(WorkflowComponent):
                     xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
                     xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                     knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                    knn_metric=self.knn_metric, knn_p=self.knn_p                            
+                    knn_metric=self.knn_metric, knn_p=self.knn_p,
+                    linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X                            
                 )
-                fold_runner.in_bins = bin_maker.out_bins
-                fold_runner.in_instances = instances
-                fold_runner.in_instances_append = trainvectors_append
-                fold_runner.in_labels = trainlabels
-                fold_runner.in_docs = docs
+                validator.in_instances = instances
+                validator.in_instances_append = trainvectors_append
+                validator.in_labels = trainlabels
+                validator.in_docs = docs
 
             else:
 
-                fold_runner = workflow.new_task('nfold_cv', Folds, autopass=True, 
-                    n=self.n, 
-                    weight=self.weight, prune=self.prune, balance=self.balance, 
-                    classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,
+                validator = workflow.new_task('validate', ValidateTask, autopass=True, 
+                    n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend,
+                    weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
+                    ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
+                    classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -262,15 +397,12 @@ class Quoll(WorkflowComponent):
                     xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
                     xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                     knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                    knn_metric=self.knn_metric, knn_p=self.knn_p
+                    knn_metric=self.knn_metric, knn_p=self.knn_p,
+                    linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X                            
                 )
-                fold_runner.in_bins = bin_maker.out_bins
-                fold_runner.in_instances = instances
-                fold_runner.in_labels = trainlabels
-                fold_runner.in_docs = docs      
-
-            foldreporter = workflow.new_task('report_folds', ReportFolds, autopass=True)
-            foldreporter.in_exp = fold_runner.out_exp
+                validator.in_instances = instances
+                validator.in_labels = trainlabels
+                validator.in_docs = docs
 
             # also train a model on all data
             if trainvectors_append:
@@ -388,26 +520,18 @@ class Quoll(WorkflowComponent):
 
                 if 'vectorized_test_append' in input_feeds.keys():
                     testvectors_append = input_feeds['vectorized_test_append']
-                elif 'featurized_csv_test_append' in input_feeds.keys():
-                    testvectorizer_append = workflow.new_task('vectorize_test_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer_append.in_csv = input_feeds['featurized_csv_test_append']
-
-                    testvectors_append = testvectorizer_append.out_vectors
+                elif 'vectorized_csv_test_append' in input_feeds.keys():
+                    testvectors_append = input_feeds['vectorized_csv_test_append']
                 else:
                     testvectors_append = False
 
                 if 'vectorized_test' in input_feeds.keys():
                     testvectors = input_feeds['vectorized_test']
-
-                elif 'featurized_csv_test' in input_feeds.keys():
-                    testvectorizer = workflow.new_task('vectorize_test_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer.in_csv = input_feeds['featurized_csv_test']
-
-                    testvectors = testvectorizer.out_vectors
-
+                elif 'vectorized_csv_test' in input_feeds.keys():
+                    testvectors = input_feeds['vectorized_csv_test']
                 else:
-                    
                     testvectors = False
+                    
                     if 'docs_test' in input_feeds.keys() or 'pre_featurized_test' in input_feeds.keys():
 
                         if 'pre_featurized_test' in input_feeds.keys():
