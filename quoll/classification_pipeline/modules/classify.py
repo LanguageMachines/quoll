@@ -92,6 +92,7 @@ class Train(Task):
                         'naive_bayes':[NaiveBayesClassifier(),[self.nb_alpha,self.nb_fit_prior,self.jobs]],
                         'logistic_regression':[LogisticRegressionClassifier(),[self.lr_c,self.lr_solver,self.lr_dual,self.lr_penalty,self.lr_multiclass,self.lr_maxiter]],
                         'svm':[SVMClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,self.iterations,self.jobs]], 
+                        'svorim':[SvorimClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree]],
                         'xgboost':[XGBoostClassifier(),[self.xg_booster, self.xg_silent, self.jobs, self.xg_learning_rate, self.xg_min_child_weight, self.xg_max_depth, self.xg_gamma, 
                             self.xg_max_delta_step, self.xg_subsample, self.xg_colsample_bytree, self.xg_reg_lambda, self.xg_reg_alpha, self.xg_scale_pos_weight, 
                             self.xg_objective, self.xg_seed, self.xg_n_estimators, self.scoring, self.iterations,self.jobs]],

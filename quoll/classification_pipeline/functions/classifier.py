@@ -223,6 +223,81 @@ class SVMClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
+class SvorimClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def prepare_data(self,vectors,filename,labels=False):
+        if labels:
+            data_out = '\n'.join([' '.join([str(x) for x in row] + [str(labels[i])]) for i,row in enumerate(vectors.toarray().tolist())])
+        else:
+            data_out = '\n'.join([' '.join([str(x) for x in row]) for row in vectors.toarray().tolist()])
+        with open(filename,'w') as file_out:
+            file_out.write(data_out)
+
+    def parse_predictions(self,classes):
+        predictionfile = 'svorim_cguess.0'
+        probfile = 'svorim_cguess.0.svm.conf'
+        with open(predictionfile) as infile:
+            predictions = infile.read().strip().split('\n')
+        with open(probfile) as infile:
+            probs = infile.read().strip().split('\n')
+            full_predictions = [classes]
+            for i,prob in enumerate(probs):
+                template = [''] * len(classes)
+                index = classes.index(predictions[i])
+                template[index] = str(prob)
+                full_predictions.append(template)
+        return predictions, full_predictions
+
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', kappa='0.1', degree='1', v=2):
+        self.prepare_data(trainvectors,'svorim_train.0',labels)
+        if c == 'search':
+            carg = '' # default search
+        else:
+            clist = [float(x) for x in c.split()]
+            carg = ' -Cc ' + str(min(clist)) + ' -Ce ' + str(max(clist))
+        if kappa == 'search':
+            karg = '' # default search
+        else:
+            klist = [float(x) for x in kappa.split()]
+            karg = ' -Kc ' + str(min(clist)) + ' -Ke ' + str(max(clist))
+        if kernel == 'linear':
+            kearg = ' -P 1'
+        elif kernel == 'degree':
+            kearg = ' -P ' + str(degree)
+        else:
+            kearg = ''
+        self.model = 'svorim -F 5 -R 20' + carg + karg + kearg 
+
+    def return_classifier(self):
+        return self.model
+
+    def return_validation(self):
+        validation_file = 'mytask_train.0.validation'
+        with open(validation_file) as file_in:
+            validation_str = file_in.read().strip()
+        return validation_str
+
+    def return_parameter_settings(self):
+        parameter_settings_file = 'mytask_train.0.svm.alpha'
+        with open(parameter_settings_file) as file_in:
+            parameters_str = file_in.read().strip()
+        return parameters_str
+
+    def return_model_insights(self,vocab=False):
+        model_insights = [['parameter_settings.txt',self.return_parameter_settings()],['validation.txt',self.return_validation()]]
+        return model_insights
+
+    def apply_model(self, testvectors, classes):
+        self.prepare_data(testvectors,'svorim_test.0')
+        os.system(self.model)
+        predictions, full_predictions = self.parse_predictions(classes)
+        return predictions,full_predictions
+
+
 class LogisticRegressionClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
