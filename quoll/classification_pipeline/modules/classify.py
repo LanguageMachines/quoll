@@ -94,7 +94,7 @@ class Train(Task):
                         'svm':[SVMClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,self.iterations,self.jobs]], 
                         'xgboost':[XGBoostClassifier(),[self.xg_booster, self.xg_silent, self.jobs, self.xg_learning_rate, self.xg_min_child_weight, self.xg_max_depth, self.xg_gamma, 
                             self.xg_max_delta_step, self.xg_subsample, self.xg_colsample_bytree, self.xg_reg_lambda, self.xg_reg_alpha, self.xg_scale_pos_weight, 
-                                                        self.xg_objective, self.xg_seed, self.xg_n_estimators, self.scoring, self.jobs]],
+                            self.xg_objective, self.xg_seed, self.xg_n_estimators, self.scoring, self.iterations,self.jobs]],
                         'knn':[KNNClassifier(),[self.knn_n_neighbors, self.knn_weights, self.knn_algorithm, self.knn_leaf_size, self.knn_metric, self.knn_p, self.scoring, self.jobs]], 
                         'tree':[TreeClassifier(),[]], 
                         'perceptron':[PerceptronLClassifier(),[]], 
@@ -210,6 +210,8 @@ class TrainGA(Task):
     n_crossovers = IntParameter()
     stop_condition = IntParameter()
     instance_steps = IntParameter()
+    sampling = BoolParameter()
+    samplesize = Parameter()
 
     classifier = Parameter()
     ordinal = BoolParameter()
@@ -294,6 +296,12 @@ class TrainGA(Task):
     def out_best_parameters(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.best_parameters.txt')   
 
+    def out_evolution(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.evolution.txt')   
+
+    def out_parameter_evolution(self):
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.parameter_evolution.txt')   
+
     def run(self):
 
         # initiate directory with model insights
@@ -318,9 +326,9 @@ class TrainGA(Task):
 
         # load GA class
         ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
-        best_features, best_parameters, best_features_output, best_parameters_output, clf_output, features_output, weighted_output, ga_report = ga_instance.run(
+        best_features, best_parameters, best_features_output, best_parameters_output, clf_output, evolution_output, parameter_evolution_output, features_output, weighted_output, ga_report = ga_instance.run(
             num_iterations=self.num_iterations,population_size=self.population_size,elite=float(self.elite),crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,
-            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,linear_raw=self.linear_raw,
+            classifier=self.classifier,jobs=self.jobs,ordinal=self.ordinal,fitness_metric=self.scoring,weight_feature_size=float(self.weight_feature_size),steps=self.instance_steps,linear_raw=self.linear_raw,sampling=self.sampling,samplesize=self.samplesize,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -399,22 +407,30 @@ class TrainGA(Task):
         with open(self.out_best_parameters().path,'w',encoding='utf-8') as r_out:
             r_out.write(best_parameters_output)
 
+        with open(self.out_evolution().path,'w',encoding='utf-8') as r_out:
+            r_out.write(evolution_output)
+
+        with open(self.out_parameter_evolution().path,'w',encoding='utf-8') as r_out:
+            r_out.write(parameter_evolution_output)
+
 class TransformVectors(Task):
 
     in_train = InputSlot()
     in_test = InputSlot()
 
+    vectors = BoolParameter()
+
     def in_train_featureselection(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')
 
     def in_test_featureselection(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.vocabulary.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.featureselection.txt' if self.vectors else '.vocabulary.txt')
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.'.join(self.in_train().path.split('/')[-1].split('.')[2:-2]) + '.transformed.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.'.join(self.in_train().path.split('/')[-1].split('.')[-6:-2]) + '.transformed.vectors.npz')
 
     def out_test_featureselection(self):
-        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.'.join(self.in_train().path.split('/')[-1].split('.')[2:-2]) + '.transformed.featureselection.txt')        
+        return self.outputfrominput(inputformat='test', stripextension='.vectors.npz', addextension='.'.join(self.in_train().path.split('/')[-1].split('.')[-6:-2]) + '.transformed.featureselection.txt')        
 
     def run(self):
 
@@ -672,17 +688,16 @@ class VectorizeTrainTest(Task):
     testvec = BoolParameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.traincsv else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and self.traincsv else '.balanced.vectors.npz' if self.balance and self.traincsv else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv or self.trainvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.csv' if self.traincsv else '.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and (self.traincsv or self.trainvec)  else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and (self.traincsv or self.trainvec) else '.balanced.vectors.npz' if self.balance and (self.traincsv or self.trainvec) else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.traincsv or self.trainvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
     
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.balanced.labels' if self.balance else '.labels')       
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.csv' if self.testcsv else '.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and self.testcsv else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and self.testcsv else '.balanced.vectors.npz' if self.balance and self.testcsv else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv or self.testvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.csv' if self.testcsv else '.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and (self.testcsv or self.testvec) else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and (self.testcsv or self.testvec) else '.balanced.vectors.npz' if self.balance and (self.testcsv or self.testvec) else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv or self.testvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def run(self):
         
-        print(self.out_train().path,self.out_trainlabels().path,self.out_test().path)
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
@@ -760,6 +775,8 @@ class Classify(WorkflowComponent):
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
     instance_steps = IntParameter(default=1)
+    sampling = BoolParameter() # repeated resampling to prevent overfitting
+    samplesize = Parameter(default='0.8') # size of trainsample
     
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -873,8 +890,6 @@ class Classify(WorkflowComponent):
         ######################
         ### vectorize ########
         ######################
-
-        print("PRUNE TRAIN",self.prune)
         
         trainlabels = input_feeds['labels_train']
 
@@ -959,7 +974,7 @@ class Classify(WorkflowComponent):
             trainer = workflow.new_task('train_ga',TrainGA,autopass=True,
                 instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
+                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,sampling=self.sampling,samplesize=self.samplesize,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -1005,7 +1020,8 @@ class Classify(WorkflowComponent):
                 testvectors = testscaler.out_vectors
 
             if self.ga:
-                transformer = workflow.new_task('tranformer',TransformVectors,autopass=True)
+                vectors = True if 'vectorized_test' in input_feeds.keys() or 'vectorized_test_csv' in input_feeds.keys() else False      
+                transformer = workflow.new_task('tranformer',TransformVectors,autopass=True,vectors=vectors)
                 transformer.in_train = trainer.out_vectors
                 transformer.in_test = testvectors
                 testvectors = transformer.out_vectors

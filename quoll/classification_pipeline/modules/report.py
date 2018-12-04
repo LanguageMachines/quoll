@@ -296,6 +296,8 @@ class ClassifyTask(Task):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
+    sampling = BoolParameter()
+    samplesize = Parameter()
 
     classifier = Parameter()
     ordinal = BoolParameter()
@@ -354,14 +356,14 @@ class ClassifyTask(Task):
         return self.outputfrominput(inputformat='testvectors', stripextension='.vectors.npz', addextension='.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.ga and self.linear_raw and self.scale else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.ga and self.linear_raw else '.scaled.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale and self.ga else '.scaled.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale and self.linear_raw else '.featuresize_' + str(self.weight_feature_size) + '.' + self.classifier + '.ga.transformed.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.ga else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.translated.predictions.txt' if self.linear_raw else '.scaled.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt' if self.scale else '.labels_' + self.in_trainlabels().path.split('/')[-1].split('.')[-2] + '.' + self.classifier + '.predictions.txt')
     
     def run(self):
-        
+
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
             yield Classify(traininstances=self.in_trainvectors().path,trainlabels=self.in_trainlabels().path,testinstances=self.in_testvectors().path,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
+                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -399,6 +401,8 @@ class Report(WorkflowComponent):
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
     instance_steps = IntParameter(default=1)
+    sampling = BoolParameter() # repeated resampling of train and test to prevent overfitting
+    samplesize = Parameter(default='0.80') # size of trainsample
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -515,8 +519,6 @@ class Report(WorkflowComponent):
             )).T.reshape(-1,5)]
 
     def setup(self, workflow, input_feeds):
-        
-        print('input_feeds report',input_feeds.keys())
 
         if 'classified_test' in input_feeds.keys(): # reporter can be started
             predictions = input_feeds['classified_test']
@@ -594,7 +596,7 @@ class Report(WorkflowComponent):
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
+                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,

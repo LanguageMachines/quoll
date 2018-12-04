@@ -248,7 +248,7 @@ class MRMRLinear:
             if not feature_index in discarded:
                 strength = self.feature_strength[feature_index]
                 report.append('Strength = ' + str(strength))
-                if strength > strength_threshold:
+                if (strength_threshold > 1.0 and len(selected_features) < strength_threshold) or (strength_threshold <= 1.0 and strength > strength_threshold):
                     report.append('Threshold met, adding to selected features.')
                     selected_features.append(feature_index)
                     correlating_features = [feature[0] for feature in self.feature_correlation[feature_index] if feature[1] > correlation_threshold]
@@ -256,7 +256,8 @@ class MRMRLinear:
                     discarded.extend(correlating_features)
                     report.append('Current set of discarded features: ' + ', '.join([str(f) for f in discarded]))
                 else:
-                    report.append('Feature did not meet threshold, moving on to next feature')
+                    report.append('Feature did not meet threshold, filtering done')
+                    break
             else:
                 report.append('Feature was discarded, moving on to next feature')
         return selected_features

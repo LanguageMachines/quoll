@@ -36,11 +36,14 @@ class GA:
     def return_segment(self,vector,point1,point2):
         return vector[:,range(point1,point2)]
 
-    def draw_sample(self,steps,linear_raw):
+    def draw_sample(self,steps,linear_raw,trainsize):
         labels_array = numpy.array(self.labels)
         sample_labels = []
         while len(list(set(self.labels)-set(sample_labels))) > 0:
-            trainsample_size = random.choice(range(10,int(self.vectors.shape[0]/steps)-10))
+            if trainsize == 'random':
+                trainsample_size = random.choice(range(10,int(self.vectors.shape[0]/steps)-10))
+            else:
+                trainsample_size = int(float(trainsize) * (self.vectors.shape[0]/steps))
             trainsample = random.sample(range(int(self.vectors.shape[0]/steps)),trainsample_size)
             testsample = [i for i in range(int(self.vectors.shape[0]/steps)) if i not in trainsample]
             if steps > 1:
@@ -99,6 +102,8 @@ class GA:
                 for generation in range(2):
                     child = self.offspring_crossover(parents,n_crossovers)
                     child_mutated = self.mutate(child,mutation_rate)
+                    while child_mutated.count_nonzero() == 0:
+                        child_mutated = self.mutate(child,mutation_rate)
                     offspring.append(child_mutated)
                     paramoffspring.append(self.random_parameterpopulation(parameter_options, 1)[0])
             else:
@@ -238,7 +243,7 @@ class GA:
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_evolution, output_parameter_evolution, output_features, output_weighted, output_overview
 
-    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,linear_raw,
+    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,linear_raw,sampling,samplesize,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
@@ -260,7 +265,7 @@ class GA:
                         }
         
         # draw sample of train instances
-        trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw)
+        trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw,trainsize=samplesize)
         trainvectors = self.vectors[trainsample,:]
         testvectors = self.vectors[testsample,:]
         trainlabels = numpy.array(self.labels)[trainsample].tolist()
@@ -293,7 +298,7 @@ class GA:
         population_weighted_fitness = [x[2] for x in population_fitness]
 
         # iterate
-        report = [[len(trainlabels),len(testlabels),population_fitness,self.write_report('Initialization',len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)]]
+        report = [[len(trainlabels),len(testlabels),population_fitness,offspring.sum(axis=0),parameter_offspring.sum(axis=0),self.write_report('Initialization',len(trainlabels),len(testlabels),[x[0] for x in population_fitness],[x[1] for x in population_fitness],[x[2] for x in population_fitness],offspring,parameter_offspring,parameters_split,win_condition)]]
         highest_streak = 1
         last_best = max([x[2] for x in population_fitness]) if win_condition == 'highest' else min([x[2] for x in population_fitness])
         best_indices = [i for i, fitness_score in enumerate(population_fitness) if fitness_score[2] == last_best]
@@ -307,13 +312,14 @@ class GA:
             print('Iteration',cursor)
             # generate offspring
             offspring, parameter_offspring = self.generate_offspring(offspring,parameter_offspring,parameter_options,population_weighted_fitness,elite=elite,tournament_size=tournament_size,crossover_prob=float(crossover_probability),n_crossovers=n_crossovers,mutation_rate=float(mutation_rate),win_condition=win_condition)
-            if random.choice(samplechance):
-                trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw)
-                trainvectors = self.vectors[trainsample,:]
-                testvectors = self.vectors[testsample,:]
-                trainlabels = numpy.array(self.labels)[trainsample].tolist()
-                testlabels = numpy.array(self.labels)[testsample].tolist()
-                print('NEW TRAINSAMPLE',trainvectors.shape,'NEW TESTSAMPLE',testvectors.shape)
+            if sampling:
+                if random.choice(samplechance):
+                    trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw,trainsize=samplesize)
+                    trainvectors = self.vectors[trainsample,:]
+                    testvectors = self.vectors[testsample,:]
+                    trainlabels = numpy.array(self.labels)[trainsample].tolist()
+                    testlabels = numpy.array(self.labels)[testsample].tolist()
+                    print('NEW TRAINSAMPLE',trainvectors.shape,'NEW TESTSAMPLE',testvectors.shape)
                     
             # score population fitness
             population_fitness = self.score_population_fitness(range(population_size),offspring,parameter_offspring,trainvectors,trainlabels,testvectors,testlabels,parameters,classifierdict[classifier][0],jobs,ordinal,fitness_metric,weight_feature_size,win_condition,linear_raw)

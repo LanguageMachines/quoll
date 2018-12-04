@@ -34,7 +34,7 @@ class AbstractSKLearnClassifier:
             full_prediction = [clf.predict_proba(testvector)[0][i] for i,c in enumerate(classes)]
         except ValueError: # classifier trained on dense data
             prediction = clf.predict(testvector.todense())[0]
-            full_prediction = [clf.predict_proba(testvector.toarray())[0][i] for ic in enumerate(classes)]
+            full_prediction = [clf.predict_proba(testvector.toarray())[0][i] for i,c in enumerate(classes)]
         except AttributeError: # classifier does not support predict_proba
             prediction = clf.predict(testvector.todense())[0]
             full_prediction = [1.0 for c in classes]
@@ -144,7 +144,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', iterations=10, jobs=1, v=2):
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', scoring='f1_micro', iterations=10, jobs=1, v=2):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
@@ -170,7 +170,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
             if multi:
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
-            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
+            paramsearch = RandomizedSearchCV(model, param_grid, cv = 5, scoring=scoring, verbose = v, n_iter = iterations, n_jobs = jobs, pre_dispatch = 4)
             paramsearch.fit(trainvectors, labels)
             settings = paramsearch.best_params_
         # train an SVC classifier with the settings that led to the best performance
@@ -347,7 +347,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         learning_rate='0.1', min_child_weight='1', max_depth='6', gamma='0', max_delta_step='0', 
         subsample='1', colsample_bytree='1', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
         objective='binary:logistic', seed=7, n_estimators='100',
-        scoring='roc_auc', jobs=12, v=2):
+        scoring='roc_auc', iterations=50, jobs=12, v=2):
         # prepare grid search
         if len(list(set(labels))) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
@@ -384,7 +384,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             if [len(x) > 1 for x in grid_values].count(True) <= 3: # exhaustive grid search with one to three variant parameters
                 paramsearch = GridSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
             else: # random grid search
-                paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, scoring=scoring, cv=5, n_jobs=1)
+                paramsearch = RandomizedSearchCV(model, param_grid, verbose=v, n_iter=iterations, scoring=scoring, cv=5, n_jobs=1)
             paramsearch.fit(trainvectors, labels)
             settings = paramsearch.best_params_
         self.model = XGBClassifier(

@@ -666,8 +666,6 @@ class Vectorize(WorkflowComponent):
         ######################
         ### Training phase ###
         ######################
-
-        print("PRUNE VECTORIZE",self.prune)
         
         labels = input_feeds['labels_train']
 
@@ -696,7 +694,7 @@ class Vectorize(WorkflowComponent):
             traininstances = trainvectorizer.out_train
             
         if self.select:
-            selecttask = workflow.new_task('select_features',Select,selector=self.select,threshold=self.select_threshold,autopass=True)
+            selecttask = workflow.new_task('select_features',Select,selector=self.selector,threshold=self.select_threshold,autopass=True)
             selecttask.in_train = traininstances
             selecttask.in_trainlabels = labels
             traininstances = selecttask.out_train
