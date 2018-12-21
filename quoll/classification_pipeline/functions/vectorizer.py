@@ -151,7 +151,8 @@ def balance_data(instances, labels):
     if len(unique_labels) == 2: # calculate mean of two label counts
         target_count = int(numpy.mean(numpy.array([label_count_sorted[0][1],label_count_sorted[1][1]])))
     elif len(unique_labels) > 2: # take median as target count
-        target_count = numpy.median(numpy.array([x[1] for x in label_count_sorted]))
+        target_count = int(numpy.median(numpy.array([x[1] for x in label_count_sorted])))
+    
     for label in unique_labels:
         if label_count[label] == target_count:
             balanced_instances.append(instances[label_indices[label]])
@@ -178,10 +179,6 @@ def return_idf(instances, labels):
     for feature,value in enumerate(list(transformer._idf_diag.data)):
         idf[feature] = value
     return idf
-    
-    # cnt = Counts(instances, labels)
-    # idf = cnt.count_idf()
-    # return idf
 
 def return_infogain(instances, labels):
     """
@@ -249,10 +246,6 @@ def return_tfidf_vectors(instances, idfs):
     transformer = TfidfTransformer(smooth_idf=True)
     return transformer.fit_transform(instances)
     
-    # feature_idf_ordered = sparse.csr_matrix([idfs[feature] for feature in sorted(idfs.keys())])
-    # tfidf_vectors = instances.multiply(feature_idf_ordered)
-    # return tfidf_vectors
-
 def return_featureselection(featureweights,prune):
     # by default pruning is done based on feature frequency    
     featureselection = sorted(featureweights, key = featureweights.get, reverse = True)[:prune]

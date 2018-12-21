@@ -147,7 +147,7 @@ class FCBF:
         sbest : 2-D ndarray
             An array containing SU[i,c] values and feature index i.
         """
-        thresh = float.thresh
+        thresh = float(thresh)
         n = X.shape[1]
         slist = np.zeros((n, 3))
         slist[:, -1] = 1
