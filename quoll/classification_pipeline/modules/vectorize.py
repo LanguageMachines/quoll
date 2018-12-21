@@ -481,11 +481,11 @@ class Vectorize(WorkflowComponent):
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
     delimiter = Parameter(default=',')
     select = BoolParameter()
     selector = Parameter(default=False)
     select_threshold = Parameter(default=False)
+    balance = BoolParameter()
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')

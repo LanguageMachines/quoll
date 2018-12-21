@@ -179,7 +179,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', scoring='f1_micro', iterations=10, jobs=1, v=2):
+    def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', jobs=1, iterations=10, scoring='f1_micro', v=2):
         if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
@@ -457,11 +457,10 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, 
-        booster='gbtree', silent='1', nthread='12', 
-        learning_rate='0.1', min_child_weight='1', max_depth='6', gamma='0', max_delta_step='0', 
-        subsample='1', colsample_bytree='1', reg_lambda='1', reg_alpha='0', scale_pos_weight='1',
-        objective='binary:logistic', seed=7, n_estimators='100',
-        scoring='roc_auc', iterations=50, jobs=12, v=2):
+        booster='gbtree', silent='1', learning_rate='0.1', min_child_weight='1', max_depth='6', 
+        gamma='0', max_delta_step='0', subsample='1', colsample_bytree='1', reg_lambda='1', reg_alpha='0', 
+        scale_pos_weight='1',objective='binary:logistic', seed='7', n_estimators='100',jobs='12',
+        iterations='50',scoring='roc_auc',v=2):
         # prepare grid search
         if len(list(set(labels))) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
@@ -470,7 +469,9 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha', 'scale_pos_weight'] 
             multi = False
         silent = int(silent)
-        nthread=int(nthread)
+        nthread=int(jobs)
+        seed=int(seed)
+        iterations=int(iterations)
         learning_rate = float(learning_rate)
         max_delta_step = float(max_delta_step)
         reg_lambda = float(reg_lambda)

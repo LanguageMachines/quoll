@@ -163,6 +163,7 @@ class CocoNgrams:
         vocabulary = []
         items = list(zip(range(self.model.__len__()), self.model.items()))
         for i, (pattern, indices) in items:
+            print('COCO ITEM',dir(pattern))
             vocabulary.append(pattern.tostring(self.classdecoder))
             lines = [index[0] - 1 for index in indices]
             docs = [self.cursor[lineindex] for lineindex in lines]

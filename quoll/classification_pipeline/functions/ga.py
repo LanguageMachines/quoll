@@ -243,7 +243,9 @@ class GA:
         best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
         return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_evolution, output_parameter_evolution, output_features, output_weighted, output_overview
 
-    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,classifier,jobs,ordinal,fitness_metric,weight_feature_size,steps,linear_raw,sampling,samplesize,
+    def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,weight_feature_size,steps,sampling,samplesize,
+        classifier,ordinal,jobs,iterations,fitness_metric,linear_raw,
+        random_clf,
         nb_alpha,nb_fit_prior,
         svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight,
         lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter,
