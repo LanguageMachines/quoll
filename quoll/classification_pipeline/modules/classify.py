@@ -30,6 +30,8 @@ class Train(Task):
     scoring = Parameter()
     linear_raw = BoolParameter()
 
+    random_type = Parameter()
+
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
     
@@ -89,9 +91,10 @@ class Train(Task):
         
         # initiate classifier
         classifierdict = {
+                        'random':[RandomClassifier(),[]],
                         'naive_bayes':[NaiveBayesClassifier(),[self.nb_alpha,self.nb_fit_prior,self.jobs]],
                         'logistic_regression':[LogisticRegressionClassifier(),[self.lr_c,self.lr_solver,self.lr_dual,self.lr_penalty,self.lr_multiclass,self.lr_maxiter]],
-                        'svm':[SVMClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,self.iterations,self.jobs]], 
+                        'svm':[SVMClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,self.scoring,self.iterations,self.jobs]], 
                         'svorim':[SvorimClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree]],
                         'xgboost':[XGBoostClassifier(),[self.xg_booster, self.xg_silent, self.jobs, self.xg_learning_rate, self.xg_min_child_weight, self.xg_max_depth, self.xg_gamma, 
                             self.xg_max_delta_step, self.xg_subsample, self.xg_colsample_bytree, self.xg_reg_lambda, self.xg_reg_alpha, self.xg_scale_pos_weight, 
@@ -170,7 +173,7 @@ class Predict(Task):
             model.n_neighbors = int(model.n_neighbors)
 
         # inititate classifier
-        clf = AbstractSKLearnClassifier()
+        clf = SvorimClassifier() if self.classifier == 'svorim' else RandomClassifier() if self.classifier == 'random' else AbstractSKLearnClassifier()
 
         # load labels (for the label encoder)
         with open(self.in_trainlabels().path,'r',encoding='utf-8') as infile:
@@ -220,6 +223,8 @@ class TrainGA(Task):
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
+
+    random_type = Parameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -354,6 +359,7 @@ class TrainGA(Task):
                         'naive_bayes':[NaiveBayesClassifier(),[self.nb_alpha,self.nb_fit_prior,self.jobs]],
                         'logistic_regression':[LogisticRegressionClassifier(),[self.lr_c,self.lr_solver,self.lr_dual,self.lr_penalty,self.lr_multiclass,self.lr_maxiter]],
                         'svm':[SVMClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,self.iterations,self.jobs]], 
+                        'svorim':[SvorimClassifier(),[self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree]], 
                         'xgboost':[XGBoostClassifier(),[self.xg_booster, self.xg_silent, self.jobs, self.xg_learning_rate, self.xg_min_child_weight, self.xg_max_depth, self.xg_gamma, 
                             self.xg_max_delta_step, self.xg_subsample, self.xg_colsample_bytree, self.xg_reg_lambda, self.xg_reg_alpha, self.xg_scale_pos_weight, 
                                                         self.xg_objective, self.xg_seed, self.xg_n_estimators, self.scoring, self.jobs]],
@@ -698,7 +704,7 @@ class VectorizeTrainTest(Task):
         return self.outputfrominput(inputformat='test', stripextension='.csv' if self.testcsv else '.'.join(self.in_test().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.select_threshold + '.balanced.vectors.npz' if self.select and self.balance and (self.testcsv or self.testvec) else '.' + self.selector + '.' + self.select_threshold + '.vectors.npz' if self.select and (self.testcsv or self.testvec) else '.balanced.vectors.npz' if self.balance and (self.testcsv or self.testvec) else '.' + self.selector + '.' + self.select_threshold + '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select and self.balance else '.' + self.selector + '.' + self.select_threshold + '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.select else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz' if self.balance else '.vectors.npz' if self.testcsv or self.testvec else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
 
     def run(self):
-        
+
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
@@ -789,6 +795,8 @@ class Classify(WorkflowComponent):
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
+
+    random_type = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -976,6 +984,7 @@ class Classify(WorkflowComponent):
                 instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,sampling=self.sampling,samplesize=self.samplesize,
+                random_type=self.random_type,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -993,6 +1002,7 @@ class Classify(WorkflowComponent):
         else:
             trainer = workflow.new_task('train',Train,autopass=True,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
+                random_type=self.random_type,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,

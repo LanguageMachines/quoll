@@ -10,6 +10,8 @@ import warnings
 
 import numpy
 import multiprocessing
+import os
+import random
 
 class AbstractSKLearnClassifier:
 
@@ -52,6 +54,41 @@ class AbstractSKLearnClassifier:
             full_predictions.append(full_prediction)
         return predictions, full_predictions
 
+class RandomClassifier(AbstractSKLearnClassifier):
+
+    def __init__(self):
+        AbstractSKLearnClassifier.__init__(self)
+        self.model = False
+
+    def set_label_encoder(self, labels):
+        AbstractSKLearnClassifier.set_label_encoder(self, labels)
+
+    def return_label_encoding(self, labels):
+        return AbstractSKLearnClassifier.return_label_encoding(self, labels)
+    
+    def train_classifier(self, trainvectors, labels, randomtype='equal',v=2):
+        if randomtype == 'equal':
+            self.model = list(set(labels.tolist()))
+        elif randomtype == 'weighted':
+            self.model = labels.tolist()
+            
+    def return_classifier(self):
+        return self.model
+
+    def return_class_names(self):
+        return self.label_encoder.inverse_transform(self.model.classes_)
+        
+    def return_model_insights(self,vocab=False):
+        model_insights = []
+        return model_insights
+
+    def apply_model(self,model,testvectors):
+        predictions = []
+        full_predictions = [sorted(list(set(model)))] + ([['-']]*testvectors.shape[0])
+        for vector in range(testvectors.shape[0]):
+            predictions.append(random.choice(model))
+        return predictions,full_predictions
+                
 class NaiveBayesClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
@@ -72,8 +109,6 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         else:
             selected_alpha = float(alpha)
         self.model = naive_bayes.MultinomialNB(alpha=selected_alpha,fit_prior=fit_prior)
-
-
         self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
@@ -130,7 +165,7 @@ class NaiveBayesClassifier(AbstractSKLearnClassifier):
         for i,cl in enumerate(sorted_classes):
             model_insights.append(['ranked_features_' + cl + '.txt',self.return_ranked_features(i,vocab)])
         return model_insights
-        
+
 
 class SVMClassifier(AbstractSKLearnClassifier):
 
@@ -230,10 +265,12 @@ class SvorimClassifier(AbstractSKLearnClassifier):
         self.model = False
 
     def prepare_data(self,vectors,filename,labels=False):
-        if labels:
-            data_out = '\n'.join([' '.join([str(x) for x in row] + [str(labels[i])]) for i,row in enumerate(vectors.toarray().tolist())])
+        if type(labels) == list:
+            if 0 in labels:
+                labels = [x+1 for x in labels]
+            data_out = '\n'.join([' '.join([str(x) for x in row] + [str(labels[i])]) for i,row in enumerate(vectors.toarray().tolist())]).strip()
         else:
-            data_out = '\n'.join([' '.join([str(x) for x in row]) for row in vectors.toarray().tolist()])
+            data_out = '\n'.join([' '.join([str(x) for x in row]) + ' ' for row in vectors.toarray().tolist()])
         with open(filename,'w') as file_out:
             file_out.write(data_out)
 
@@ -246,8 +283,8 @@ class SvorimClassifier(AbstractSKLearnClassifier):
             probs = infile.read().strip().split('\n')
             full_predictions = [classes]
             for i,prob in enumerate(probs):
-                template = [''] * len(classes)
-                index = classes.index(predictions[i])
+                template = ['0.0'] * len(classes)
+                index = classes.index(int(predictions[i]))
                 template[index] = str(prob)
                 full_predictions.append(template)
         return predictions, full_predictions
@@ -270,31 +307,33 @@ class SvorimClassifier(AbstractSKLearnClassifier):
             kearg = ' -P ' + str(degree)
         else:
             kearg = ''
-        self.model = 'svorim -F 5 -R 20' + carg + karg + kearg 
+        self.model = 'svorim -F 1' + carg + karg + kearg + ' svorim_train.0 >/dev/null'
 
     def return_classifier(self):
         return self.model
 
     def return_validation(self):
-        validation_file = 'mytask_train.0.validation'
+        validation_file = 'validation_implicit.log'
         with open(validation_file) as file_in:
             validation_str = file_in.read().strip()
         return validation_str
 
     def return_parameter_settings(self):
-        parameter_settings_file = 'mytask_train.0.svm.alpha'
+        parameter_settings_file = 'svorim_train.0.svm.alpha'
         with open(parameter_settings_file) as file_in:
             parameters_str = file_in.read().strip()
         return parameters_str
 
     def return_model_insights(self,vocab=False):
-        model_insights = [['parameter_settings.txt',self.return_parameter_settings()],['validation.txt',self.return_validation()]]
+        model_insights = []
         return model_insights
 
-    def apply_model(self, testvectors, classes):
+    def apply_model(self, model, testvectors, classes):
         self.prepare_data(testvectors,'svorim_test.0')
-        os.system(self.model)
+        os.system(model)
         predictions, full_predictions = self.parse_predictions(classes)
+        os.system('rm svorim*')
+        os.system('rm *.log')
         return predictions,full_predictions
 
 

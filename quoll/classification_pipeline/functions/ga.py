@@ -256,6 +256,7 @@ class GA:
                         'naive_bayes':[NaiveBayesClassifier,[nb_alpha,nb_fit_prior]],
                         'logistic_regression':[LogisticRegressionClassifier,[lr_c,lr_solver,lr_dual,lr_penalty,lr_multiclass,lr_maxiter]],
                         'svm':[SVMClassifier,[svm_c,svm_kernel,svm_gamma,svm_degree,svm_class_weight]], 
+                        'svorim':[SvorimClassifier,[svm_c,svm_kernel,svm_gamma,svm_degree]], 
                         'xgboost':[XGBoostClassifier,[xg_booster,xg_silent,str(jobs),xg_learning_rate,xg_min_child_weight,xg_max_depth,xg_gamma,
                             xg_max_delta_step,xg_subsample,xg_colsample_bytree,xg_reg_lambda,xg_reg_alpha,xg_scale_pos_weight,xg_objective,xg_seed,xg_n_estimators]],
                         'knn':[KNNClassifier,[knn_n_neighbors,knn_weights,knn_algorithm,knn_leaf_size,knn_metric,knn_p]], 

@@ -669,7 +669,7 @@ class Vectorize(WorkflowComponent):
         ######################
         
         labels = input_feeds['labels_train']
-
+        
         if 'featurized_train_csv' in input_feeds.keys():
             trainvectorizer = workflow.new_task('train_vectorizer_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
             trainvectorizer.in_csv = input_feeds['featurized_train_csv']
@@ -689,7 +689,7 @@ class Vectorize(WorkflowComponent):
                 trainfeatures = trainfeaturizer.out_featurized
                 
             trainvectorizer = workflow.new_task('vectorizer',FitVectorizer,autopass=True,weight=self.weight,prune=self.prune)
-            trainvectorizer.in_train = traininstances
+            trainvectorizer.in_train = trainfeatures
             trainvectorizer.in_trainlabels = labels
 
             traininstances = trainvectorizer.out_train
