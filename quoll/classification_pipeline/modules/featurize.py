@@ -53,10 +53,10 @@ class Tokenized2Features(Task):
     lowercase = BoolParameter()
 
     def out_features(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats[:10].split()) + '.features.npz')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats[:10].split()) + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokenized', stripextension='.tok.txt', addextension='.vocabulary.txt')
 
     def run(self):
         
@@ -90,10 +90,10 @@ class Tokdir2Features(Task):
     lowercase = BoolParameter()
         
     def out_features(self):
-        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.tokens.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='tokdir', stripextension='.tok.txtdir', addextension='.vocabulary.txt')
 
     def run(self):
         
@@ -128,10 +128,10 @@ class Frog2Features(Task):
     lowercase = BoolParameter() # applies to text tokens only
 
     def out_features(self):
-        return self.outputfrominput(inputformat='frogged', stripextension='.frog.json', addextension='.' + self.featuretypes.replace(' ','.') + '.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+        return self.outputfrominput(inputformat='frogged', stripextension='.frog.json', addextension='.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='frogged', stripextension='.frog.json', addextension='.' + self.featuretypes.replace(' ','.') + '.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='frogged', stripextension='.frog.json', addextension='.vocabulary.txt')
 
     def run(self):
 
@@ -189,10 +189,10 @@ class Frogdir2Features(Task):
     lowercase = BoolParameter() # applies to text tokens only
         
     def out_features(self):
-        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.features.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.' + self.featuretypes.replace(' ','.') + '.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.vocabulary.txt')
+        return self.outputfrominput(inputformat='frogdir', stripextension='.frog.jsondir', addextension='.vocabulary.txt')
 
     def run(self):
         

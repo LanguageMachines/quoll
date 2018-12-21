@@ -71,16 +71,16 @@ class Select(Task):
     threshold = Parameter()
 
     def in_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.featureselection.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.threshold + '.features.npz' if self.in_train().path.split('.')[-2] == 'features' else '.' + self.selector + '.' + self.threshold + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.threshold + '.vocabulary.txt' if self.in_train().path.split('.')[-2] == 'features' else '.' + self.selector + '.' + self.threshold + '.featureselection.txt')   
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_weights(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]), addextension='.' + self.selector + '.' + self.threshold + '.weights.txt')
+        return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.weights.txt')
     
     def run(self):
 
@@ -127,18 +127,19 @@ class FitVectorizer(Task):
 
     weight = Parameter()
     prune = IntParameter()
+    balance = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
      
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
 
     def out_featureweights(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureweights.txt')
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.featureweights.txt')
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.weight_' + self.weight + '.prune_' + str(self.prune) + '.featureselection.txt')
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.featureselection.txt')
 
     def run(self):
 
@@ -588,7 +589,7 @@ class FeaturizeTask(Task):
     strip_punctuation = BoolParameter()
 
     def out_featurized(self):
-        return self.outputfrominput(inputformat='pre_featurized', stripextension='.' + self.in_pre_featurized().task.extension, addextension='.'.join(self.featuretypes.split()) + '.n_' + '_'.join(self.ngrams.split()) + '.min' + str(self.minimum_token_frequency) + '.lower_' + self.lowercase.__str__() + '.black_' + '_'.join(self.blackfeats.split()) + '.features.npz')
+        return self.outputfrominput(inputformat='pre_featurized', stripextension='.' + self.in_pre_featurized().task.extension, addextension='.features.npz')
     
     def run(self):
 
@@ -604,9 +605,9 @@ class FeaturizeTask(Task):
 @registercomponent
 class Vectorize(WorkflowComponent):
     
-    traininstances = Parameter()
+    train = Parameter()
     trainlabels = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
-    testinstances = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
+    test = Parameter(default='xxx.xxx') # not obligatory, dummy extension to enable a pass
     
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
