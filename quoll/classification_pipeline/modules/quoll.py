@@ -555,7 +555,7 @@ class Quoll(WorkflowComponent):
             )).T.reshape(-1,9)]
 
     def setup(self, workflow, input_feeds):
-        
+
         ######################
         ### Training phase ###
         ######################
@@ -805,11 +805,12 @@ class Quoll(WorkflowComponent):
                     testinstances = testfeaturizer.out_featurized
 
                 else:
-                    testinstances = input_feeds['featurized_test']
+                    if not testinstances:
+                        testinstances = input_feeds['featurized_test']
 
-                traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) else False
+                traincsv=True if ('vectorized_csv_train' in input_feeds.keys()) else False
                 trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
-                testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
+                testcsv=True if ('vectorized_csv_test' in input_feeds.keys()) else False
                 testvec=True if ('vectorized_test' in input_feeds.keys()) else False
                     
                 vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainvec=trainvec,testcsv=testcsv,testvec=testvec)

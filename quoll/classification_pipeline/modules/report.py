@@ -308,6 +308,8 @@ class ClassifyTask(Task):
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
+
+    random_type = Parameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -364,6 +366,7 @@ class ClassifyTask(Task):
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
+                random_type=self.random_type,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -414,6 +417,8 @@ class Report(WorkflowComponent):
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
+
+    random_type = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -485,8 +490,8 @@ class Report(WorkflowComponent):
                 (
                 InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
+                InputFormat(self, format_id='vectorized_train_csv',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
@@ -530,14 +535,14 @@ class Report(WorkflowComponent):
             ############################
 
             trainlabels = input_feeds['labels_train']
-
+            
             if 'vectorized_train' in input_feeds.keys():
                 traininstances = input_feeds['vectorized_train']
 
             elif 'vectorized_train_csv' in input_feeds.keys():
                 traininstances = input_feeds['vectorized_train_csv']
 
-            elif 'featurized_train_csv' in input_feeds.keys():
+            elif 'featurized_train' in input_feeds.keys():
                 traininstances = input_feeds['featurized_train']
 
             elif 'pre_featurized_train' in input_feeds.keys():
@@ -598,6 +603,7 @@ class Report(WorkflowComponent):
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                random_type=self.random_type,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,

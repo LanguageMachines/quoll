@@ -35,12 +35,33 @@ class ClassifyAppend(WorkflowComponent):
     bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
     bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
 
+    # feature selection parameters
+    ga = BoolParameter()
+    num_iterations = IntParameter(default=300)
+    elite = Parameter(default='0.1')
+    population_size = IntParameter(default=100)
+    crossover_probability = Parameter(default='0.9')
+    mutation_rate = Parameter(default='0.3')
+    tournament_size = IntParameter(default=2)
+    n_crossovers = IntParameter(default=1)
+    stop_condition = IntParameter(default=5)
+    weight_feature_size = Parameter(default='0.0')
+    instance_steps = IntParameter(default=1)
+    sampling = BoolParameter()
+    samplesize = Parameter(default='0.8')
+    
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
+    linear_raw = BoolParameter()
+    min_scale = Parameter(default='0')
+    max_scale = Parameter(default='1')
+    scale = BoolParameter()
+
+    random_type = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -58,6 +79,10 @@ class ClassifyAppend(WorkflowComponent):
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
 
+    linreg_fit_intercept = Parameter(default='1')
+    linreg_normalize = Parameter(default='0')
+    linreg_copy_X = Parameter(default='1')
+    
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='0') # set to '1' to mute printed info on progress
     xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
@@ -86,7 +111,9 @@ class ClassifyAppend(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    scale = BoolParameter()
+    select = BoolParameter()
+    selector = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -184,8 +211,10 @@ class ClassifyAppend(WorkflowComponent):
 
             fold_runner = workflow.new_task('nfold_cv_bow', Folds, autopass=True, 
                 n=5, 
-                weight=self.weight, prune=self.prune, balance=self.balance, 
+                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                 classifier=self.bow_classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
+                random_type=self.random_type,
+                ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -215,8 +244,8 @@ class ClassifyAppend(WorkflowComponent):
 
             trainvectors = fold_vectorizer.out_vectors
 
-            trainvectorizer_bow = workflow.new_task('vectorize_train_bow',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-            trainvectorizer_bow.in_trainfeatures = featurized_train
+            trainvectorizer_bow = workflow.new_task('vectorize_train_bow',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,traincsv=False,delimiter=self.delimiter,trainvec=False)
+            trainvectorizer_bow.in_train = featurized_train
             trainvectorizer_bow.in_trainlabels = trainlabels
 
             trainvectors_bow = trainvectorizer_bow.out_train
@@ -268,7 +297,7 @@ class ClassifyAppend(WorkflowComponent):
         else:
             trainvectors_combined = traincombiner.out_combined
                 
-        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations, scoring=self.scoring,
+        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,
             nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -277,7 +306,8 @@ class ClassifyAppend(WorkflowComponent):
             xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
             xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
             knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p
+            knn_metric=self.knn_metric, knn_p=self.knn_p,
+            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
         )
         trainer.in_train = trainvectors_combined
         trainer.in_trainlabels = trainlabels            
@@ -317,7 +347,10 @@ class ClassifyAppend(WorkflowComponent):
                     print('Bag-of-words as features can only be ran on featurized test instances (ending with \'.features.npz\', exiting programme...')
                     exit()
 
-                bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
+                    random_type=self.random_type,
+                    ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
                     nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -331,13 +364,15 @@ class ClassifyAppend(WorkflowComponent):
                 bow_trainer.in_train = trainvectors_bow
                 bow_trainer.in_trainlabels = trainlabels            
 
-                testvectorizer_bow = workflow.new_task('vectorize_test_bow',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                testvectorizer_bow.in_trainvectors = trainvectors_bow
+                testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
+                testvec=True if ('vectorized_test' in input_feeds.keys()) else False
+                testvectorizer_bow = workflow.new_task('vectorize_test_bow',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=False,testcsv=testcsv,trainvec=False,testvec=testvec)
+                testvectorizer_bow.in_train = trainvectors_bow
                 testvectorizer_bow.in_trainlabels = trainlabels
-                testvectorizer_bow.in_testfeatures = featurized_test
+                testvectorizer_bow.in_test = featurized_test
 
                 bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
-                bow_predictor.in_test = testvectorizer_bow.out_vectors
+                bow_predictor.in_test = testvectorizer_bow.out_test
                 bow_predictor.in_trainlabels = trainlabels
                 bow_predictor.in_model = bow_trainer.out_model
 
