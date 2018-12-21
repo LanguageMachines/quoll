@@ -459,7 +459,11 @@ class FeaturizeTask(Task):
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
-            yield Featurize(inputfile=self.in_pre_featurized().path,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            yield Featurize(
+                inputfile=self.in_pre_featurized().path,
+                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,
+                featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
+            )
                 
 #################################################################
 ### Component ###################################################
@@ -547,7 +551,9 @@ class Vectorize(WorkflowComponent):
                 trainfeatures = input_feeds['featurized_train']
             
             else: # pre_featurized
-                trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,
+                    ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,
+                    featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                 trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
 
                 trainfeatures = trainfeaturizer.out_featurized
@@ -582,7 +588,9 @@ class Vectorize(WorkflowComponent):
                     testfeatures = input_feeds['featurized_test']
             
                 else: # pre_featurized
-                    testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                    testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,
+                        minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,
+                        strip_punctuation=self.strip_punctuation)
                     testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
                     testfeatures = testfeaturizer.out_featurized
