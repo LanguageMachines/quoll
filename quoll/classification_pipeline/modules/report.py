@@ -6,8 +6,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.classify import Classify, VectorizeTrain, VectorizeTrainTest, FitTransformScale, TransformScale 
-from quoll.classification_pipeline.modules.vectorize import FeaturizeTask
+from quoll.classification_pipeline.modules.classify import Classify 
 
 from quoll.classification_pipeline.functions import reporter, linewriter, docreader
 
@@ -21,7 +20,7 @@ class ReportPerformance(Task):
     in_testlabels = InputSlot()
     in_testdocuments = InputSlot()
 
-    ordinal = BoolParameter()
+    ordinal = IntParameter()
     teststart = IntParameter()
     
     def in_full_predictions(self):
@@ -296,7 +295,7 @@ class ClassifyTask(Task):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
-    sampling = BoolParameter()
+    sampling = IntParameter()
     samplesize = Parameter()
 
     classifier = Parameter()
@@ -309,7 +308,7 @@ class ClassifyTask(Task):
     min_scale = Parameter()
     max_scale = Parameter()
 
-    random_type = Parameter()
+    random_clf = Parameter()
     
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -354,8 +353,29 @@ class ClassifyTask(Task):
     knn_metric = Parameter()
     knn_p = IntParameter()
 
+    # vectorizer parameters
+    weight = Parameter() # options: frequency, binary, tfidf
+    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
+    balance = BoolParameter()
+    delimiter = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
+    select_threshold = Parameter()
+
+    # featurizer parameters
+    ngrams = Parameter()
+    blackfeats = Parameter()
+    lowercase = BoolParameter()    
+    minimum_token_frequency = IntParameter()
+    featuretypes = Parameter()
+
+    # ucto / frog parameters
+    tokconfig = Parameter()
+    frogconfig = Parameter()
+    strip_punctuation = BoolParameter()
+    
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok' else '.' + self.in_test().path.split('.')[-1], addextension='.predictions.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.predictions.txt')
     
     def run(self):
 
@@ -366,7 +386,7 @@ class ClassifyTask(Task):
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-                random_type=self.random_type,
+                random_clf=self.random_clf,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -376,7 +396,8 @@ class ClassifyTask(Task):
                 xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                 knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
                 knn_metric=self.knn_metric, knn_p=self.knn_p,
-                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+                           linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X,
+                weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
             )
 
 #################################################################
@@ -404,7 +425,7 @@ class Report(WorkflowComponent):
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
     instance_steps = IntParameter(default=1)
-    sampling = BoolParameter() # repeated resampling of train and test to prevent overfitting
+    sampling = IntParameter(default=0) # repeated resampling of train and test to prevent overfitting
     samplesize = Parameter(default='0.80') # size of trainsample
 
     # classifier parameters
@@ -418,7 +439,7 @@ class Report(WorkflowComponent):
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
 
-    random_type = Parameter(default='equal')
+    random_clf = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -555,12 +576,15 @@ class Report(WorkflowComponent):
                 testinstances = input_feeds['featurized_test']
             elif 'pre_featurized_test' in input_feeds.keys():
                 testinstances = input_feeds['pre_featurized_test']
+            elif 'docs_test' in input_feeds.keys():
+                testinstances = input_feeds['docs_test']
+                docs_test = input_feeds['docs_test']
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                random_type=self.random_type,
+                random_clf=self.random_clf,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -570,7 +594,8 @@ class Report(WorkflowComponent):
                 xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
                 knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
                 knn_metric=self.knn_metric, knn_p=self.knn_p,
-                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+                                           linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X,
+                weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
             )
             classifier.in_train = traininstances
             classifier.in_test = testinstances

@@ -409,7 +409,7 @@ class VectorizeTrain(Task):
     strip_punctuation = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
@@ -446,20 +446,24 @@ class VectorizeTrainTest(Task):
     strip_punctuation = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-3:] == 'pkl' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
     
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok' else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
 
     def run(self):
 
         if self.complete(): # necessary as it will not complete otherwise
             return True
         else:
-            yield Vectorize(train=self.in_train().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            if '.'.join(self.in_train().path.split('.')[-2:]) == 'model.pkl':
+                train = '.'.join(self.in_train().path.split('.')[:-2]) + '.vectors.npz'
+            else:
+                train = self.in_train().path
+            yield Vectorize(train=train,trainlabels=self.in_trainlabels().path,test=self.in_test().path,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
 
 class VectorizeTrainCombinedTask(Task):
 
@@ -680,7 +684,7 @@ class Classify(WorkflowComponent):
                     
                 # assert that trainvectors (instead of classifier model) are inputted, in order to vectorize testinstances
                 if not traininstances:
-                    traininstances = '.'.join(model.split('.')[:2]) + '.vectors.npz'
+                    traininstances = model
                 
                 vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,delimiter=self.delimiter,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
                 vectorizer.in_train = traininstances
