@@ -65,16 +65,16 @@ class Fold(Task):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
-    sampling = BoolParameter()
+    sampling = IntParameter()
     samplesize = Parameter()
 
     # classifier parameters
     classifier = Parameter()
-    ordinal = BoolParameter()
+    ordinal = IntParameter()
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
-    linear_raw = BoolParameter()
+    linear_raw = IntParameter()
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
@@ -92,7 +92,7 @@ class Fold(Task):
 
     lr_c = Parameter()
     lr_solver = Parameter()
-    lr_dual = BoolParameter()
+    lr_dual = IntParameter()
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
@@ -282,16 +282,16 @@ class Folds(Task):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
-    sampling = BoolParameter()
+    sampling = IntParameter()
     samplesize = Parameter()
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
+    ordinal = IntParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = BoolParameter()
+    linear_raw = IntParameter()
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
@@ -309,7 +309,7 @@ class Folds(Task):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
+    lr_dual = IntParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -350,7 +350,7 @@ class Folds(Task):
     select_threshold = Parameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if self.balance else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.ga_' + self.ga.__str__() + '.featureweight_' + self.weight_feature_size + '.exp')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.nfoldcv')
                                     
     def run(self):
 
@@ -408,16 +408,16 @@ class RunFold(WorkflowComponent):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
-    sampling = BoolParameter()
+    sampling = IntParameter()
     samplesize = Parameter()
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
+    ordinal = IntParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = BoolParameter()
+    linear_raw = IntParameter()
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
@@ -435,7 +435,7 @@ class RunFold(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
+    lr_dual = IntParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -545,17 +545,17 @@ class Validate(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    sampling = BoolParameter()
+    sampling = IntParameter(default=0)
     samplesize = Parameter(default='0.8')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
+    ordinal = IntParameter(default=0)
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
     linear_raw = BoolParameter()
-    scale = BoolParameter()
+    scale = IntParameter(default=0)
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
 
@@ -572,7 +572,7 @@ class Validate(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
+    lr_dual = IntParameter(default=0)
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -664,13 +664,10 @@ class Validate(WorkflowComponent):
             instances = input_feeds['vectorized']
         elif 'featurized' in input_feeds.keys():
             instances = input_feeds['featurized']
-        
         elif 'featurized_csv' in input_feeds.keys():
-            vectorizer = workflow.new_task('vectorize_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            vectorizer.in_csv = input_feeds['featurized_csv']
-                
-            instances = vectorizer.out_vectors
-
+            csvtransformer = workflow.new_task('transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
+            csvtransformer.in_csv = input_feeds['featurized_train_csv']
+            instances = csvtransformer.out_features
         else:
             if 'pre_featurized' in input_feeds.keys():
                 pre_featurized = input_feeds['pre_featurized']
