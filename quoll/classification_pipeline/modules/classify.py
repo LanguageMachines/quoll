@@ -409,7 +409,7 @@ class VectorizeTrain(Task):
     strip_punctuation = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
@@ -446,13 +446,13 @@ class VectorizeTrainTest(Task):
     strip_punctuation = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok' else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
     
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if self.in_test().path[-3:] == 'npz' else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok' else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
 
     def run(self):
 
