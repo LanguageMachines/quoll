@@ -266,7 +266,22 @@ class GA:
                         'perceptron':[PerceptronLClassifier,[]], 
                         'linreg':[LinearRegressionClassifier,[linreg_fit_intercept, linreg_normalize, linreg_copy_X]]
                         }
-        
+
+        steps = int(steps)
+        population_size = int(population_size)
+        num_iterations = int(num_iterations)
+        elite = float(elite)
+        crossover_probability = float(crossover_probability)
+        mutation_rate = float(mutation_rate)
+        tournament_size = int(tournament_size)
+        n_crossovers = int(n_crossovers)
+        stop_condition = int(stop_condition)
+        weight_feature_size = float(weight_feature_size)
+        sampling = int(sampling)
+        samplesize = float(samplesize)
+        linear_raw = int(linear_raw)
+        ordinal = int(ordinal)
+
         # draw sample of train instances
         trainsample, testsample  = self.draw_sample(steps=steps,linear_raw=linear_raw,trainsize=samplesize)
         trainvectors = self.vectors[trainsample,:]

@@ -591,8 +591,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
             n_neighbors=settings[parameters[0]],
             weights=settings[parameters[1]],
             leaf_size=settings[parameters[2]],
-            metric=settings[parameters[3]],
-            verbose=v
+            metric=settings[parameters[3]]
         )
         self.model.fit(trainvectors, labels)
 
