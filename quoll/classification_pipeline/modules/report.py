@@ -193,19 +193,19 @@ class ReportFolds(Task):
     in_exp = InputSlot()
     
     def out_predictions(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.predictions.txt')  
+        return self.outputfrominput(inputformat='exp', stripextension='.nfoldcv', addextension='.validated.predictions.txt')  
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.labels')  
+        return self.outputfrominput(inputformat='exp', stripextension='.nfoldcv', addextension='.validated.labels')  
 
     def out_docs(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.docs.txt')  
+        return self.outputfrominput(inputformat='exp', stripextension='.nfoldcv', addextension='.validated.docs.txt')  
 
     def out_full_predictions(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.validated.full_predictions.txt')        
+        return self.outputfrominput(inputformat='exp', stripextension='.nfoldcv', addextension='.validated.full_predictions.txt')        
 
     def out_macro_performance(self):
-        return self.outputfrominput(inputformat='exp', stripextension='.exp', addextension='.macro_performance.csv')  
+        return self.outputfrominput(inputformat='exp', stripextension='.nfoldcv', addextension='.macro_performance.csv')  
  
     def run(self):
        

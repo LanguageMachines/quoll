@@ -5,7 +5,7 @@ from scipy import sparse
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import TransformCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
 
@@ -79,7 +79,7 @@ class Fold(Task):
     min_scale = Parameter()
     max_scale = Parameter()
 
-    random_type = Parameter()
+    random_clf = Parameter()
 
     nb_alpha = Parameter()
     nb_fit_prior = BoolParameter()
@@ -139,31 +139,31 @@ class Fold(Task):
         return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
             
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i))    
 
     def out_train(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_test(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i) + '/train.labels')
 
     def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.labels')
 
     def out_nominal_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/test.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test.featureselection.txt')
 
     def out_testdocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.docs.txt')
 
     def run(self):
         
@@ -247,7 +247,7 @@ class Fold(Task):
             ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-            random_type=self.random_type,
+            random_clf=self.random_clf,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -296,7 +296,7 @@ class Folds(Task):
     min_scale = Parameter()
     max_scale = Parameter()
 
-    random_type = Parameter()
+    random_clf = Parameter()
     
     nb_alpha = Parameter(default=1.0)
     nb_fit_prior = BoolParameter()
@@ -366,7 +366,7 @@ class Folds(Task):
                 ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,sampling=self.sampling,samplesize=self.samplesize,
                 mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
                 classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-                random_type=self.random_type,
+                random_clf=self.random_clf,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -408,21 +408,21 @@ class RunFold(WorkflowComponent):
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
     instance_steps = IntParameter()
-    sampling = IntParameter()
+    sampling = IntParameter(default=0)
     samplesize = Parameter()
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter()
+    ordinal = IntParameter(default=0)
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = IntParameter()
+    linear_raw = IntParameter(default=0)
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
 
-    random_type = Parameter()
+    random_clf = Parameter()
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -435,7 +435,7 @@ class RunFold(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter()
+    lr_dual = IntParameter(default=0)
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -477,14 +477,14 @@ class RunFold(WorkflowComponent):
 
     def accepts(self):
         return [ ( 
-            InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
+            InputFormat(self,format_id='directory',extension='.nfoldcv',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.features.npz',inputparameter='instances'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
         ),
         (
-            InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
+            InputFormat(self,format_id='directory',extension='.nfoldcv',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
@@ -500,7 +500,7 @@ class RunFold(WorkflowComponent):
             ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, sampling=self.sampling,samplesize=self.samplesize,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-            random_type=self.random_type,
+            random_clf=self.random_clf,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -554,12 +554,12 @@ class Validate(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = BoolParameter()
-    scale = IntParameter(default=0)
+    linear_raw = IntParameter(default=0)
+    scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
 
-    random_type = Parameter(default='equal')
+    random_clf = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -693,7 +693,7 @@ class Validate(WorkflowComponent):
             ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,
             mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
             classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw, scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-            random_type=self.random_type,
+            random_clf=self.random_clf,
             nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
             svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
             lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
