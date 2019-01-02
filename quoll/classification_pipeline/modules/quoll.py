@@ -577,8 +577,23 @@ class Quoll(WorkflowComponent):
     def setup(self, workflow, input_feeds):
 
         ######################
+        ### Prep phase #######
+        ######################
+
+        format_ids = ['train','train_append','test','test_append','start_component','inputslot','trainlabels','trainlabels_layer2','instance_name','testlabels','testlabels_layer2','docs','startcomponent']
+        parameters = list(set(workflow.get_param_names())-set(format_ids))
+        
+        ######################
         ### Training phase ###
         ######################
+        print(dir(workflow))
+        print(workflow.param_args)
+        print(workflow.param_kwargs)
+        x = workflow.get_param_values(workflow.get_param_names(),workflow.param_args(),workflow.param_kwargs())
+        print(dir(x))
+
+        for p in parameters:
+            print('param_value',p,workflow.get_param_value(p))
 
         trainlabels = input_feeds['labels_train']
 
