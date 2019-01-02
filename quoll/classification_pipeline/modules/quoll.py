@@ -12,7 +12,7 @@ from quoll.classification_pipeline.modules.report import Report, ReportPerforman
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TranslatePredictions 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine
 
-from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
+from quoll.classification_pipeline.functions import reporter, quoll_helpers, linewriter, docreader
 
 #################################################################
 ### Tasks #######################################################
@@ -28,140 +28,22 @@ class ReportTask(Task):
 
     testlabels_true = BoolParameter()
     
-    # featureselection parameters
-    ga = BoolParameter()
-    num_iterations = IntParameter()
-    population_size = IntParameter()
-    elite = Parameter()
-    crossover_probability = Parameter()
-    mutation_rate = Parameter()
-    tournament_size = IntParameter()
-    n_crossovers = IntParameter()
-    stop_condition = IntParameter()
-    weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter()
-    samplesize = Parameter()
-
-    # classifier parameters
-    classifier = Parameter()
-    ordinal = IntParameter()
-    jobs = IntParameter()
-    iterations = IntParameter()
-    scoring = Parameter()
-    linear_raw = IntParameter()
-    scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
-
-    random_clf = Parameter()
-    
-    nb_alpha = Parameter()
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter()
-    svm_kernel = Parameter()
-    svm_gamma = Parameter()
-    svm_degree = Parameter()
-    svm_class_weight = Parameter()
-
-    lr_c = Parameter()
-    lr_solver = Parameter()
-    lr_dual = IntParameter()
-    lr_penalty = Parameter()
-    lr_multiclass = Parameter()
-    lr_maxiter = Parameter()
-
-    linreg_fit_intercept = Parameter()
-    linreg_normalize = Parameter()
-    linreg_copy_X = Parameter()
-
-    xg_booster = Parameter() # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter() # set to '1' to mute printed info on progress
-    xg_learning_rate = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_min_child_weight = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_depth = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_gamma = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_delta_step = Parameter()
-    xg_subsample = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_colsample_bytree = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_reg_lambda = Parameter()
-    xg_reg_alpha = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_scale_pos_weight = Parameter()
-    xg_objective = Parameter() # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
-    xg_seed = IntParameter()
-    xg_n_estimators = Parameter() # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-
-    knn_n_neighbors = Parameter()
-    knn_weights = Parameter()
-    knn_algorithm = Parameter()
-    knn_leaf_size = Parameter()
-    knn_metric = Parameter()
-    knn_p = IntParameter()
-
-    # vectorizer parameters
-    weight = Parameter() # options: frequency, binary, tfidf
-    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    delimiter = Parameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
-
-    ngrams = Parameter()
-    blackfeats = Parameter()
-    lowercase = BoolParameter()
-    minimum_token_frequency = IntParameter()
-    featuretypes = Parameter()
-    tokconfig = Parameter()
-    frogconfig = Parameter()
-    strip_punctuation = BoolParameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
+    featurize_parameters = Parameter()
+    preprocess_parameters = Parameter()
 
     def out_report(self):
         return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.report' if self.testlabels_true else '.docpredictions.csv')
 
     def run(self):
 
-        print(self.out_report().path)
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
-        # if self.in_testlabels().path == 'xxx.xxx':
-        #     yield Report(
-        #         train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testdocs=self.in_testdocs().path,
-        #         weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, select_threshold=self.select_threshold,
-        #         ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-        #         classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-        #         nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-        #         svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-        #         lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-        #         xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-        #         xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-        #         xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-        #         xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-        #         knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-        #         knn_metric=self.knn_metric, knn_p=self.knn_p,
-        #         linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
-        #     )
-        # else:
-        yield Report(
-                train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,
-            ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation,
-                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-                ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                random_clf=self.random_clf,
-                nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p,
-                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
-            )
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        yield Report(train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,**kwargs)
 
 class ValidateAppendTask(Task):
 
@@ -850,23 +732,11 @@ class Quoll(WorkflowComponent):
                     print('No docs in input parameters, exiting programme...')
                     quit()
 
+            task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga','validate'],workflow.param_kwargs)
+
             reporter = workflow.new_task('report', ReportTask, autopass=True, 
                 testlabels_true=testlabels_true,
-                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation,                         
-                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-                ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                random_clf = self.random_clf,
-                nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight,
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample,
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p,
-                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X                            
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
             )
             reporter.in_train = train
             reporter.in_test = test
