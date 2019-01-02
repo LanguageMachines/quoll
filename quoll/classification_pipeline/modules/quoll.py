@@ -423,20 +423,22 @@ class Quoll(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    sampling = BoolParameter()
+    sampling = IntParameter()
     samplesize = Parameter(default='0.8')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
+    ordinal = IntParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = BoolParameter()
+    linear_raw = IntParameter()
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
     
+    random_clf = Parameter(default='equal')
+
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
     
@@ -448,7 +450,7 @@ class Quoll(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
+    lr_dual = IntParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -564,36 +566,36 @@ class Quoll(WorkflowComponent):
 
         # make sure to have featurized train instances, needed for both the nfold-cv case and the train-test case
 
-        featurized_train = False
-        trainvectors = False
+        # featurized_train = False
+        # trainvectors = False
 
         if 'vectorized_train_append' in input_feeds.keys():
-            trainvectors_append = input_feeds['vectorized_train_append']
+            train_append = input_feeds['vectorized_train_append']
         elif 'vectorized_csv_train_append' in input_feeds.keys():
-            trainvectors_append = input_feeds['vectorized_csv_train_append']
+            train_append = input_feeds['vectorized_csv_train_append']
         else:
-            trainvectors_append = False
+            train_append = False
 
         if 'docs_train' in input_feeds.keys() or 'pre_featurized_train' in input_feeds.keys(): # both stored as docs and featurized
 
             if 'pre_featurized_train' in input_feeds.keys():
-                pre_featurized = input_feeds['pre_featurized_train']
+                train = input_feeds['pre_featurized_train']
 
             else: # docs (.txt)
                 docs = input_feeds['docs_train']
-                pre_featurized = input_feeds['docs_train']
+                train = input_feeds['docs_train']
 
-            trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-            trainfeaturizer.in_pre_featurized = pre_featurized
+            # trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            # trainfeaturizer.in_pre_featurized = pre_featurized
 
-            traininstances = trainfeaturizer.out_featurized
+            # traininstances = trainfeaturizer.out_featurized
 
         elif 'featurized_train' in input_feeds.keys(): 
-            traininstances = input_feeds['featurized_train']
+            train = input_feeds['featurized_train']
         elif 'vectorized_csv_train' in input_feeds.keys():
-            traininstances = input_feeds['vectorized_csv_train']
+            train = input_feeds['vectorized_csv_train']
         elif 'vectorized_train' in input_feeds.keys():
-            traininstances = input_feeds['vectorized_train']
+            train = input_feeds['vectorized_train']
 
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]: # only train input --> nfold-cv
 
@@ -604,16 +606,16 @@ class Quoll(WorkflowComponent):
             if 'docs' in input_feeds.keys():
                 docs = input_feeds['docs']
 
-            if featurized_train:
-                instances = featurized_train
+            # if featurized_train:
+            #     instances = featurized_train
 
-            elif trainvectors:
-                instances = trainvectors
+            # elif trainvectors:
+            #     instances = trainvectors
 
-            else:
-                print('Invalid \'train\' input for Nfold CV; ' + 
-                    'give either \'.txt\', \'.tok.txt\', \'frog.json\', \'.txtdir\', \'.tok.txtdir\', \'.frog.jsondir\', \'.features.npz\', \'.vectors.npz\' or \'.csv\'')
-                exit()
+            # else:
+            #     print('Invalid \'train\' input for Nfold CV; ' + 
+            #         'give either \'.txt\', \'.tok.txt\', \'frog.json\', \'.txtdir\', \'.tok.txtdir\', \'.frog.jsondir\', \'.features.npz\', \'.vectors.npz\' or \'.csv\'')
+            #     exit()
 
             if trainvectors_append:
 
@@ -623,6 +625,7 @@ class Quoll(WorkflowComponent):
                     weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                     ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    random_clf = self.random_clf,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -646,6 +649,7 @@ class Quoll(WorkflowComponent):
                     weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                     ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                     classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    random_clf = self.random_clf,
                     nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                     svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                     lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -657,7 +661,7 @@ class Quoll(WorkflowComponent):
                     knn_metric=self.knn_metric, knn_p=self.knn_p,
                     linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X                            
                 )
-                validator.in_instances = instances
+                validator.in_instances = train
                 validator.in_labels = trainlabels
                 validator.in_docs = docs
 
@@ -694,6 +698,7 @@ class Quoll(WorkflowComponent):
                     trainlabels = trainvectorizer.out_trainlabels
 
             foldtrainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
+                random_clf=self.random_clf,
                 nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -710,9 +715,6 @@ class Quoll(WorkflowComponent):
             else:
                 foldtrainer.in_train = trainvectors
             foldtrainer.in_trainlabels = trainlabels    
-            
-            labels = foldreporter.out_labels
-            predictions = foldreporter.out_predictions
 
         else:
 
@@ -783,51 +785,43 @@ class Quoll(WorkflowComponent):
                 #     testvectors_append = False
                 
             if 'vectorized_test' in input_feeds.keys():
-                testinstances = input_feeds['vectorized_test']
+                test = input_feeds['vectorized_test']
+            elif 'vectorized_csv_test' in input_feeds.keys():
+                test = input_feeds['vectorized_csv_test']
+            elif 'featurized_test' in input_feeds.keys():
+                test = input_feeds['featurized_test']
+            elif 'pre_featurized_test' in input_feeds.keys():
+                test = input_feeds['pre_featurized_test']
             else:
-                if 'vectorized_csv_test' in input_feeds.keys():
-                    testinstances = input_feeds['vectorized_csv_test']
-                else:
-                    testinstances = False
-                
-                if 'docs_test' in input_feeds.keys() or 'pre_featurized_test' in input_feeds.keys():
+                docs = input_feeds['docs_test']
+                test = input_feeds['docs_test']
 
-                    if 'pre_featurized_test' in input_feeds.keys():
-                        pre_featurized = input_feeds['pre_featurized_test']
+                    # testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                    # testfeaturizer.in_pre_featurized = pre_featurized
 
-                    else:
-                        docs = input_feeds['docs_test']
-                        pre_featurized = input_feeds['docs_test']
+                    # testinstances = testfeaturizer.out_featurized
 
-                    testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                    testfeaturizer.in_pre_featurized = pre_featurized
 
-                    testinstances = testfeaturizer.out_featurized
-
-                else:
-                    if not testinstances:
-                        testinstances = input_feeds['featurized_test']
-
-                traincsv=True if ('vectorized_csv_train' in input_feeds.keys()) else False
-                trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
-                testcsv=True if ('vectorized_csv_test' in input_feeds.keys()) else False
-                testvec=True if ('vectorized_test' in input_feeds.keys()) else False
+            #     traincsv=True if ('vectorized_csv_train' in input_feeds.keys()) else False
+            #     trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
+            #     testcsv=True if ('vectorized_csv_test' in input_feeds.keys()) else False
+            #     testvec=True if ('vectorized_test' in input_feeds.keys()) else False
                     
-                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainvec=trainvec,testcsv=testcsv,testvec=testvec)
-                vectorizer.in_train = traininstances
-                vectorizer.in_trainlabels = trainlabels
-                vectorizer.in_test = testinstances
+            #     vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,trainvec=trainvec,testcsv=testcsv,testvec=testvec)
+            #     vectorizer.in_train = traininstances
+            #     vectorizer.in_trainlabels = trainlabels
+            #     vectorizer.in_test = testinstances
 
-                traininstances = vectorizer.out_train
-                trainlabels = vectorizer.out_trainlabels
-                testinstances = vectorizer.out_test
+            #     traininstances = vectorizer.out_train
+            #     trainlabels = vectorizer.out_trainlabels
+            #     testinstances = vectorizer.out_test
                     
-            if 'labels_test' in input_feeds.keys():
-                testlabels = input_feeds['labels_test']
-                testlabels_true = True
-            else:
-                testlabels = testinstances
-                testlabels_true = False
+            # if 'labels_test' in input_feeds.keys():
+            #     testlabels = input_feeds['labels_test']
+            #     testlabels_true = True
+            # else:
+            #     testlabels = testinstances
+            #     testlabels_true = False
                 
             if 'docs' in input_feeds.keys():
                 docs = input_feeds['docs']
@@ -841,6 +835,7 @@ class Quoll(WorkflowComponent):
                 weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
                 ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
                 classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                random_clf = self.random_clf,
                 nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
                 svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
                 lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
@@ -852,8 +847,8 @@ class Quoll(WorkflowComponent):
                 knn_metric=self.knn_metric, knn_p=self.knn_p,
                 linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X                            
             )
-            reporter.in_train = traininstances
-            reporter.in_test = testinstances
+            reporter.in_train = train
+            reporter.in_test = test
             reporter.in_trainlabels = trainlabels
             reporter.in_testlabels = testlabels
             reporter.in_testdocs = docs
@@ -918,6 +913,6 @@ class Quoll(WorkflowComponent):
         #     reporter.in_testdocuments = docs
 
         if not 'test' in [x.split('_')[-1] for x in input_feeds.keys()]:
-            return reporter, foldtrainer
+            return foldtrainer
         else:
             return reporter
