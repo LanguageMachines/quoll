@@ -7,7 +7,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
 from quoll.classification_pipeline.modules.vectorize import TransformCsv, FeaturizeTask
 
-from quoll.classification_pipeline.functions import reporter, nfold_cv_functions, linewriter, docreader
+from quoll.classification_pipeline.functions import reporter, quoll_helpers, linewriter, docreader
 
 #################################################################
 ### Tasks #######################################################
@@ -36,7 +36,7 @@ class MakeBins(Task):
             num_instances = len(labels)
         else:
             num_instances = self.testend
-        fold_indices = nfold_cv_functions.return_fold_indices(num_instances,self.n,self.steps,self.teststart)        
+        fold_indices = quoll_helpers.return_fold_indices(num_instances,self.n,self.steps,self.teststart)        
         
         # write indices of bins to file
         lw = linewriter.Linewriter(fold_indices)
