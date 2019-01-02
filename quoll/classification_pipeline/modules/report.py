@@ -282,7 +282,7 @@ class ClassifyTask(Task):
 
     in_train = InputSlot()
     in_test = InputSlot()
-    in_train = InputSlot()
+    in_trainlabels = InputSlot()
 
     ga = BoolParameter()
     num_iterations = IntParameter()
@@ -383,23 +383,145 @@ class ClassifyTask(Task):
             return True
         else:
             yield Classify(train=self.in_train().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,
-                classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-                random_clf=self.random_clf,
-                nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p,
-                           linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X,
-                weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
-            )
+                    classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
+                    random_clf=self.random_clf,
+                    nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                    xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                    xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                    xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                    xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                    knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                    knn_metric=self.knn_metric, knn_p=self.knn_p,
+                    linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X,
+                    weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
+                )
 
+class TrainTask(Task):
+
+    in_train = InputSlot()
+    in_trainlabels = InputSlot()
+
+    ga = BoolParameter()
+    num_iterations = IntParameter()
+    population_size = IntParameter()
+    elite = Parameter()
+    crossover_probability = Parameter()
+    mutation_rate = Parameter()
+    tournament_size = IntParameter()
+    n_crossovers = IntParameter()
+    stop_condition = IntParameter()
+    weight_feature_size = Parameter()
+    instance_steps = IntParameter()
+    sampling = IntParameter()
+    samplesize = Parameter()
+
+    classifier = Parameter()
+    ordinal = IntParameter()
+    jobs = IntParameter()
+    iterations = IntParameter()
+    scoring = Parameter()
+    linear_raw = IntParameter()
+    scale = BoolParameter()
+    min_scale = Parameter()
+    max_scale = Parameter()
+
+    random_clf = Parameter()
+    
+    nb_alpha = Parameter()
+    nb_fit_prior = BoolParameter()
+    
+    svm_c = Parameter()
+    svm_kernel = Parameter()
+    svm_gamma = Parameter()
+    svm_degree = Parameter()
+    svm_class_weight = Parameter()
+
+    lr_c = Parameter()
+    lr_solver = Parameter()
+    lr_dual = IntParameter()
+    lr_penalty = Parameter()
+    lr_multiclass = Parameter()
+    lr_maxiter = Parameter()
+
+    linreg_fit_intercept = Parameter()
+    linreg_normalize = Parameter()
+    linreg_copy_X = Parameter()
+
+    xg_booster = Parameter() 
+    xg_silent = Parameter()
+    xg_learning_rate = Parameter() 
+    xg_min_child_weight = Parameter() 
+    xg_max_depth = Parameter() 
+    xg_gamma = Parameter() 
+    xg_max_delta_step = Parameter()
+    xg_subsample = Parameter() 
+    xg_colsample_bytree = Parameter() 
+    xg_reg_lambda = Parameter()
+    xg_reg_alpha = Parameter() 
+    xg_scale_pos_weight = Parameter()
+    xg_objective = Parameter() 
+    xg_seed = IntParameter()
+    xg_n_estimators = Parameter() 
+     
+    knn_n_neighbors = Parameter()
+    knn_weights = Parameter()
+    knn_algorithm = Parameter()
+    knn_leaf_size = Parameter()
+    knn_metric = Parameter()
+    knn_p = IntParameter()
+
+    # vectorizer parameters
+    weight = Parameter() # options: frequency, binary, tfidf
+    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
+    balance = BoolParameter()
+    delimiter = Parameter()
+    select = BoolParameter()
+    selector = Parameter()
+    select_threshold = Parameter()
+
+    # featurizer parameters
+    ngrams = Parameter()
+    blackfeats = Parameter()
+    lowercase = BoolParameter()    
+    minimum_token_frequency = IntParameter()
+    featuretypes = Parameter()
+
+    # ucto / frog parameters
+    tokconfig = Parameter()
+    frogconfig = Parameter()
+    strip_punctuation = BoolParameter()
+    
+    def out_model(self):
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.model.pkl')
+    
+    def run(self):
+
+        if self.complete(): # necessary as it will not complete otherwise
+            return True
+        else:
+            yield Classify(train=self.in_train().path,trainlabels=self.in_trainlabels().path,
+                    classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
+                    ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
+                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
+                    random_clf=self.random_clf,
+                    nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
+                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
+                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
+                    xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
+                    xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
+                    xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
+                    xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
+                    knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
+                    knn_metric=self.knn_metric, knn_p=self.knn_p,
+                    linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X,
+                    weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
+                )
+
+            
 #################################################################
 ### Component ###################################################
 #################################################################

@@ -10,8 +10,8 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.modules.validate import MakeBins, Folds
 from quoll.classification_pipeline.modules.report import ReportFolds
-from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask, FitTransformScale, TransformScale
-from quoll.classification_pipeline.modules.vectorize import Vectorize, VectorizeCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
+from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask
+from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
 
 from quoll.classification_pipeline.functions.classifier import *
 

@@ -7,7 +7,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.validate import MakeBins
 from quoll.classification_pipeline.modules.report import Report, ReportFolds, ReportPerformance
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend
-from quoll.classification_pipeline.modules.vectorize import VectorizeCsv, FeaturizeTask
+from quoll.classification_pipeline.modules.vectorize import TransformCsv, FeaturizeTask
 
 from quoll.classification_pipeline.functions import docreader
 
