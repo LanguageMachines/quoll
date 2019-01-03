@@ -4,7 +4,7 @@ import numpy
 from scipy import sparse
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.functions import reporter, nfold_cv_functions
+from quoll.classification_pipeline.functions import reporter, quoll_helpers
 
 class GA:
 
@@ -185,7 +185,7 @@ class GA:
 
     def make_folds(self,n=5,steps=1):
         self.folds = []
-        fold_indices = nfold_cv_functions.return_fold_indices(self.vectors.shape[0], num_folds=n, steps=steps)
+        fold_indices = quoll_helpers.return_fold_indices(self.vectors.shape[0], num_folds=n, steps=steps)
         for i,fi in enumerate(fold_indices):
             fold = {}
             fold['train'] = sparse.vstack([self.vectors[fi,:] for j,indices in enumerate(fold_indices) if j != i])

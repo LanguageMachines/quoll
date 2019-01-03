@@ -294,16 +294,16 @@ class ClassifyTask(Task):
     n_crossovers = IntParameter()
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter()
+    steps = IntParameter()
+    sampling = BoolParameter()
     samplesize = Parameter()
 
     classifier = Parameter()
-    ordinal = IntParameter()
+    ordinal = BoolParameter()
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
-    linear_raw = IntParameter()
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
@@ -321,7 +321,7 @@ class ClassifyTask(Task):
 
     lr_c = Parameter()
     lr_solver = Parameter()
-    lr_dual = IntParameter()
+    lr_dual = BoolParameter()
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
@@ -415,16 +415,16 @@ class TrainTask(Task):
     n_crossovers = IntParameter()
     stop_condition = IntParameter()
     weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter()
+    steps = IntParameter()
+    sampling = BoolParameter()
     samplesize = Parameter()
 
     classifier = Parameter()
-    ordinal = IntParameter()
+    ordinal = BoolParameter()
     jobs = IntParameter()
     iterations = IntParameter()
     scoring = Parameter()
-    linear_raw = IntParameter()
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     min_scale = Parameter()
     max_scale = Parameter()
@@ -442,7 +442,7 @@ class TrainTask(Task):
 
     lr_c = Parameter()
     lr_solver = Parameter()
-    lr_dual = IntParameter()
+    lr_dual = BoolParameter()
     lr_penalty = Parameter()
     lr_multiclass = Parameter()
     lr_maxiter = Parameter()
@@ -546,7 +546,7 @@ class Report(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    instance_steps = IntParameter(default=1)
+    steps = IntParameter(default=1)
     sampling = IntParameter(default=0) # repeated resampling of train and test to prevent overfitting
     samplesize = Parameter(default='0.80') # size of trainsample
 
@@ -723,64 +723,8 @@ class Report(WorkflowComponent):
             classifier.in_test = testinstances
             classifier.in_trainlabels = trainlabels
 
-            predictions = classifier.out_predictions 
-                
-
-
-            #     vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,delimiter=self.delimiter,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-            #     vectorizer.in_train = traininstances
-            #     vectorizer.in_trainlabels = trainlabels
-            #     vectorizer.in_test = testinstances
-
-            #     trainvectors = vectorizer.out_train
-            #     trainlabels = vectorizer.out_trainlabels
-            #     testvectors = vectorizer.out_test  
-
-
-            # traincsv=True if ('vectorized_train_csv' in input_feeds.keys()) else False
-            # trainvec=True if ('vectorized_train' in input_feeds.keys()) else False
-            # if 'vectorized_test' in input_feeds.keys():
-            #     testinstances = input_feeds['vectorized_test']
-
-            # elif 'vectorized_test_csv' in input_feeds.keys():
-            #     testinstances = input_feeds['vectorized_test_csv']
-
-            # elif 'featurized_test' in input_feeds.keys():
-            #     testinstances = input_feeds['featurized_test']
-
-            # else:
-            #     if 'pre_featurized_test' in input_feeds.keys():
-            #         pftest = input_feeds['pre_featurized_test']
-            #     elif 'docs_test' in input_feeds.keys():
-            #         pftest = input_feeds['docs_test']
-            #         docs_test = input_feeds['docs_test']
-                    
-            #     testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-            #     testfeaturizer.in_pre_featurized = pftest
-
-            #     testinstances = testfeaturizer.out_featurized
-
-            # testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
-            # testvec=True if ('vectorized_test' in input_feeds.keys()) else False
-            # if (self.select in testinstances().path.split('.')) or (self.balance and 'balanced' in testinstances().path.split('.')) or (testcsv and not self.select and not self.balance):
-            #     trainvectors = traininstances
-            #     testvectors = testinstances
-            # elif 'classifier_model' in input_feeds.keys(): # not trainfile to base vectorization on
-            #     if not 'vectorized_test' in input_feeds.keys():
-            #         print('Testinstances can not be vectorized when the classifier model is given as input (traininstances required), exiting program...')
-            #         quit()
-            #     else:
-            #         testvectors = testinstances
-            # else:
-            #     vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=traincsv,testcsv=testcsv,trainvec=trainvec,testvec=testvec)
-            #     vectorizer.in_train = traininstances
-            #     vectorizer.in_trainlabels = trainlabels
-            #     vectorizer.in_test = testinstances
-
-            #     trainvectors = vectorizer.out_train
-            #     trainlabels = vectorizer.out_trainlabels
-            #     testvectors = vectorizer.out_test
-
+            predictions = classifier.out_predictions
+            
         ######################
         ### Reporting phase ##
         ######################

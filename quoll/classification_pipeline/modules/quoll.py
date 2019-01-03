@@ -457,25 +457,10 @@ class Quoll(WorkflowComponent):
             )).T.reshape(-1,9)]
 
     def setup(self, workflow, input_feeds):
-
-        ######################
-        ### Prep phase #######
-        ######################
-
-        format_ids = ['train','train_append','test','test_append','start_component','inputslot','trainlabels','trainlabels_layer2','instance_name','testlabels','testlabels_layer2','docs','startcomponent']
-        parameters = list(set(workflow.get_param_names())-set(format_ids))
         
         ######################
         ### Training phase ###
         ######################
-        print(dir(workflow))
-        print(workflow.param_args)
-        print(workflow.param_kwargs)
-        x = workflow.get_param_values(workflow.get_param_names(),workflow.param_args(),workflow.param_kwargs())
-        print(dir(x))
-
-        for p in parameters:
-            print('param_value',p,workflow.get_param_value(p))
 
         trainlabels = input_feeds['labels_train']
 
@@ -735,10 +720,8 @@ class Quoll(WorkflowComponent):
                     
             if 'labels_test' in input_feeds.keys():
                 testlabels = input_feeds['labels_test']
-                testlabels_true = True
             else:
                 testlabels = test
-                testlabels_true = False
                 
             if 'docs' in input_feeds.keys():
                 docs = input_feeds['docs']
@@ -747,10 +730,9 @@ class Quoll(WorkflowComponent):
                     print('No docs in input parameters, exiting programme...')
                     quit()
 
-            task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga','validate'],workflow.param_kwargs)
+            task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga'],workflow.param_kwargs)
 
             reporter = workflow.new_task('report', ReportTask, autopass=True, 
-                testlabels_true=testlabels_true,
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
             )
             reporter.in_train = train
