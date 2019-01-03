@@ -51,6 +51,7 @@ class Fold(Task):
     in_bins = InputSlot()
     
     i = IntParameter()
+    linear_raw = BoolParameter()
 
     validate_parameters = Parameter()
     ga_parameters = Parameter()
@@ -94,11 +95,6 @@ class Fold(Task):
         
         if self.complete(): # needed as it will not complete otherwise
             return True
-
-        kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
-
-        if kwargs['classifier'] == 'xgboost':
-            self.scale = False
         
         # make fold directory
         self.setup_output_dir(self.out_fold().path)
@@ -143,7 +139,7 @@ class Fold(Task):
         test_documents = documents[bins[self.i]]
 
         # set nominal labels and write to files
-        if kwargs['linear_raw']:
+        if self.linear_raw:
             # open labels
             with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
                 nominal_labels = numpy.array(infile.read().strip().split('\n'))        
@@ -168,6 +164,7 @@ class Fold(Task):
 
         print('Running experiment for fold',self.i)
 
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
         yield Report(train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path,**kwargs)
 
 
@@ -178,6 +175,8 @@ class Folds(Task):
     in_labels = InputSlot()
     in_docs = InputSlot()
 
+    n = IntParameter()
+    
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -228,9 +227,10 @@ class RunFold(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
+        kwargs = quoll_helpers.decode_task_input(['classify'],[self.classify_parameters])
         run_fold = workflow.new_task(
             'run_fold', Fold, autopass=False,
-            i=self.i,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+            i=self.i,linear_raw=kwargs['linear_raw'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
         )
         run_fold.in_directory = input_feeds['directory']
         run_fold.in_instances = input_feeds['instances']
@@ -370,7 +370,7 @@ class Validate(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
-        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga'],workflow.param_kwargs)
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga','validate'],workflow.param_kwargs)
 
         ########################
         ### Prepare data #######
@@ -401,7 +401,7 @@ class Validate(WorkflowComponent):
         bin_maker.in_labels = input_feeds['labels']
 
         foldrunner = workflow.new_task('foldrunner', Folds, autopass=False,
-            vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
+            n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
         )
         foldrunner.in_bins = bin_maker.out_bins
         foldrunner.in_instances = instances

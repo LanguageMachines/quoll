@@ -25,6 +25,8 @@ class ReportTask(Task):
     in_trainlabels = InputSlot()
     in_testlabels = InputSlot()
     in_testdocs = InputSlot()
+
+    testlabels_true = BoolParameter()
     
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -41,6 +43,7 @@ class ReportTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        print('REPORT KWARGS',kwargs)
         yield Report(train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,**kwargs)
 
 class ValidateAppendTask(Task):
@@ -112,6 +115,11 @@ class Quoll(WorkflowComponent):
     testlabels_layer2 = Parameter(default = 'xxx.xxx')
     docs = Parameter(default = 'xxx.xxx') # all docs for nfold cv, test docs for train and test
 
+    # append parameters
+    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
+    bow_classifier = Parameter(default='naive_bayes')
+    bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
+    bow_prediction_probs = BoolParameter() # choose to add prediction probabilities                
     # nfold-cv parameters
     n = IntParameter(default=10)
     steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
@@ -129,16 +137,16 @@ class Quoll(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    sampling = IntParameter(default=0)
+    sampling = BoolParameter()
     samplesize = Parameter(default='0.8')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter(default=0)
+    ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = IntParameter(default=0)
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
@@ -156,7 +164,7 @@ class Quoll(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter(default=0)
+    lr_dual = BoolParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -355,19 +363,8 @@ class Quoll(WorkflowComponent):
 
                 #     trainvectors = trainvectorizer.out_train
                 #     trainlabels = trainvectorizer.out_trainlabels
-            foldtrainer = workflow.new_task('train',TrainTask,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,
-                ga=self.ga, instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite, crossover_probability=self.crossover_probability,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-                random_clf=self.random_clf,
-                nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight,
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample,
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p
+            foldtrainer = workflow.new_task('train',TrainTask,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
             )
             if trainvectors_combined:
                 foldtrainer.in_train = trainvectors_combined
@@ -479,8 +476,10 @@ class Quoll(WorkflowComponent):
                     
             if 'labels_test' in input_feeds.keys():
                 testlabels = input_feeds['labels_test']
+                testlabels_true = True
             else:
                 testlabels = test
+                testlabels_true = False
                 
             if 'docs' in input_feeds.keys():
                 docs = input_feeds['docs']
@@ -490,7 +489,7 @@ class Quoll(WorkflowComponent):
                     quit()
 
             reporter = workflow.new_task('report', ReportTask, autopass=True, 
-                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
+                testlabels_true=testlabels_true,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
             )
             reporter.in_train = train
             reporter.in_test = test

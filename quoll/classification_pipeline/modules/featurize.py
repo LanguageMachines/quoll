@@ -246,13 +246,7 @@ class Featurize(StandardWorkflowComponent):
     strip_punctuation = BoolParameter(default=True)
 
     def accepts(self):
-        return 
-            InputFormat(self, format_id='tokenized', extension='tok.txt'), 
-            InputFormat(self, format_id='frogged', extension='frog.json'), 
-            InputFormat(self, format_id='txt', extension='txt'), 
-            InputFormat(self, format_id='toktxtdir', extension='.tok.txtdir', directory=True), 
-            InputFormat(self, format_id='frogjsondir', extension='.frog.jsondir', directory=True), 
-            InputFormat(self, format_id='txtdir', extension='txtdir',directory=True)
+        return InputFormat(self,format_id='tokenized',extension='tok.txt'),InputFormat(self,format_id='frogged',extension='frog.json'),InputFormat(self,format_id='txt',extension='txt'),InputFormat(self,format_id='toktxtdir',extension='.tok.txtdir',directory=True),InputFormat(self,format_id='frogjsondir',extension='.frog.jsondir',directory=True),InputFormat(self,format_id='txtdir',extension='txtdir',directory=True)
                     
     def setup(self, workflow, input_feeds):
 

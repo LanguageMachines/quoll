@@ -7,7 +7,7 @@ import pickle
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.functions import vectorizer, featselector, docreader
+from quoll.classification_pipeline.functions import vectorizer, featselector, quoll_helpers, docreader
 from quoll.classification_pipeline.modules.featurize import Featurize
 
 #################################################################

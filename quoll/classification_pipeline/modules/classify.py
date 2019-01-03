@@ -12,7 +12,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask, Combine
 
 from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.functions import ga, vectorizer
+from quoll.classification_pipeline.functions import ga, quoll_helpers, vectorizer
 
 #################################################################
 ### Tasks #######################################################
@@ -24,7 +24,7 @@ class Train(Task):
     in_trainlabels = InputSlot()
 
     ga_parameters = Parameter()
-    classifier_parameters = Parameter()
+    classify_parameters = Parameter()
    
     def in_featureselection(self):
         return self.outputfrominput(inputformat='train', stripextension='.vectors.npz', addextension='.featureselection.txt')   
@@ -54,7 +54,7 @@ class Train(Task):
                 kwargs['xg_colsample_bytree'],kwargs['xg_reg_lambda'],kwargs['xg_reg_alpha'],kwargs['xg_scale_pos_weight'],kwargs['xg_objective'],kwargs['xg_seed'],kwargs['xg_n_estimators'],kwargs['jobs'],kwargs['iterations'],kwargs['scoring']]],
             'knn':[KNNClassifier(),[kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p']]] 
         }
-        clf = classifierdict[clf_params[0]][0]
+        clf = classifierdict[kwargs['classifier']][0]
 
         # load vectorized instances
         loader = numpy.load(self.in_train().path)
@@ -166,8 +166,8 @@ class Predict(Task):
     in_trainlabels = InputSlot()
 
     classifier = Parameter()
-    ordinal = IntParameter()
-    linear_raw = IntParameter()
+    ordinal = BoolParameter()
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     ga = BoolParameter()
         
@@ -404,7 +404,7 @@ class VectorizeTrain(Task):
         
         if self.complete(): # necessary as it will not complete otherwise
             return True
-        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs = quoll_helpers.decode_task_input(['vectorize','featurize','preprocess'],[self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
         yield Vectorize(train=self.in_train().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
 class VectorizeTrainTest(Task):
@@ -431,7 +431,7 @@ class VectorizeTrainTest(Task):
         if self.complete(): # necessary as it will not complete otherwise
             return True
         
-        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs = quoll_helpers.decode_task_input(['vectorize','featurize','preprocess'],[self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
         if '.'.join(self.in_train().path.split('.')[-2:]) == 'model.pkl':
             train = '.'.join(self.in_train().path.split('.')[:-2]) + '.vectors.npz'
         else:
@@ -508,7 +508,7 @@ class Classify(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    instance_steps = IntParameter(default=1)
+    steps = IntParameter(default=1)
     sampling = BoolParameter() # repeated resampling to prevent overfitting
     samplesize = Parameter(default='0.8') # size of trainsample
     
@@ -676,7 +676,7 @@ class Classify(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        trainer = workflow.new_task('train',Train,autopass=True,classifier_parameters=task_args['classify'],ga_parameters=task_args['ga'])
+        trainer = workflow.new_task('train',Train,autopass=True,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
         trainer.in_train = trainvectors
         trainer.in_trainlabels = trainlabels            
 

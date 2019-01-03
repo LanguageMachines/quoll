@@ -8,7 +8,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.modules.classify import Classify 
 
-from quoll.classification_pipeline.functions import reporter, linewriter, docreader
+from quoll.classification_pipeline.functions import reporter, quoll_helpers, linewriter, docreader
 
 #################################################################
 ### Tasks #######################################################
@@ -20,7 +20,7 @@ class ReportPerformance(Task):
     in_testlabels = InputSlot()
     in_testdocuments = InputSlot()
 
-    ordinal = IntParameter()
+    ordinal = BoolParameter()
     teststart = IntParameter()
     
     def in_full_predictions(self):
@@ -526,8 +526,6 @@ class Report(WorkflowComponent):
 
         if 'labels_test' in input_feeds.keys():
 
-            if self.linear_raw:
-                self.ordinal=0
             reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal,teststart=0)
             reporter.in_predictions = predictions
             reporter.in_testlabels = input_feeds['labels_test']

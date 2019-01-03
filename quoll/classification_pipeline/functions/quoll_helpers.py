@@ -69,7 +69,6 @@ def prepare_task_input(tasks, kwargs):
         'validate'  : prepare_validate_input
     }
     task_args = dict(zip(tasks,[modules[task](kwargs) for task in tasks]))
-    print(task_args)
     return task_args
 
 ##################################
@@ -92,7 +91,7 @@ def decode_classify_input(paramstring):
         'xg_seed','xg_n_estimators','knn_n_neighbors','knn_weights','knn_algorithm','knn_leaf_size','knn_metric','knn_p'],paramstring.split('--')))
 
 def decode_ga_input(paramstring):
-    return dict(zip(['num_iterations','population_size','elite','crossover_probability','mutation_rate','tournament_size','n_crossovers','stop_condition','weight_feature_size','steps','sampling',
+    return dict(zip(['ga','num_iterations','population_size','elite','crossover_probability','mutation_rate','tournament_size','n_crossovers','stop_condition','weight_feature_size','steps','sampling',
         'samplesize'],paramstring.split('--')))
 
 def decode_append_input(paramstring):
@@ -134,6 +133,6 @@ def set_parameter_types(parameterdict):
                 parameterdict[k] = False
             elif parameterdict[k] == 'True':
                 parameterdict[k] = True
-        elif type_dict[k] == int:
+        elif type_dict[k] == 'int':
             parameterdict[k] = int(parameterdict[k])
     return parameterdict
