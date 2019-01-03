@@ -43,7 +43,9 @@ def prepare_classify_input(kwargs):
         kwargs['linreg_normalize'],kwargs['linreg_fit_intercept'],kwargs['linreg_copy_X'],
         kwargs['xg_booster'],kwargs['xg_silent'],kwargs['xg_learning_rate'],kwargs['xg_min_child_weight'],kwargs['xg_max_depth'],kwargs['xg_gamma'],kwargs['xg_max_delta_step'],kwargs['xg_subsample'], 
         kwargs['xg_colsample_bytree'],kwargs['xg_reg_lambda'],kwargs['xg_reg_alpha'],kwargs['xg_scale_pos_weight'],kwargs['xg_objective'],kwargs['xg_seed'],kwargs['xg_n_estimators'], 
-        kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p']
+        kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p'],
+        kwargs['perceptron_alpha'],
+        kwargs['tree_class_weight']
     ]])
 
 def prepare_ga_input(kwargs):
@@ -88,7 +90,7 @@ def decode_classify_input(paramstring):
     return dict(zip(['classifier','ordinal','jobs','iterations','scoring','linear_raw','scale','min_scale','max_scale','random_clf','nb_alpha','nb_fit_prior','svm_c','svm_kernel','svm_gamma','svm_degree','svm_class_weight',
         'lr_c','lr_solver','lr_dual','lr_penalty','lr_multiclass','lr_maxiter','linreg_normalize','linreg_fit_intercept','linreg_copy_X','xg_booster','xg_silent','xg_learning_rate',
         'xg_min_child_weight','xg_max_depth','xg_gamma','xg_max_delta_step','xg_subsample','xg_colsample_bytree','xg_reg_lambda','xg_reg_alpha','xg_scale_pos_weight','xg_objective',
-        'xg_seed','xg_n_estimators','knn_n_neighbors','knn_weights','knn_algorithm','knn_leaf_size','knn_metric','knn_p'],paramstring.split('--')))
+        'xg_seed','xg_n_estimators','knn_n_neighbors','knn_weights','knn_algorithm','knn_leaf_size','knn_metric','knn_p','perceptron_alpha','tree_class_weight'],paramstring.split('--')))
 
 def decode_ga_input(paramstring):
     return dict(zip(['ga','num_iterations','population_size','elite','crossover_probability','mutation_rate','tournament_size','n_crossovers','stop_condition','weight_feature_size','steps','sampling',
@@ -121,7 +123,7 @@ def set_parameter_types(parameterdict):
         'blackfeats':'bool','lowercase':'bool','minimum_token_frequency':'int',
         'prune':'int','balance':'bool','select':'bool','selector':'bool','select_threshold':'bool',
         'ordinal':'bool','jobs':'int','iterations':'int','linear_raw':'bool','scale':'bool',
-        'nb_fit_prior':'bool','lr_dual':'bool','xg_seed':'int','knn_p':'int',
+        'nb_fit_prior':'bool','lr_dual':'bool','xg_seed':'int','knn_p':'int','tree_class_weight':'bool',
         'ga':'bool','num_iterations':'bool','population_size':'int','tournament_size':'int',
         'n_crossovers':'int','stop_condition':'int','steps':'int','sampling':'bool',
         'bow_as_feature':'bool','bow_prediction_probs':'bool',

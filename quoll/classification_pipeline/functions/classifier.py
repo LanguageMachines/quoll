@@ -661,7 +661,7 @@ class LinearRegressionClassifier(AbstractSKLearnClassifier):
     def return_classifier(self):
         return self.model
 
-    def return_model_insights(self,vocab):
+    def return_model_insights(self,vocab=False):
         model_insights = []
         return model_insights
         
@@ -677,14 +677,19 @@ class TreeClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
     
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, class_weight=None, v=2):
+    def train_classifier(self, trainvectors, labels, class_weight=False, v=2):
+        if class_weight:
+            if len(class_weight.split(':')) > 1: # dictionary
+                class_weight = dict([label_weight.split(':') for label_weight in class_weight.split()])
+        else:
+            class_weight = None
         self.model = tree.DecisionTreeClassifier(class_weight=class_weight)
         self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
 
-    def return_model_insights(self,vocab):
+    def return_model_insights(self,vocab=False):
         #model_insights = [['feature_importances_gini.txt','\n'.join([str(x) for x in self.model.feature_importances_.T.tolist()])],['tree.txt',self.model.tree_.__str__()]]
         model_insights = []
         return model_insights
@@ -693,7 +698,7 @@ class TreeClassifier(AbstractSKLearnClassifier):
         classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
         return classifications
 
-class PerceptronLClassifier(AbstractSKLearnClassifier):
+class PerceptronClassifier(AbstractSKLearnClassifier):
 
     def __init__(self):
         AbstractSKLearnClassifier.__init__(self)
@@ -705,30 +710,21 @@ class PerceptronLClassifier(AbstractSKLearnClassifier):
     def return_label_encoding(self, labels):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
-    def train_classifier(self, trainvectors, labels, no_label_encoding=False, alpha='', iterations=50, jobs=10, v=2):
+    def train_classifier(self, trainvectors, labels, alpha='1.0', iterations=10, jobs=1, v=2):
         iterations = int(iterations)
         jobs = int(jobs)
-        if alpha == '':
+        if alpha == 'search':
             paramsearch = GridSearchCV(estimator=Perceptron(), param_grid=dict(alpha=numpy.linspace(0,2,20)[1:],n_iter=[iterations]), n_jobs=jobs)
             paramsearch.fit(trainvectors,labels)
-            selected_alpha = paramsearch.best_estimator_.alpha
-        elif alpha == 'default':
-            selected_alpha = 1.0
+            alpha = paramsearch.best_estimator_.alpha
         else:
-            selected_alpha = alpha
-        # train a perceptron with the settings that led to the best performance
-        self.model = Perceptron(alpha=selected_alpha,n_iter=iterations,n_jobs=jobs)
+            alpha = float(alpha)
+        self.model = Perceptron(alpha=alpha,n_iter=iterations,n_jobs=jobs)
         self.model.fit(trainvectors, labels)
 
     def return_classifier(self):
         return self.model
-
-    def apply_classifier(self, testvectors):
-        classifications = AbstractSKLearnClassifier.apply_model(self, self.model, testvectors)
-        return classifications
-
-    def return_model_insights(self,vocab):
-#        model_insights = [['coef.txt',self.return_coef(vocab)]]
+    
+    def return_model_insights(self,vocab=False):
         model_insights = []
         return model_insights
-    

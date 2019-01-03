@@ -52,7 +52,9 @@ class Train(Task):
             'linreg':[LinearRegressionClassifier(),[kwargs['linreg_normalize'],kwargs['linreg_fit_intercept'],kwargs['linreg_copy_X'],kwargs['jobs']]],
             'xgboost':[XGBoostClassifier(),[kwargs['xg_booster'],kwargs['xg_silent'],kwargs['xg_learning_rate'],kwargs['xg_min_child_weight'],kwargs['xg_max_depth'],kwargs['xg_gamma'],kwargs['xg_max_delta_step'],kwargs['xg_subsample'],
                 kwargs['xg_colsample_bytree'],kwargs['xg_reg_lambda'],kwargs['xg_reg_alpha'],kwargs['xg_scale_pos_weight'],kwargs['xg_objective'],kwargs['xg_seed'],kwargs['xg_n_estimators'],kwargs['jobs'],kwargs['iterations'],kwargs['scoring']]],
-            'knn':[KNNClassifier(),[kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p']]] 
+            'knn':[KNNClassifier(),[kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p']]],
+            'perceptron':[PerceptronClassifier(),[kwargs['perceptron_alpha'],kwargs['iterations'],kwargs['jobs']]]
+            'tree':[TreeClassifier(),[kwargs['tree_class_weight']]]
         }
         clf = classifierdict[kwargs['classifier']][0]
 
@@ -567,6 +569,10 @@ class Classify(WorkflowComponent):
     knn_leaf_size = Parameter(default='30')
     knn_metric = Parameter(default='euclidean')
     knn_p = IntParameter(default=2)
+
+    perceptron_alpha = Parameter(default='1.0')
+
+    tree_class_weight = Parameter(default=False)
 
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf

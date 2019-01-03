@@ -195,7 +195,11 @@ class Quoll(WorkflowComponent):
     knn_leaf_size = Parameter(default='30')
     knn_metric = Parameter(default='euclidean')
     knn_p = IntParameter(default=2)
-                                                                                    
+
+    perceptron_alpha = Parameter(default='1.0')
+
+    tree_class_weight = Parameter(default=False)
+                                                                          
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
