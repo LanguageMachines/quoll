@@ -50,87 +50,12 @@ class Fold(Task):
     in_docs = InputSlot()
     in_bins = InputSlot()
     
-    # fold parameters
     i = IntParameter()
 
-    # feature selection parameters
-    ga = BoolParameter()
-    num_iterations = IntParameter()
-    population_size = IntParameter()
-    elite = Parameter()
-    crossover_probability = Parameter()
-    mutation_rate = Parameter()
-    tournament_size = IntParameter()
-    n_crossovers = IntParameter()
-    stop_condition = IntParameter()
-    weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter()
-    samplesize = Parameter()
-
-    # classifier parameters
-    classifier = Parameter()
-    ordinal = IntParameter()
-    jobs = IntParameter()
-    iterations = IntParameter()
-    scoring = Parameter()
-    linear_raw = IntParameter()
-    scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
-
-    random_clf = Parameter()
-
-    nb_alpha = Parameter()
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter()
-    svm_kernel = Parameter()
-    svm_gamma = Parameter()
-    svm_degree = Parameter()
-    svm_class_weight = Parameter()
-
-    lr_c = Parameter()
-    lr_solver = Parameter()
-    lr_dual = IntParameter()
-    lr_penalty = Parameter()
-    lr_multiclass = Parameter()
-    lr_maxiter = Parameter()
-
-    linreg_fit_intercept = Parameter()
-    linreg_normalize = Parameter()
-    linreg_copy_X = Parameter()
-
-    xg_booster = Parameter() 
-    xg_silent = Parameter()
-    xg_learning_rate = Parameter() 
-    xg_min_child_weight = Parameter() 
-    xg_max_depth = Parameter() 
-    xg_gamma = Parameter() 
-    xg_max_delta_step = Parameter()
-    xg_subsample = Parameter() 
-    xg_colsample_bytree = Parameter() 
-    xg_reg_lambda = Parameter()
-    xg_reg_alpha = Parameter() 
-    xg_scale_pos_weight = Parameter()
-    xg_objective = Parameter() 
-    xg_seed = IntParameter()
-    xg_n_estimators = Parameter() 
-    
-    knn_n_neighbors = Parameter()
-    knn_weights = Parameter()
-    knn_algorithm = Parameter()
-    knn_leaf_size = Parameter()
-    knn_metric = Parameter()
-    knn_p = IntParameter()
-
-    # vectorizer parameters
-    weight = Parameter() # options: frequency, binary, tfidf
-    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
@@ -170,7 +95,9 @@ class Fold(Task):
         if self.complete(): # needed as it will not complete otherwise
             return True
 
-        if self.classifier == 'xgboost':
+        kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
+
+        if kwargs['classifier'] == 'xgboost':
             self.scale = False
         
         # make fold directory
@@ -216,7 +143,7 @@ class Fold(Task):
         test_documents = documents[bins[self.i]]
 
         # set nominal labels and write to files
-        if self.linear_raw:
+        if kwargs['linear_raw']:
             # open labels
             with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
                 nominal_labels = numpy.array(infile.read().strip().split('\n'))        
@@ -241,24 +168,8 @@ class Fold(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield Report(
-            train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path, 
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
-            mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,sampling=self.sampling,samplesize=self.samplesize,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-            random_clf=self.random_clf,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p,
-            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
-        )
+        yield Report(train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path,**kwargs)
+
 
 class Folds(Task):
 
@@ -267,87 +178,10 @@ class Folds(Task):
     in_labels = InputSlot()
     in_docs = InputSlot()
 
-    # fold parameters
-    n = IntParameter()
-    
-    # feature selection parameters
-    ga = BoolParameter()
-    num_iterations = IntParameter()
-    population_size = IntParameter()
-    elite = Parameter()
-    crossover_probability = Parameter()
-    mutation_rate = Parameter()
-    tournament_size = IntParameter()
-    n_crossovers = IntParameter()
-    stop_condition = IntParameter()
-    weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter()
-    samplesize = Parameter()
-
-    # classifier parameters
-    classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter()
-    jobs = IntParameter(default=1)
-    iterations = IntParameter(default=10)
-    scoring = Parameter(default='roc_auc')
-    linear_raw = IntParameter()
-    scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
-
-    random_clf = Parameter()
-    
-    nb_alpha = Parameter(default=1.0)
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter(default=1.0)
-    svm_kernel = Parameter(default='linear')
-    svm_gamma = Parameter(default='0.1')
-    svm_degree = Parameter(default='1')
-    svm_class_weight = Parameter(default='balanced')
-
-    lr_c = Parameter(default='1.0')
-    lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter()
-    lr_penalty = Parameter(default='l2')
-    lr_multiclass = Parameter(default='ovr')
-    lr_maxiter = Parameter(default='1000')
-
-    linreg_fit_intercept = Parameter(default='1')
-    linreg_normalize = Parameter(default='0')
-    linreg_copy_X = Parameter(default='1')
-
-    xg_booster = Parameter() 
-    xg_silent = Parameter()
-    xg_learning_rate = Parameter() 
-    xg_min_child_weight = Parameter() 
-    xg_max_depth = Parameter() 
-    xg_gamma = Parameter() 
-    xg_max_delta_step = Parameter()
-    xg_subsample = Parameter() 
-    xg_colsample_bytree = Parameter() 
-    xg_reg_lambda = Parameter()
-    xg_reg_alpha = Parameter() 
-    xg_scale_pos_weight = Parameter()
-    xg_objective = Parameter() 
-    xg_seed = IntParameter()
-    xg_n_estimators = Parameter()
-
-    knn_n_neighbors = Parameter()
-    knn_weights = Parameter()
-    knn_algorithm = Parameter()
-    knn_leaf_size = Parameter()
-    knn_metric = Parameter()
-    knn_p = IntParameter()
-    
-    # vectorizer parameters
-    weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
-    prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
     
     def out_exp(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.nfoldcv')
@@ -356,27 +190,10 @@ class Folds(Task):
 
         # make experiment directory
         self.setup_output_dir(self.out_exp().path)
-
         # for each fold
         for fold in range(self.n):
-            yield RunFold(
-                directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
-                i=fold, 
-                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-                ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,sampling=self.sampling,samplesize=self.samplesize,
-                mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, 
-                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-                random_clf=self.random_clf,
-                nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p,
-                linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+            yield RunFold(directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, i=fold, 
+                validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )
 
 
@@ -393,87 +210,12 @@ class RunFold(WorkflowComponent):
     docs = Parameter()
     bins = Parameter()
 
-    # fold-parameters
     i = IntParameter()
 
-    # feature selection parameters
-    ga = BoolParameter()
-    num_iterations = IntParameter()
-    population_size = IntParameter()
-    elite = Parameter()
-    crossover_probability = Parameter()
-    mutation_rate = Parameter()
-    tournament_size = IntParameter()
-    n_crossovers = IntParameter()
-    stop_condition = IntParameter()
-    weight_feature_size = Parameter()
-    instance_steps = IntParameter()
-    sampling = IntParameter(default=0)
-    samplesize = Parameter()
-
-    # classifier parameters
-    classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter(default=0)
-    jobs = IntParameter(default=1)
-    iterations = IntParameter(default=10)
-    scoring = Parameter(default='roc_auc')
-    linear_raw = IntParameter(default=0)
-    scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
-
-    random_clf = Parameter()
-    
-    nb_alpha = Parameter(default='1.0')
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter(default='1.0')
-    svm_kernel = Parameter(default='linear')
-    svm_gamma = Parameter(default='0.1')
-    svm_degree = Parameter(default='1')
-    svm_class_weight = Parameter(default='balanced')
-
-    lr_c = Parameter(default='1.0')
-    lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter(default=0)
-    lr_penalty = Parameter(default='l2')
-    lr_multiclass = Parameter(default='ovr')
-    lr_maxiter = Parameter(default='1000')
-
-    linreg_fit_intercept = Parameter(default='1')
-    linreg_normalize = Parameter(default='0')
-    linreg_copy_X = Parameter(default='1')
-
-    xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
-    xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_gamma = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_delta_step = Parameter(default='0')
-    xg_subsample = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_colsample_bytree = Parameter(default='1.0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_reg_lambda = Parameter(default='1')
-    xg_reg_alpha = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_scale_pos_weight = Parameter('1')
-    xg_objective = Parameter(default='binary:logistic') # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
-    xg_seed = IntParameter(default=7)
-    xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-
-    knn_n_neighbors = Parameter(default='3')
-    knn_weights = Parameter(default='uniform')
-    knn_algorithm = Parameter(default='auto')
-    knn_leaf_size = Parameter(default='30')
-    knn_metric = Parameter(default='euclidean')
-    knn_p = IntParameter(default=2)
-
-    # vectorizer parameters
-    weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
-    prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
 
     def accepts(self):
         return [ ( 
@@ -482,35 +224,13 @@ class RunFold(WorkflowComponent):
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
-        ),
-        (
-            InputFormat(self,format_id='directory',extension='.nfoldcv',inputparameter='directory'), 
-            InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'), 
-            InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
-            InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
-            InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
         ) ]
  
     def setup(self, workflow, input_feeds):
 
         run_fold = workflow.new_task(
-            'run_fold', Fold, autopass=False, 
-            i=self.i, 
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-            ga=self.ga, instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability,
-            mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size, sampling=self.sampling,samplesize=self.samplesize,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,
-            random_clf=self.random_clf,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p,
-            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+            'run_fold', Fold, autopass=False,
+            i=self.i,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
         )
         run_fold.in_directory = input_feeds['directory']
         run_fold.in_instances = input_feeds['instances']
@@ -545,16 +265,16 @@ class Validate(WorkflowComponent):
     n_crossovers = IntParameter(default=1)
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
-    sampling = IntParameter(default=0)
+    sampling = BoolParameter()
     samplesize = Parameter(default='0.8')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter(default=0)
+    ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
-    linear_raw = IntParameter(default=0)
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
@@ -572,7 +292,7 @@ class Validate(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter(default=0)
+    lr_dual = BoolParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -629,7 +349,6 @@ class Validate(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='vectorized',extension='.vectors.npz',inputparameter='instances'),
                 InputFormat(self, format_id='featurized',extension='.features.npz',inputparameter='instances'),
                 InputFormat(self, format_id='featurized_csv',extension='.csv',inputparameter='instances'),
                 InputFormat(self, format_id='pre_featurized',extension='.tok.txt',inputparameter='instances'),
@@ -651,6 +370,8 @@ class Validate(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga'],workflow.param_kwargs)
+
         ########################
         ### Prepare data #######
         ########################
@@ -659,10 +380,7 @@ class Validate(WorkflowComponent):
             docs = input_feeds['docs_instances']
         else:
             docs = input_feeds['docs']
-
-        if 'vectorized' in input_feeds.keys():
-            instances = input_feeds['vectorized']
-        elif 'featurized' in input_feeds.keys():
+        if 'featurized' in input_feeds.keys():
             instances = input_feeds['featurized']
         elif 'featurized_csv' in input_feeds.keys():
             csvtransformer = workflow.new_task('transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
@@ -674,11 +392,7 @@ class Validate(WorkflowComponent):
             else:
                 pre_featurized = input_feeds['docs_instances']
 
-            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,
-                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,
-                minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,
-                tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
-            )
+            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
             featurizer.in_pre_featurized = pre_featurized
 
             instances = featurizer.out_featurized
@@ -686,24 +400,8 @@ class Validate(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
-        foldrunner = workflow.new_task(
-            'foldrunner', Folds, autopass=False, 
-            n=self.n, 
-            weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-            ga=self.ga,instance_steps=self.steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,
-            mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iteration=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw, scale=self.scale, min_scale=self.min_scale, max_scale=self.max_scale,
-            random_clf=self.random_clf,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p,
-            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
+        foldrunner = workflow.new_task('foldrunner', Folds, autopass=False,
+            vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
         )
         foldrunner.in_bins = bin_maker.out_bins
         foldrunner.in_instances = instances

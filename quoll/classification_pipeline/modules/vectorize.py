@@ -19,12 +19,7 @@ class FitVectorizer(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
-    weight = Parameter()
-    prune = IntParameter()
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
+    vectorize_parameters = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
@@ -42,6 +37,8 @@ class FitVectorizer(Task):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.featureselection.txt')
 
     def run(self):
+
+        kwargs = quoll_helpers.decode_task_input(['vectorize'],[self.vectorize_parameters])
 
         weight_functions = {
             'frequency':[vectorizer.return_document_frequency, False], 
@@ -70,29 +67,29 @@ class FitVectorizer(Task):
             trainlabels = infile.read().strip().split('\n')
            
         # calculate feature_weight
-        featureweights = weight_functions[self.weight][0](featurized_instances, trainlabels)
+        featureweights = weight_functions[kwargs['weight']][0](featurized_instances, trainlabels)
 
         # vectorize instances
-        if weight_functions[self.weight][1]:
-            trainvectors = weight_functions[self.weight][1](featurized_instances, featureweights)
+        if weight_functions[kwargs['weight']][1]:
+            trainvectors = weight_functions[kwargs['weight']][1](featurized_instances, featureweights)
         else:
             trainvectors = featurized_instances
 
         # prune features
-        featureselection = vectorizer.return_featureselection(weight_functions['frequency'][0](featurized_instances, trainlabels), self.prune)
+        featureselection = vectorizer.return_featureselection(weight_functions['frequency'][0](featurized_instances, trainlabels), kwargs['prune'])
 
         # compress vectors
         trainvectors = vectorizer.compress_vectors(trainvectors, featureselection)
 
         # select features
-        if self.select:
-            selectionclass = selection_functions[self.selector]
-            trainvectors, weights_selected_features, indices_selected_features = selectionclass.fit_transform(trainvectors, trainlabels, self.select_threshold)    
+        if kwargs['select']:
+            selectionclass = selection_functions[kwargs['selector']]
+            trainvectors, weights_selected_features, indices_selected_features = selectionclass.fit_transform(trainvectors, trainlabels, kwargs['select_threshold'])    
             featureselection = numpy.array(featureselection)[indices_selected_features].tolist()
             featureweights = dict(zip(featureselection,weights_selected_features))
             
         # balance instances by label frequency
-        if self.balance:
+        if kwargs['balance']:
             trainvectors, trainlabels = vectorizer.balance_data(trainvectors, trainlabels)
 
         # write instances to file
@@ -103,7 +100,6 @@ class FitVectorizer(Task):
             l_out.write('\n'.join(trainlabels))
 
         # write feature weights to file
-        
         with open(self.out_featureweights().path, 'w', encoding = 'utf-8') as w_out:
             outlist = []
             for key, value in sorted(featureweights.items(), key = lambda k: k[0]):
@@ -443,15 +439,8 @@ class FeaturizeTask(Task):
 
     in_pre_featurized = InputSlot()
     
-    ngrams = Parameter()
-    blackfeats = Parameter()
-    lowercase = BoolParameter()
-    minimum_token_frequency = IntParameter()
-    featuretypes = Parameter()
-
-    tokconfig = Parameter()
-    frogconfig = Parameter()
-    strip_punctuation = BoolParameter()
+    featurize_parameters = Parameter()
+    preprocess_parameters = Parameter()
 
     def out_featurized(self):
         return self.outputfrominput(inputformat='pre_featurized', stripextension='.' + self.in_pre_featurized().task.extension, addextension='.features.npz')
@@ -460,12 +449,8 @@ class FeaturizeTask(Task):
 
         if self.complete(): # necessary as it will not complete otherwise
             return True
-        else:
-            yield Featurize(
-                inputfile=self.in_pre_featurized().path,
-                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,
-                featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
-            )
+        kwargs = quoll_helpers.decode_task_input(['featurize','preprocess'],[self.featurize_parameters,self.preprocess_parameters])
+        yield Featurize(inputfile=self.in_pre_featurized().path,**kwargs)
                 
 #################################################################
 ### Component ###################################################
@@ -533,14 +518,13 @@ class Vectorize(WorkflowComponent):
     
     def setup(self, workflow, input_feeds):
         
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize'],workflow.param_kwargs)
+
         ######################
         ### Training phase ###
         ######################
 
-        if 'labels_train' in input_feeds.keys():
-            labels = input_feeds['labels_train']
-        else:
-            labels = False
+        labels = False if not 'labels_train' in input_feeds.keys() else input_feeds['labels_train']
         
         if 'vectorized_train' in input_feeds.keys():
             traininstances = input_feeds['vectorized_train']
@@ -551,14 +535,10 @@ class Vectorize(WorkflowComponent):
                 traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
                 traincsvtransformer.in_csv = input_feeds['featurized_train_csv']
                 trainfeatures = traincsvtransformer.out_features
-
             elif 'featurized_train' in input_feeds.keys():
                 trainfeatures = input_feeds['featurized_train']
-            
             else: # pre_featurized
-                trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,
-                    ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,
-                    featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+                trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
                 trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
 
                 trainfeatures = trainfeaturizer.out_featurized
@@ -566,10 +546,7 @@ class Vectorize(WorkflowComponent):
             # assert that labels are inputted, in order to run the vectorizer
             assert labels, 'Cannot run vectorizer without trainlabels as inputfile...' 
                 
-            trainvectorizer = workflow.new_task('vectorizer',FitVectorizer,autopass=True,
-                weight=self.weight,prune=self.prune,
-                select=self.select,selector=self.selector,select_threshold=self.select_threshold,
-                balance=self.balance)
+            trainvectorizer = workflow.new_task('vectorizer',FitVectorizer,autopass=True,vectorize_parameters=task_args['vectorize'])
             trainvectorizer.in_train = trainfeatures
             trainvectorizer.in_trainlabels = labels
 
@@ -591,14 +568,10 @@ class Vectorize(WorkflowComponent):
                     testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
                     testcsvtransformer.in_csv = input_feeds['featurized_test_csv']
                     testfeatures = testcsvtransformer.out_features
-       
                 elif 'featurized_test' in input_feeds.keys():
                     testfeatures = input_feeds['featurized_test']
-            
                 else: # pre_featurized
-                    testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,
-                        minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,
-                        strip_punctuation=self.strip_punctuation)
+                    testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
                     testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
 
                     testfeatures = testfeaturizer.out_featurized

@@ -23,13 +23,7 @@ class Train(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
-    scale = BoolParameter()
-    min_scale = Parameter()
-    max_scale = Parameter()
-
-    ga = BoolParameter()
     ga_parameters = Parameter()
-
     classifier_parameters = Parameter()
    
     def in_featureselection(self):
@@ -43,23 +37,23 @@ class Train(Task):
 
     def run(self):
 
+        kwargs = quoll_helpers.decode_task_input(['ga','classify'],[self.ga_parameters,self.classify_parameters])
+
         # initiate directory with model insights
         self.setup_output_dir(self.out_model_insights().path)
-        
-        # extract_classifier parameters
-        clf_params = self.classifier_parameters.split('--')
 
         # initiate classifier
         classifierdict = {
-                        'random':[RandomClassifier(),[clf_params[6]]],
-                        'naive_bayes':[NaiveBayesClassifier(),clf_params[7:9] + [clf_params[2]]],
-                        'svm':[SVMClassifier(),clf_params[9:14] + clf_params[2:5]],
-                        'svorim':[SvorimClassifier(),clf_params[9:13]],
-                        'logistic_regression':[LogisticRegressionClassifier(),clf_params[14:20]],
-                        'linreg':[LinearRegressionClassifier(),clf_params[20:23]],
-                        'xgboost':[XGBoostClassifier(),clf_params[23:38] + clf_params[2:5]], 
-                        'knn':[KNNClassifier(),clf_params[38:]], 
-                        }
+            'random':[RandomClassifier(),[kwargs['random_clf']]],
+            'naive_bayes':[NaiveBayesClassifier(),[kwargs['nb_alpha'],kwargs['nb_fit_prior'],kwargs['jobs']]],
+            'svm':[SVMClassifier(),[kwargs['svm_c'],kwargs['svm_kernel'],kwargs['svm_gamma'],kwargs['svm_degree'],kwargs['svm_class_weight'],kwargs['jobs'],kwargs['iterations'],kwargs['scoring']]],
+            'svorim':[SvorimClassifier(),[kwargs['svm_c'],kwargs['svm_kernel'],kwargs['svm_gamma'],kwargs['svm_degree']]],
+            'logistic_regression':[LogisticRegressionClassifier(),[kwargs['lr_c'],kwargs['lr_solver'],kwargs['lr_dual'],kwargs['lr_penalty'],kwargs['lr_multiclass'],kwargs['lr_maxiter'],kwargs['iterations'],kwargs['jobs']]],
+            'linreg':[LinearRegressionClassifier(),[kwargs['linreg_normalize'],kwargs['linreg_fit_intercept'],kwargs['linreg_copy_X'],kwargs['jobs']]],
+            'xgboost':[XGBoostClassifier(),[kwargs['xg_booster'],kwargs['xg_silent'],kwargs['xg_learning_rate'],kwargs['xg_min_child_weight'],kwargs['xg_max_depth'],kwargs['xg_gamma'],kwargs['xg_max_delta_step'],kwargs['xg_subsample'],
+                kwargs['xg_colsample_bytree'],kwargs['xg_reg_lambda'],kwargs['xg_reg_alpha'],kwargs['xg_scale_pos_weight'],kwargs['xg_objective'],kwargs['xg_seed'],kwargs['xg_n_estimators'],kwargs['jobs'],kwargs['iterations'],kwargs['scoring']]],
+            'knn':[KNNClassifier(),[kwargs['knn_n_neighbors'],kwargs['knn_weights'],kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p']]] 
+        }
         clf = classifierdict[clf_params[0]][0]
 
         # load vectorized instances
@@ -77,9 +71,9 @@ class Train(Task):
             featureselection_names = [x[0] for x in featureselection]
 
         # scale vectors
-        if self.scale:
-            min_scale = float(self.min_scale)
-            max_scale = float(self.max_scale)            
+        if kwargs['scale']:
+            min_scale = float(kwargs['min_scale'])
+            max_scale = float(kwargs['max_scale'])            
             scaler = vectorizer.fit_scale(vectorized_instances,min_scale,max_scale)
             vectorized_instances = vectorizer.scale_vectors(vectorized_instances,scaler)
             # write scaler
@@ -89,11 +83,17 @@ class Train(Task):
             numpy.savez(self.out_model_insights().path + '/scaled.vectors.npz', data=vectorized_instances.data, indices=vectorized_instances.indices, indptr=vectorized_instances.indptr, shape=vectorized_instances.shape)
 
         # select features
-        if self.ga:
-            ga_params = self.ga_parameters.split('--')
+        if kwargs['ga']:
             # load GA class
             ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
-            best_features, best_parameters, best_features_output, best_parameters_output, clf_output, evolution_output, parameter_evolution_output, features_output, weighted_output, ga_report = ga_instance.run(*ga_params,*clf_params)
+            best_features, best_parameters, best_features_output, best_parameters_output, clf_output, evolution_output, parameter_evolution_output, features_output, weighted_output, ga_report = ga_instance.run(
+                kwargs['num_iterations'],kwargs['population_size'],kwargs['elite'],kwargs['crossover_probability'],kwargs['mutation_rate'],kwargs['tournament_size'],kwargs['n_crossovers'],kwargs['stop_condition'],kwargs['weight_feature_size'],
+                kwargs['steps'],kwargs['sampling'],kwargs['samplesize'],kwargs['classifier'],kwargs['ordinal'],kwargs['jobs'],kwargs['iterations'],kwargs['fitness_metric'],kwargs['linear_raw'],kwargs['random_clf'],kwargs['nb_alpha'],
+                kwargs['nb_fit_prior'],kwargs['svm_c'],kwargs['svm_kernel'],kwargs['svm_gamma'],kwargs['svm_degree'],kwargs['svm_class_weight'],kwargs['lr_c'],kwargs['lr_solver'],kwargs['lr_dual'],kwargs['lr_penalty'],kwargs['lr_multiclass'],
+                kwargs['lr_maxiter'],kwargs['xg_booster'],kwargs['xg_silent'],kwargs['xg_learning_rate'],kwargs['xg_min_child_weight'],kwargs['xg_max_depth'],kwargs['xg_gamma'],kwargs['xg_max_delta_step'],kwargs['xg_subsample'],
+                kwargs['xg_colsample_bytree'],kwargs['xg_reg_lambda'],kwargs['xg_reg_alpha'],kwargs['xg_scale_pos_weight'],kwargs['xg_objective'],kwargs['xg_seed'],kwargs['xg_n_estimators'],kwargs['knn_n_neighbors'],kwargs['knn_weights'],
+                kwargs['knn_algorithm'],kwargs['knn_leaf_size'],kwargs['knn_metric'],kwargs['knn_p'],kwargs['linreg_normalize'],kwargs['linreg_fit_intercept'],kwargs['linreg_copy_X']
+            )
 
             # collect output
             selection = random.choice(range(len(best_features)))
@@ -141,12 +141,12 @@ class Train(Task):
             #     r_out.write(parameter_evolution_output)
 
         # train classifier
-        if clf_params[1] == 'True' or clf_params[5] == 'True':
+        if kwargs['ordinal'] or kwargs['linear_raw']:
             clflabels = [float(x) for x in trainlabels]
         else:
             clf.set_label_encoder(sorted(list(set(trainlabels))))
             clflabels = clf.label_encoder.transform(trainlabels)
-        clf.train_classifier(vectorized_instances, clflabels, *classifierdict[clf_params[0]][1])
+        clf.train_classifier(vectorized_instances, clflabels, *classifierdict[kwargs['classifier']][1])
 
         # save classifier
         model = clf.return_classifier()
@@ -390,23 +390,9 @@ class VectorizeTrain(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
-    weight = Parameter()
-    prune = IntParameter()
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
-    delimiter=Parameter()
-
-    ngrams = Parameter()
-    blackfeats = Parameter()
-    lowercase = BoolParameter()    
-    minimum_token_frequency = IntParameter()
-    featuretypes = Parameter()
-
-    tokconfig = Parameter()
-    frogconfig = Parameter()
-    strip_punctuation = BoolParameter()
+    vectorize_parameters = Parameter()
+    featurize_parameters = Parameter()
+    preprocess_parameters = Parameter()
     
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
@@ -418,8 +404,8 @@ class VectorizeTrain(Task):
         
         if self.complete(): # necessary as it will not complete otherwise
             return True
-        else:
-            yield Vectorize(train=self.in_train().path,trainlabels=self.in_trainlabels().path,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        yield Vectorize(train=self.in_train().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
 class VectorizeTrainTest(Task):
 
@@ -427,23 +413,9 @@ class VectorizeTrainTest(Task):
     in_trainlabels = InputSlot()
     in_test = InputSlot()
 
-    weight = Parameter()
-    prune = IntParameter()
-    balance = BoolParameter()
-    select = BoolParameter()
-    selector = Parameter()
-    select_threshold = Parameter()
-    delimiter=Parameter()
-
-    ngrams = Parameter()
-    blackfeats = Parameter()
-    lowercase = BoolParameter()    
-    minimum_token_frequency = IntParameter()
-    featuretypes = Parameter()
-
-    tokconfig = Parameter()
-    frogconfig = Parameter()
-    strip_punctuation = BoolParameter()
+    vectorize_parameters = Parameter()
+    featurize_parameters = Parameter()
+    preprocess_parameters = Parameter()
     
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-3:] == 'pkl' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
@@ -458,12 +430,13 @@ class VectorizeTrainTest(Task):
 
         if self.complete(): # necessary as it will not complete otherwise
             return True
+        
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        if '.'.join(self.in_train().path.split('.')[-2:]) == 'model.pkl':
+            train = '.'.join(self.in_train().path.split('.')[:-2]) + '.vectors.npz'
         else:
-            if '.'.join(self.in_train().path.split('.')[-2:]) == 'model.pkl':
-                train = '.'.join(self.in_train().path.split('.')[:-2]) + '.vectors.npz'
-            else:
-                train = self.in_train().path
-            yield Vectorize(train=train,trainlabels=self.in_trainlabels().path,test=self.in_test().path,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
+            train = self.in_train().path
+        yield Vectorize(train=train,trainlabels=self.in_trainlabels().path,test=self.in_test().path,**kwargs)
 
 class VectorizeTrainCombinedTask(Task):
 
@@ -536,16 +509,16 @@ class Classify(WorkflowComponent):
     stop_condition = IntParameter(default=5)
     weight_feature_size = Parameter(default='0.0')
     instance_steps = IntParameter(default=1)
-    sampling = IntParameter(default = 0) # repeated resampling to prevent overfitting
+    sampling = BoolParameter() # repeated resampling to prevent overfitting
     samplesize = Parameter(default='0.8') # size of trainsample
     
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
-    ordinal = IntParameter(default=0)
+    ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc') # optimization metric for grid search
-    linear_raw = IntParameter(default=0)
+    linear_raw = BoolParameter()
     scale = BoolParameter()
     min_scale = Parameter(default='0')
     max_scale = Parameter(default='1')
@@ -563,7 +536,7 @@ class Classify(WorkflowComponent):
 
     lr_c = Parameter(default='1.0')
     lr_solver = Parameter(default='liblinear')
-    lr_dual = IntParameter(default=0)
+    lr_dual = BoolParameter()
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
@@ -621,35 +594,37 @@ class Classify(WorkflowComponent):
             [
                 (
                 InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
-                InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train')
+                InputFormat(self, format_id='vectors_train',extension='.vectors.npz',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.csv',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.features.npz',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.tok.txt',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.tok.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.frog.json',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.txt',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train',extension='.txtdir',inputparameter='train')
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
-                InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='test')
+                InputFormat(self, format_id='vectors_test',extension='.vectors.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.csv',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.features.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.tok.txt',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.tok.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.frog.json',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.txt',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.txtdir',inputparameter='test')
                 ),
             ]
             )).T.reshape(-1,3)]
 
     def setup(self, workflow, input_feeds):
-        
+
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga'],workflow.param_kwargs)
+
         ######################
         ### vectorize ########
         ######################
@@ -660,40 +635,27 @@ class Classify(WorkflowComponent):
         model = False
         if 'modeled_train' in input_feeds.keys():
             model = input_feeds['modeled_train']
-        elif 'vectorized_train' in input_feeds.keys():
-            traininstances = input_feeds['vectorized_train']
-        elif 'featurized_train_csv' in input_feeds.keys():
-            traininstances = input_feeds['featurized_train_csv']
-        elif 'featurized_train' in input_feeds.keys():
-            traininstances = input_feeds['featurized_train']
-        elif 'pre_featurized_train' in input_feeds.keys():
-            traininstances = input_feeds['pre_featurized_train']
+        else:
+            traininstances = input_feeds['vectors_train']
 
-        if set(['vectorized_test','vectorized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())):
+        if 'vectors_test' in input_feeds.keys():
  
-            if 'vectorized_test' in input_feeds.keys():
-                testvectors = input_feeds['vectorized_test']
-            
-            else:
-                if 'featurized_test_csv' in input_feeds.keys():
-                    testinstances = input_feeds['featurized_test_csv']
-                elif 'featurized_test' in input_feeds.keys():
-                    testinstances = input_feeds['featurized_test']
-                elif 'pre_featurized_test' in input_feeds.keys():
-                    testinstances = input_feeds['pre_featurized_test']
-                    
-                # assert that trainvectors (instead of classifier model) are inputted, in order to vectorize testinstances
-                if not traininstances:
-                    traininstances = model
+            testinstances = input_feeds['vectors_test']
                 
-                vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,delimiter=self.delimiter,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                vectorizer.in_train = traininstances
-                vectorizer.in_trainlabels = trainlabels
-                vectorizer.in_test = testinstances
+            # assert that trainvectors (instead of classifier model) are inputted, in order to vectorize testinstances
+            if not traininstances:
+                traininstances = model
+                
+            vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
+            vectorizer.in_train = traininstances
+            vectorizer.in_trainlabels = trainlabels
+            vectorizer.in_test = testinstances
 
-                trainvectors = vectorizer.out_train
-                trainlabels = vectorizer.out_trainlabels
-                testvectors = vectorizer.out_test                
+            trainvectors = vectorizer.out_train
+            trainlabels = vectorizer.out_trainlabels
+            testvectors = vectorizer.out_test                
 
         else: # only train
 
@@ -702,7 +664,8 @@ class Classify(WorkflowComponent):
 
             # vectorize traininstances
             vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,
-                weight=self.weight,prune=self.prune,select=self.select,selector=self.selector,select_threshold=self.select_threshold,balance=self.balance,delimiter=self.delimiter)
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
             vectorizer.in_train = traininstances
             vectorizer.in_trainlabels = trainlabels
 
@@ -713,20 +676,7 @@ class Classify(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        classifier_parameters = '--'.join([str(x) for x in [self.classifier,self.ordinal,self.jobs,self.iterations,self.scoring,self.linear_raw,
-            self.random_clf,
-            self.nb_alpha,self.nb_fit_prior,
-            self.svm_c,self.svm_kernel,self.svm_gamma,self.svm_degree,self.svm_class_weight,
-            self.lr_c,self.lr_solver,self.lr_dual,self.lr_penalty,self.lr_multiclass,self.lr_maxiter,
-            self.linreg_normalize,self.linreg_fit_intercept,self.linreg_copy_X,
-            self.xg_booster,self.xg_silent,self.xg_learning_rate,self.xg_min_child_weight,self.xg_max_depth,self.xg_gamma,self.xg_max_delta_step,self.xg_subsample, 
-            self.xg_colsample_bytree,self.xg_reg_lambda,self.xg_reg_alpha,self.xg_scale_pos_weight,self.xg_objective,self.xg_seed,self.xg_n_estimators, 
-            self.knn_n_neighbors,self.knn_weights,self.knn_algorithm,self.knn_leaf_size,self.knn_metric,self.knn_p]])
-
-        ga_parameters = '--'.join([str(x) for x in [self.num_iterations, self.population_size, self.elite, self.crossover_probability,self.mutation_rate,self.tournament_size,
-            self.n_crossovers,self.stop_condition,self.weight_feature_size,self.instance_steps,self.sampling,self.samplesize]])
-
-        trainer = workflow.new_task('train',Train,autopass=True,scale=self.scale,min_scale=self.min_scale,max_scale=self.max_scale,ga=self.ga,ga_parameters=ga_parameters,classifier_parameters=classifier_parameters)
+        trainer = workflow.new_task('train',Train,autopass=True,classifier_parameters=task_args['classify'],ga_parameters=task_args['ga'])
         trainer.in_train = trainvectors
         trainer.in_trainlabels = trainlabels            
 
@@ -734,8 +684,8 @@ class Classify(WorkflowComponent):
         ### Testing phase ####
         ######################
 
-        if len(list(set(['vectorized_test','featurized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
-                
+        if 'vectors_test' in input_feeds.keys():
+
             if not model:
                 model = trainer.out_model
 
@@ -749,13 +699,10 @@ class Classify(WorkflowComponent):
                 translator = workflow.new_task('predictor',TranslatePredictions,autopass=True)
                 translator.in_linear_labels = trainlabels
                 translator.in_predictions = predictor.out_predictions
-
                 return translator
 
             else:
-
                 return predictor
 
         else:
-
             return trainer

@@ -52,6 +52,9 @@ def prepare_ga_input(kwargs):
         kwargs['n_crossovers'],kwargs['stop_condition'],kwargs['weight_feature_size'],kwargs['steps'],kwargs['sampling'],kwargs['samplesize']
     ]])
 
+def prepare_append_input(kwargs):
+    return '--'.join([str(x) for x in [kwargs['bow_as_feature'],kwargs['bow_classifier'],kwargs['bow_include_labels'],kwargs['bow_prediction_probs']]])
+
 def prepare_validate_input(kwargs):
     return '--'.join([str(x) for x in [kwargs['n'],kwargs['steps'],kwargs['teststart'],kwargs['testend']]])
 
@@ -62,6 +65,7 @@ def prepare_task_input(tasks, kwargs):
         'vectorize' : prepare_vectorize_input,
         'classify'  : prepare_classify_input,
         'ga'        : prepare_ga_input,
+        'append'    : prepare_append_input,
         'validate'  : prepare_validate_input
     }
     task_args = dict(zip(tasks,[modules[task](kwargs) for task in tasks]))
@@ -91,6 +95,9 @@ def decode_ga_input(paramstring):
     return dict(zip(['num_iterations','population_size','elite','crossover_probability','mutation_rate','tournament_size','n_crossovers','stop_condition','weight_feature_size','steps','sampling',
         'samplesize'],paramstring.split('--')))
 
+def decode_append_input(paramstring):
+    return zip(['bow_as_feature','bow_classifier','bow_include_labels','bow_prediction_probs'],paramstring.split('--'))
+
 def decode_validate_input(paramstring):
     return zip(['n','steps','teststart','testend'],paramstring.split('--'))
 
@@ -101,6 +108,7 @@ def decode_task_input(tasks, encoded_args):
         'vectorize' : decode_vectorize_input,
         'classify'  : decode_classify_input,
         'ga'        : decode_ga_input,
+        'append'    : decode_append_input,
         'validate'  : decode_validate_input
     }
     parameter_args = {}
@@ -117,6 +125,7 @@ def set_parameter_types(parameterdict):
         'nb_fit_prior':'bool','lr_dual':'bool','xg_seed':'int','knn_p':'int',
         'ga':'bool','num_iterations':'bool','population_size':'int','tournament_size':'int',
         'n_crossovers':'int','stop_condition':'int','steps':'int','sampling':'bool',
+        'bow_as_feature':'bool','bow_prediction_probs':'bool',
         'n':'int','teststart':'int','testend':'int'
     }
     for k in list(set(parameterdict.keys()) & set(type_dict.keys())):
