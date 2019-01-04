@@ -14,6 +14,7 @@ from quoll.classification_pipeline.modules.classify import Train, Predict, Vecto
 from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
 
 from quoll.classification_pipeline.functions.classifier import *
+from quoll.classification_pipeline.functions import quoll_helpers
 
 #################################################################
 ### Component ###################################################
@@ -22,11 +23,11 @@ from quoll.classification_pipeline.functions.classifier import *
 @registercomponent
 class ClassifyAppend(WorkflowComponent):
     
-    traininstances = Parameter()
-    traininstances_append = Parameter()
+    train = Parameter()
+    train_append = Parameter()
     trainlabels = Parameter()
-    testinstances = Parameter(default = 'xxx.xxx') # not obligatory, dummy extension to enable a pass
-    testinstances_append = Parameter(default = 'xxx.xxx')
+    test = Parameter(default = 'xxx.xxx') # not obligatory, dummy extension to enable a pass
+    test_append = Parameter(default = 'xxx.xxx')
     traindocs = Parameter(default = 'xxx.xxx')
 
     # append parameters
@@ -34,6 +35,12 @@ class ClassifyAppend(WorkflowComponent):
     bow_classifier = Parameter(default='naive_bayes')
     bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
     bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
+
+    # fold-parameters
+    n = IntParameter(default=10)
+    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
+    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
+    testend = IntParameter(default=-1)
 
     # feature selection parameters
     ga = BoolParameter()
@@ -106,6 +113,10 @@ class ClassifyAppend(WorkflowComponent):
     knn_metric = Parameter(default='euclidean')
     knn_p = IntParameter(default=2)
 
+    perceptron_alpha = Parameter(default='1.0')
+
+    tree_class_weight = Parameter(default=False)
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
@@ -131,38 +142,38 @@ class ClassifyAppend(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='traininstances'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='traininstances'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='traininstances'),
-                InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traininstances')
+                InputFormat(self, format_id='vectors_train',extension='.vectors.npz',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.features.npz',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.csv',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.tok.txt',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.tok.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.frog.json',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.txt',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='pre_vectors_train',extension='.txt',inputparameter='train')
                 ),
                 (
-                InputFormat(self, format_id='vectorized_train_append',extension='.vectors.npz',inputparameter='traininstances_append'),
-                InputFormat(self, format_id='featurized_csv_train_append',extension='.csv',inputparameter='traininstances_append'),
+                InputFormat(self, format_id='vectors_train_append',extension='.vectors.npz',inputparameter='train_append'),
+                InputFormat(self, format_id='vectors_train_append_csv',extension='.csv',inputparameter='train_append'),
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
-                InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='testinstances'),
-                InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='testinstances'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='testinstances')
+                InputFormat(self, format_id='vectors_test',extension='.vectors.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.features.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.csv',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.tok.txt',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.tok.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.frog.json',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.txt',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test',extension='.txtdir',inputparameter='test')
                 ),
                 (
-                InputFormat(self, format_id='vectorized_test_append',extension='.vectors.npz',inputparameter='testinstances_append'),
-                InputFormat(self, format_id='featurized_csv_test_append',extension='.csv',inputparameter='testinstances_append'),
+                InputFormat(self, format_id='vectors_test_append',extension='.vectors.npz',inputparameter='test_append'),
+                InputFormat(self, format_id='vectors_test_append_csv',extension='.csv',inputparameter='test_append'),
                 ),
                 InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traindocs')
             ]
@@ -170,38 +181,69 @@ class ClassifyAppend(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        ######################
-        ### Training phase ###
-        ######################
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga','append','validate'],workflow.param_kwargs)
+
+        #############################
+        ### Prepare vectors phase ###
+        #############################
         
+        # vectorize train - test
         trainlabels = input_feeds['labels_train']
-        
-        if 'vectorized_train' in input_feeds.keys():
-            trainvectors = input_feeds['vectorized_train']
 
-        else: # pre_vectorized
+        vectors = False
+        if 'vectors_train' in input_feeds.keys():
+            traininstances = input_feeds['vectors_train']
+            vectors = True
+        else:
+            traininstances = input_feeds['pre_vectors_train']
 
-            if 'featurized_train_csv' in input_feeds.keys():
-                trainvectorizer = workflow.new_task('vectorize_train_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                trainvectorizer.in_csv = input_feeds['featurized_train_csv']
+        if 'vectors_test' in input_feeds.keys():
+
+            testinstances = input_feeds['vectors_test']
                 
-                trainvectors = trainvectorizer.out_vectors
+            vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
+            vectorizer.in_train = traininstances
+            vectorizer.in_trainlabels = trainlabels
+            vectorizer.in_test = testinstances
 
-            else:
+            testvectors = vectorizer.out_test                
+            test = True
 
-                trainvectors = False
-                if 'pre_featurized_train' in input_feeds.keys():
-                    trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                    trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+        else: # only train
 
-                    featurized_train = trainfeaturizer.out_featurized
+            # vectorize traininstances
+            vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
+            vectorizer.in_train = traininstances
+            vectorizer.in_trainlabels = trainlabels
 
-                else:
-                    featurized_train = input_feeds['featurized_train']
+            test = False
 
+        trainvectors = vectorizer.out_train
+        trainlabels = vectorizer.out_trainlabels        
+        
+        # vectorize train_append - test_append 
+        if 'vectors_train_append' in input_feeds.keys():
+            trainvectors_append = input_feeds['vectors_train_append']
+        else:
+            traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
+            traincsvtransformer.in_csv = input_feeds['vectors_train_append_csv']
+            trainvectors_append = traincsvtransformer.out_features
+
+        if 'vectors_test_append' in input_feeds.keys():
+            testvectors_append = input_feeds['vectors_test_append']
+        elif 'vectors_test_append_csv' in input_feeds.keys():
+            testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
+            testcsvtransformer.in_csv = input_feeds['vectors_test_append_csv']
+            testvectors_append = testcsvtransformer.out_features 
+
+        # prepare bag-of-words feature
         if self.bow_as_feature:
 
-            if trainvectors:
+            if vectors:
                 print('Bag-of-words as features can only be ran on featurized train instances (ending with \'.features.npz\', exiting programme...')
                 exit()
 
@@ -209,170 +251,27 @@ class ClassifyAppend(WorkflowComponent):
             bin_maker = workflow.new_task('make_bins_bow', MakeBins, autopass=True, n=5)
             bin_maker.in_labels = trainlabels
 
-            fold_runner = workflow.new_task('nfold_cv_bow', Folds, autopass=True, 
-                n=5, 
-                weight=self.weight, prune=self.prune, balance=self.balance, select=self.select, selector=self.selector, select_threshold=self.select_threshold,
-                classifier=self.bow_classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
-                random_type=self.random_type,
-                ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p
+            foldrunner = workflow.new_task('nfold_cv_bow', Folds, autopass=False,
+                n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
             )
-            fold_runner.in_bins = bin_maker.out_bins
-            fold_runner.in_instances = featurized_train
-            fold_runner.in_labels = trainlabels
-            fold_runner.in_docs = input_feeds['docs_train']
+            foldrunner.in_bins = bin_maker.out_bins
+            foldrunner.in_instances = traininstances
+            foldrunner.in_labels = trainlabels
+            foldrunner.in_docs = input_feeds['docs_train']
 
             foldreporter = workflow.new_task('report_folds_bow', ReportFolds, autopass=True)
             foldreporter.in_exp = fold_runner.out_exp
 
-            if self.bow_prediction_probs:
-                fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
-                fold_vectorizer.in_full_predictions = foldreporter.out_full_predictions
-                fold_vectorizer.in_bins = bin_maker.out_bins
-            else:
-                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
-                fold_vectorizer.in_predictions = foldreporter.out_predictions
-                fold_vectorizer.in_bins = bin_maker.out_bins
+            # prepare bow test vectors
+            bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
+            bow_trainer.in_train = trainvectors
+            bow_trainer.in_trainlabels = trainlabels
 
-            trainvectors = fold_vectorizer.out_vectors
+            if test:
 
-            trainvectorizer_bow = workflow.new_task('vectorize_train_bow',VectorizeTrain,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,traincsv=False,delimiter=self.delimiter,trainvec=False)
-            trainvectorizer_bow.in_train = featurized_train
-            trainvectorizer_bow.in_trainlabels = trainlabels
-
-            trainvectors_bow = trainvectorizer_bow.out_train
-            trainlabels = trainvectorizer_bow.out_trainlabels
-
-        if 'vectorized_train_append' in input_feeds.keys():
-            trainvectors_append = input_feeds['vectorized_train_append']
-        elif 'featurized_csv_train_append' in input_feeds.keys():
-            trainvectorizer_append = workflow.new_task('vectorize_train_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            trainvectorizer_append.in_csv = input_feeds['featurized_csv_train_append']
-                
-            trainvectors_append = trainvectorizer_append.out_vectors
-
-        if not trainvectors:
-            trainvectorizer = workflow.new_task('vectorize_train',VectorizeTrainTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-            trainvectorizer.in_trainfeatures = featurized_train
-            trainvectorizer.in_trainlabels = trainlabels
-
-            trainvectors = trainvectorizer.out_train
-            trainlabels = trainvectorizer.out_trainlabels
-
-        if self.scale and not self.bow_as_feature:
-            if self.classifier == 'svm':
-                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
-                trainscaler.in_vectors = trainvectors_append
-                trainvectors_append = trainscaler.out_vectors
-            elif self.classifier == 'xgboost':
-                trainvectors_append = trainvectors_append
-            else:
-                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
-                trainscaler.in_vectors = trainvectors_append
-                trainvectors_append = trainscaler.out_vectors
-                
-        traincombiner = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
-        traincombiner.in_vectors = trainvectors
-        traincombiner.in_vectors_append = trainvectors_append
-
-        if self.scale and self.bow_as_feature:
-            if self.classifier == 'svm':
-                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=-1,max_scale=1)
-                trainscaler.in_vectors = traincombiner.out_combined            
-                trainvectors_combined = trainscaler.out_vectors
-            elif self.classifier == 'xgboost':
-                trainvectors_combined = traincombiner.out_combined
-            else:
-                trainscaler = workflow.new_task('scale_trainvectors',FitTransformScale,autopass=True,min_scale=0,max_scale=1)
-                trainscaler.in_vectors = traincombiner.out_combined            
-                trainvectors_combined = trainscaler.out_vectors
-        else:
-            trainvectors_combined = traincombiner.out_combined
-                
-        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations, scoring=self.scoring, linear_raw=self.linear_raw,
-            nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p,
-            linreg_normalize=self.linreg_normalize, linreg_fit_intercept=self.linreg_fit_intercept, linreg_copy_X=self.linreg_copy_X
-        )
-        trainer.in_train = trainvectors_combined
-        trainer.in_trainlabels = trainlabels            
-
-        ######################
-        ### Testing phase ####
-        ######################
-
-        if len(list(set(['vectorized_test','featurized_test_csv','featurized_test','pre_featurized_test']) & set(list(input_feeds.keys())))) > 0:
- 
-            if 'vectorized_test' in input_feeds.keys():
-                testvectors = input_feeds['vectorized_test']
-
-            else: # pre_vectorized
-
-                if 'featurized_test_csv' in input_feeds.keys():
-                    testvectorizer = workflow.new_task('vectorize_test_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                    testvectorizer.in_csv = input_feeds['featurized_test_csv']
-
-                    testvectors = testvectorizer.out_vectors
-                    
-                else:
-
-                    testvectors = False
-                    if 'pre_featurized_test' in input_feeds.keys():
-                        testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation)
-                        testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
-
-                        featurized_test = testfeaturizer.out_featurized
-
-                    else:
-                        featurized_test = input_feeds['featurized_test']
-                
-            if self.bow_as_feature:
-
-                if testvectors:
-                    print('Bag-of-words as features can only be ran on featurized test instances (ending with \'.features.npz\', exiting programme...')
-                    exit()
-
-                bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal,jobs=self.jobs,iterations=self.iterations,scoring=self.scoring,linear_raw=self.linear_raw,
-                    random_type=self.random_type,
-                    ga=self.ga,instance_steps=self.instance_steps,num_iterations=self.num_iterations, population_size=self.population_size, elite=self.elite,crossover_probability=self.crossover_probability, sampling=self.sampling, samplesize=self.samplesize,
-                    mutation_rate=self.mutation_rate,tournament_size=self.tournament_size,n_crossovers=self.n_crossovers,stop_condition=self.stop_condition,weight_feature_size=self.weight_feature_size,
-                    nb_alpha=self.nb_alpha,nb_fit_prior=self.nb_fit_prior,
-                    svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                    lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                    xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                    xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                    xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                    xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                    knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                    knn_metric=self.knn_metric, knn_p=self.knn_p
-                )
-                bow_trainer.in_train = trainvectors_bow
-                bow_trainer.in_trainlabels = trainlabels            
-
-                testcsv=True if ('vectorized_test_csv' in input_feeds.keys()) else False
-                testvec=True if ('vectorized_test' in input_feeds.keys()) else False
-                testvectorizer_bow = workflow.new_task('vectorize_test_bow',VectorizeTrainTest,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance,select=self.select,selector=self.selector,select_threshold=self.select_threshold,delimiter=self.delimiter,traincsv=False,testcsv=testcsv,trainvec=False,testvec=testvec)
-                testvectorizer_bow.in_train = trainvectors_bow
-                testvectorizer_bow.in_trainlabels = trainlabels
-                testvectorizer_bow.in_test = featurized_test
-
-                bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,classifier=self.bow_classifier,ordinal=self.ordinal)
-                bow_predictor.in_test = testvectorizer_bow.out_test
+                bow_predictor = workflow.new_task('predictor_bow',Predict,autopass=True,
+                    classifier=self.bow_classifier,ordinal=self.ordinal,linear_raw=self.linear_raw,scale=self.scale,ga=self.ga)
+                bow_predictor.in_test = testvectors
                 bow_predictor.in_trainlabels = trainlabels
                 bow_predictor.in_model = bow_trainer.out_model
 
@@ -385,49 +284,56 @@ class ClassifyAppend(WorkflowComponent):
 
                 testvectors = prediction_vectorizer.out_vectors
 
-            if 'vectorized_test_append' in input_feeds.keys():
-                testvectors_append = input_feeds['vectorized_test_append']
-            elif 'featurized_csv_test_append' in input_feeds.keys():
-                testvectorizer_append = workflow.new_task('vectorize_test_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-                testvectorizer_append.in_csv = input_feeds['featurized_csv_test_append']
+            # prepare bow train vectors
+            if self.bow_prediction_probs:
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
+                fold_vectorizer.in_full_predictions = foldreporter.out_full_predictions
+                fold_vectorizer.in_bins = bin_maker.out_bins
+            else:
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
+                fold_vectorizer.in_predictions = foldreporter.out_predictions
+                fold_vectorizer.in_bins = bin_maker.out_bins
 
-                testvectors_append = testvectorizer_append.out_vectors
+            trainvectors = fold_vectorizer.out_vectors
 
-            if not testvectors:
-                testvectorizer = workflow.new_task('vectorize_test_bow',VectorizeTestTask,autopass=True,weight=self.weight,prune=self.prune,balance=self.balance)
-                testvectorizer.in_trainvectors = trainvectors
-                testvectorizer.in_trainlabels = trainlabels
-                testvectorizer.in_testfeatures = featurized_test
+        # combine vectors
+        traincombiner = workflow.new_task('vectorize_trainvectors_combined',Combine,autopass=True)
+        traincombiner.in_vectors = trainvectors
+        traincombiner.in_vectors_append = trainvectors_append
 
-                testvectors = testvectorizer.out_vectors
-
-            if self.scale and not self.bow_as_feature and not self.classifier == 'xgboost':
-                testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
-                testscaler.in_vectors = testvectors_append
-                testscaler.in_scaler = trainscaler.out_scaler
-
-                testvectors_append = testscaler.out_vectors
-
+        if test:
             testvector_combiner = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
             testvector_combiner.in_vectors = testvectors
             testvector_combiner.in_vectors_append = testvectors_append
-                            
-            if self.scale and self.bow_as_feature and not self.classifier == 'xgboost':
-                testscaler = workflow.new_task('scale_testvectors',TransformScale,autopass=True)
-                testscaler.in_vectors = testvector_combiner.out_combined
-                testscaler.in_scaler = trainscaler.out_scaler
 
-                testvectors_combined = testscaler.out_vectors
-            else:
-                testvectors_combined = testvector_combiner.out_combined
+        #######################
+        ### Training phase ####
+        #######################
 
-            predictor = workflow.new_task('predictor',Predict,autopass=True,classifier=self.classifier,ordinal=self.ordinal)
-            predictor.in_test = testvectors_combined
+        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
+        trainer.in_train = traincombiner.out_combined
+        trainer.in_trainlabels = trainlabels          
+
+        ######################
+        ### Testing phase ####
+        ######################
+
+        if 'vectors_test' in input_feeds.keys():
+
+            predictor = workflow.new_task('predictor',Predict,autopass=True,
+                classifier=self.classifier,ordinal=self.ordinal,linear_raw=self.linear_raw,scale=self.scale,ga=self.ga)
+            predictor.in_test = testvector_combiner.out_combined
             predictor.in_trainlabels = trainlabels
             predictor.in_model = trainer.out_model
 
-            return predictor
+            if self.linear_raw:
+                translator = workflow.new_task('predictor',TranslatePredictions,autopass=True)
+                translator.in_linear_labels = trainlabels
+                translator.in_predictions = predictor.out_predictions
+                return translator
+
+            else:
+                return predictor
 
         else:
-
-            return trainer
+            return trainer            

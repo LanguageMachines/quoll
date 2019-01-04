@@ -13,6 +13,9 @@ class GA:
         self.labels = labels
         self.featurenames = numpy.array(featurenames)
         self.folds = False
+        self.best_features = False
+        self.best_parameters = False
+        self.report = False
 
     def tournament_selection(self,population_fitness,tournament_size=2,win_condition='highest'):
         """
@@ -231,17 +234,17 @@ class GA:
         report.append('\n')
         return '\n'.join(report)
 
-    def return_overall_report(self,report,best_features,best_parameters):
-        output_clf = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[0]) for x in row[2]]) for row in report])
-        output_features = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[1]) for x in row[2]]) for row in report])
-        output_weighted = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[2]) for x in row[2]]) for row in report])
-        output_clf = '\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[0]) for x in row[2]]) for row in report])
-        output_evolution = '\n'.join([','.join([str(x) for x in row[3]]) for row in report])
-        output_parameter_evolution = '\n'.join([','.join([str(x) for x in row[4]]) for row in report])
-        output_overview = '\n'.join([row[5] for row in report])
-        best_features_overview = '\n'.join([','.join(self.featurenames[indices].tolist()) for indices in best_features])
-        best_parameters_overview = '\n'.join([','.join(row) for row in best_parameters])
-        return best_features,best_parameters,best_features_overview, best_parameters_overview, output_clf, output_evolution, output_parameter_evolution, output_features, output_weighted, output_overview
+    def return_insights(self):
+        ga_insights = []
+        ga_insights.append(['ga.clf_fitness.txt','\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[0]) for x in row[2]]) for row in self.report])])
+        ga_insights.append(['ga.features_output.txt','\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[1]) for x in row[2]]) for row in self.report])])
+        ga_insights.append(['weighted_fitness.txt','\n'.join(['#train-'+str(row[0]) + '|#test-'+str(row[1]) + ' ' + ','.join([str(x[2]) for x in row[2]]) for row in self.report])])
+        ga_insights.append(['ga.evolution.txt','\n'.join([','.join([str(x) for x in row[3]]) for row in self.report])])
+        ga_insights.append(['ga.parameter_evolution.txt','\n'.join([','.join([str(x) for x in row[4]]) for row in self.report])])
+        ga_insights.append(['ga.report.txt','\n'.join([row[5] for row in self.report])])
+        ga_insights.append(['best_features.txt','\n'.join([','.join(self.featurenames[indices].tolist()) for indices in self.best_features])])
+        ga_insights.append(['best_parameters.txt','\n'.join([','.join(row) for row in self.best_parameters])])
+        return ga_insights
 
     def run(self,num_iterations,population_size,elite,crossover_probability,mutation_rate,tournament_size,n_crossovers,stop_condition,weight_feature_size,steps,sampling,samplesize,
         classifier,ordinal,jobs,iterations,fitness_metric,linear_raw,
@@ -361,4 +364,8 @@ class GA:
             cursor+=1
 
         print('Breaking iteration; best fitness:',last_best)
-        return self.return_overall_report(report,best_fitness_features,best_fitness_parameters)
+        self.best_features = best_fitness_features
+        self.best_parameters = best_fitness_parameters
+        self.report = report
+        return best_fitness_features, best_fitness_parameters
+                

@@ -213,10 +213,10 @@ class Combine(Task):
         return self.outputfrominput(inputformat='vectors_append', stripextension='.vectors.npz', addextension='.featureselection.txt')   
 
     def out_featureselection(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('/')[-1].split('.')[0] + '.featureselection.txt')   
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.combined.featureselection.txt')   
 
     def out_combined(self):
-        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.' + self.in_vectors_append().path.split('/')[-1].split('.')[0] + '.vectors.npz')
+        return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.combined.vectors.npz')
     
     def run(self):
 

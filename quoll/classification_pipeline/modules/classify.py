@@ -23,6 +23,7 @@ class Train(Task):
     in_train = InputSlot()
     in_trainlabels = InputSlot()
 
+    classifier = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
    
@@ -56,7 +57,7 @@ class Train(Task):
             'perceptron':[PerceptronClassifier(),[kwargs['perceptron_alpha'],kwargs['iterations'],kwargs['jobs']]],
             'tree':[TreeClassifier(),[kwargs['tree_class_weight']]]
         }
-        clf = classifierdict[kwargs['classifier']][0]
+        clf = classifierdict[self.classifier][0]
 
         # load vectorized instances
         loader = numpy.load(self.in_train().path)
@@ -88,7 +89,7 @@ class Train(Task):
         if kwargs['ga']:
             # load GA class
             ga_instance = ga.GA(vectorized_instances,trainlabels,featureselection_names)
-            best_features, best_parameters, best_features_output, best_parameters_output, clf_output, evolution_output, parameter_evolution_output, features_output, weighted_output, ga_report = ga_instance.run(
+            best_features, best_parameters = ga_instance.run(
                 kwargs['num_iterations'],kwargs['population_size'],kwargs['elite'],kwargs['crossover_probability'],kwargs['mutation_rate'],kwargs['tournament_size'],kwargs['n_crossovers'],kwargs['stop_condition'],kwargs['weight_feature_size'],
                 kwargs['steps'],kwargs['sampling'],kwargs['samplesize'],kwargs['classifier'],kwargs['ordinal'],kwargs['jobs'],kwargs['iterations'],kwargs['fitness_metric'],kwargs['linear_raw'],kwargs['random_clf'],kwargs['nb_alpha'],
                 kwargs['nb_fit_prior'],kwargs['svm_c'],kwargs['svm_kernel'],kwargs['svm_gamma'],kwargs['svm_degree'],kwargs['svm_class_weight'],kwargs['lr_c'],kwargs['lr_solver'],kwargs['lr_dual'],kwargs['lr_penalty'],kwargs['lr_multiclass'],
@@ -105,42 +106,17 @@ class Train(Task):
             new_featureselection = [vocab[i] for i in feature_selection_indices]
 
             # write ga insights
-            #ga_insights = ga_instance.return_insights()
-            #for gi in ga_insights:
-            #    with open(self.out_model_insights().path + '/' + gi[0],'w',encoding='utf-8') as outfile:
-            #        outfile.write(gi[1])
+            ga_insights = ga_instance.return_insights()
+            for gi in ga_insights:
+               with open(self.out_model_insights().path + '/' + gi[0],'w',encoding='utf-8') as outfile:
+                   outfile.write(gi[1])
 
-            # # save featureselection
-            # with open(self.out_model_insights().path + '/ga.featureselection.txt','w',encoding='utf-8') as f_out:
-            #     f_out.write('\n'.join(new_featureselection))
+            # save featureselection
+            with open(self.out_model_insights().path + '/ga.featureselection.txt','w',encoding='utf-8') as f_out:
+                f_out.write('\n'.join(new_featureselection))
 
             # write vectors
             numpy.savez(self.out_model_insights().path + '/ga.vectors.npz', data=vectorized_instances.data, indices=vectorized_instances.indices, indptr=vectorized_instances.indptr, shape=vectorized_instances.shape)
-
-            # # save reports
-            # with open(self.out_model_insights().path + '/ga.report.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(ga_report)
-
-            # with open(self.out_model_insights().path + '/ga.clf_fitness.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(clf_output)
-
-            # with open(self.out_model_insights().path + '/ga.features_output.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(features_output)
-
-            # with open(self.out_model_insights().path + '/ga.weighted_fitness.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(weighted_output)
-
-            # with open(self.out_model_insights().path + '/ga.best_features.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(best_features_output)
-
-            # with open(self.out_model_insights().path + '/ga.best_parameters.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(best_parameters_output)
-
-            # with open(self.out_model_insights().path + '/ga.evolution.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(evolution_output)
-
-            # with open(self.out_model_insights().path + '/ga.parameter_evolution.txt','w',encoding='utf-8') as r_out:
-            #     r_out.write(parameter_evolution_output)
 
         # train classifier
         if kwargs['ordinal'] or kwargs['linear_raw']:
@@ -682,7 +658,7 @@ class Classify(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        trainer = workflow.new_task('train',Train,autopass=True,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
+        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
         trainer.in_train = trainvectors
         trainer.in_trainlabels = trainlabels            
 
