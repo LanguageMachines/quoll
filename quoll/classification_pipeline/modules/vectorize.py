@@ -262,10 +262,10 @@ class VectorizeFoldreporter(Task):
     in_bins = InputSlot()
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.vectors.npz')
+        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.bow.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.featureselection.txt')
+        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.bow.featureselection.txt')
 
     def run(self):
 

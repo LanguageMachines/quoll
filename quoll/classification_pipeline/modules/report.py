@@ -259,7 +259,27 @@ class ReportFolds(Task):
 
         # write labels, predictions and full predictions
         label_order = [x.split('prediction prob for ')[1] for x in dr.parse_csv(docprediction_files[0])[0][3:]]
-        docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
+        docpredictions_combi = []
+        for docprediction_file in docprediction_files:
+            lines = dr.parse_csv(docprediction_file)
+            labels = [' '.join(column.split()[3:]) for column in lines[0][3:]]
+            if len(labels) == len(labels_order):
+                docpredictions_combi.append(lines[1:])
+            else:                
+                dp_lines = []
+                for line in lines[1:]:
+                    dpline = line[:3]
+                    j = 0
+                    for i,label in enumerate(label_order):
+                        if label in labels:
+                            dpline.append(line[3+(i-j)])
+                        else:
+                            dpline.append('0.0')
+                            j+=1
+                    dp_lines.append(dpline)
+                docpredictions_combi.append(dp_lines)
+            docpredictions = sum(docpredictions_combi,[])
+        # docpredictions = sum([dr.parse_csv(docprediction_file)[1:] for docprediction_file in docprediction_files], [])
         docs = [line[0] for line in docpredictions]
         labels = [line[1] for line in docpredictions]
         predictions = [line[2] for line in docpredictions]

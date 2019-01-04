@@ -23,7 +23,7 @@ class MakeBins(Task):
     testend = IntParameter(default=-1)
 
     def out_bins(self):
-        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.' + str(self.n) + 'folds.bins.csv')
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.nfoldcv.bins.csv')
         
     def run(self):
 
@@ -202,6 +202,7 @@ class ValidateTask(Task):
     in_labels = InputSlot()
     in_docs = InputSlot()
 
+    classifier = Parameter()
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -217,14 +218,17 @@ class ValidateTask(Task):
 
     def out_full_predictions(self):
         return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.full_predictions.txt')
-                                    
+
+    def out_bins(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.labels', addextension='.nfoldcv.bins.csv')
+    
     def run(self):
 
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
         kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
+        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,classifier=self.classifier,**kwargs)
 
 
 ################################################################################
@@ -427,7 +431,7 @@ class Validate(WorkflowComponent):
             else:
                 pre_featurized = input_feeds['docs_instances']
 
-            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
+            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=True,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
             featurizer.in_pre_featurized = pre_featurized
 
             instances = featurizer.out_featurized
@@ -435,7 +439,7 @@ class Validate(WorkflowComponent):
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
-        foldrunner = workflow.new_task('foldrunner', Folds, autopass=False,
+        foldrunner = workflow.new_task('foldrunner', Folds, autopass=True,
             n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
         )
         foldrunner.in_bins = bin_maker.out_bins

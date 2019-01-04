@@ -241,7 +241,7 @@ class ClassifyAppend(WorkflowComponent):
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
             )
             vectorizer_append.in_train = traininstances_append
-            vectorizer_append.in_trainlabels = trainlabels
+            vectorizer_append.in_trainlabels = input_feeds['labels_train']
             vectorizer_append.in_test = testinstances_append
 
             testvectors_append = vectorizer_append.out_test                
@@ -253,7 +253,7 @@ class ClassifyAppend(WorkflowComponent):
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
             )
             vectorizer_append.in_train = traininstances_append
-            vectorizer_append.in_trainlabels = trainlabels
+            vectorizer_append.in_trainlabels = input_feeds['labels_train']
 
         trainvectors_append = vectorizer_append.out_train 
 
@@ -272,7 +272,7 @@ class ClassifyAppend(WorkflowComponent):
                 exit()
 
             bow_validator = workflow.new_task('nfold_cv_bow', ValidateTask, autopass=False,
-                n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
+                n=self.n,classifier=self.bow_classifier,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
             )
             bow_validator.in_instances = traininstances
             bow_validator.in_labels = input_feeds['labels_train']
@@ -303,12 +303,12 @@ class ClassifyAppend(WorkflowComponent):
             # prepare bow train vectors
             if self.bow_prediction_probs:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
-                fold_vectorizer.in_full_predictions = validator.out_full_predictions
-                fold_vectorizer.in_bins = bin_maker.out_bins
+                fold_vectorizer.in_full_predictions = bow_validator.out_full_predictions
+                fold_vectorizer.in_bins = bow_validator.out_bins
             else:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
-                fold_vectorizer.in_predictions = validator.out_predictions
-                fold_vectorizer.in_bins = bin_maker.out_bins
+                fold_vectorizer.in_predictions = bow_validator.out_predictions
+                fold_vectorizer.in_bins = bow_validator.out_bins
 
             trainvectors = fold_vectorizer.out_vectors
 

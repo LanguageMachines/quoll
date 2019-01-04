@@ -124,7 +124,7 @@ class Train(Task):
         else:
             clf.set_label_encoder(sorted(list(set(trainlabels))))
             clflabels = clf.label_encoder.transform(trainlabels)
-        clf.train_classifier(vectorized_instances, clflabels, *classifierdict[kwargs['classifier']][1])
+        clf.train_classifier(vectorized_instances, clflabels, *classifierdict[self.classifier][1])
 
         # save classifier
         model = clf.return_classifier()
