@@ -24,125 +24,61 @@ class FoldAppend(Task):
     in_docs = InputSlot()
     in_bins = InputSlot()
     
-    # fold parameters
     i = IntParameter()
+    linear_raw = BoolParameter()
 
-    # append parameters
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-    bow_classifier = Parameter()
-    bow_include_labels = Parameter()
-    bow_prediction_probs = BoolParameter()
-
-    # classifier parameters
-    classifier = Parameter()
-    ordinal = BoolParameter()
-    jobs = IntParameter()
-    iterations = IntParameter()
-    scoring = Parameter()
-    
-    nb_alpha = Parameter()
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter()
-    svm_kernel = Parameter()
-    svm_gamma = Parameter()
-    svm_degree = Parameter()
-    svm_class_weight = Parameter()
-
-    lr_c = Parameter()
-    lr_solver = Parameter()
-    lr_dual = BoolParameter()
-    lr_penalty = Parameter()
-    lr_multiclass = Parameter()
-    lr_maxiter = Parameter()
-
-    xg_booster = Parameter() 
-    xg_silent = Parameter()
-    xg_learning_rate = Parameter() 
-    xg_min_child_weight = Parameter() 
-    xg_max_depth = Parameter() 
-    xg_gamma = Parameter() 
-    xg_max_delta_step = Parameter()
-    xg_subsample = Parameter() 
-    xg_colsample_bytree = Parameter() 
-    xg_reg_lambda = Parameter()
-    xg_reg_alpha = Parameter() 
-    xg_scale_pos_weight = Parameter()
-    xg_objective = Parameter() 
-    xg_seed = IntParameter()
-    xg_n_estimators = Parameter() 
-    
-    knn_n_neighbors = Parameter()
-    knn_weights = Parameter()
-    knn_algorithm = Parameter()
-    knn_leaf_size = Parameter()
-    knn_metric = Parameter()
-    knn_p = IntParameter()
-
-    # vectorizer parameters
-    weight = Parameter() # options: frequency, binary, tfidf
-    prune = IntParameter() # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    scale = BoolParameter()
+    append_parameters = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
 
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
-
+    
     def in_vocabulary_append(self):
-        return self.outputfrominput(inputformat='instances_append', stripextension='.' + '.'.join(self.in_instances_append().path.split('.')[-2:]), addextension='.featureselection.txt')   
+        return self.outputfrominput(inputformat='instances_append', stripextension='.' + '.'.join(self.in_instances_append().path.split('.')[-2:]), addextension='.vocabulary.txt' if '.'.join(self.in_instances_append().path.split('.')[-2:]) == 'features.npz' else '.featureselection.txt')   
+
+    def in_nominal_labels(self):
+        return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
 
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i))    
 
     def out_train(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_train_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.train.vectors.npz')            
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))   
 
     def out_test(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))         
 
     def out_test_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.test.vectors.npz')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i) + '/train.labels')
 
     def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.labels')
+
+    def out_nominal_trainlabels(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.exp/fold' + str(self.i) + '/train.featureselection.txt')
-
-    def out_trainvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.train.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.vocabulary.txt')
-
-    def out_testvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/append.test.featureselection.txt')
-
-    def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.labels')
-
-    def out_traindocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/train.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test.featureselection.txt')
 
     def out_testdocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.docs.txt')
-
-    def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.exp', addextension='.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.scaled.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance and self.scale else '.exp/fold' + str(self.i) + '/test.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.balance else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.labels_train.' + self.bow_classifier + '.bow.append.labels_train.' + self.classifier + '.predictions.txt' if self.bow_as_feature else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt' if self.scale else '.exp/fold' + str(self.i) + '/test.weight_' + self.weight + '.prune_' + str(self.prune) + '.append.labels_train.' + self.classifier + '.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.docs.txt')
 
     def run(self):
 
         if self.complete(): # needed as it will not complete otherwise
             return True
-
-        if self.classifier == 'xgboost':
-            self.scale = False
         
         # make fold directory
         self.setup_output_dir(self.out_fold().path)
@@ -196,6 +132,16 @@ class FoldAppend(Task):
         test_labels = labels[bins[self.i]]
         test_documents = documents[bins[self.i]]
 
+        # set nominal labels and write to files
+        if self.linear_raw:
+            # open labels
+            with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
+                nominal_labels = numpy.array(infile.read().strip().split('\n'))        
+            train_labels_nominal = numpy.concatenate([nominal_labels[indices] for j,indices in enumerate(bins) if j != self.i] + [nominal_labels[fixed_train_indices]])
+            test_labels = nominal_labels[bins[self.i]]
+            with open(self.out_nominal_trainlabels().path,'w',encoding='utf-8') as outfile:
+                outfile.write('\n'.join(train_labels_nominal))
+
         # write experiment data to files in fold directory
         numpy.savez(self.out_train().path, data=train_instances.data, indices=train_instances.indices, indptr=train_instances.indptr, shape=train_instances.shape)
         numpy.savez(self.out_train_append().path, data=train_instances_append.data, indices=train_instances_append.indices, indptr=train_instances_append.indptr, shape=train_instances_append.shape)
@@ -220,23 +166,9 @@ class FoldAppend(Task):
 
         print('Running experiment for fold',self.i)
 
-        yield ClassifyAppend(
-            traininstances=self.out_train().path, traininstances_append=self.out_train_append().path, trainlabels=self.out_trainlabels().path, 
-            testinstances=self.out_test().path, testinstances_append=self.out_test_append().path, 
-            traindocs=self.out_traindocs().path, 
-            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p
-        )
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
+        yield ClassifyAppend(train=self.out_train().path,train_append=self.out_train_append().path,trainlabels=self.out_trainlabels().path,test=self.out_test().path,test_append=self.out_test_append().path,traindocs=self.out_traindocs().path,**kwargs) 
+
 
 class FoldsAppend(Task):
 
@@ -246,72 +178,16 @@ class FoldsAppend(Task):
     in_labels = InputSlot()
     in_docs = InputSlot()
 
-    # nfold-cv parameters
-    n = IntParameter(default=10)
-    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
-    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
-    testend = IntParameter(default=-1)
-
-    # append parameters
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-    bow_classifier = Parameter()
-    bow_include_labels = Parameter()
-    bow_prediction_probs = BoolParameter()
-
-    # classifier parameters
-    classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
-    jobs = IntParameter(default=1)
-    iterations = IntParameter(default=10)
-    scoring = Parameter()
-
-    nb_alpha = Parameter(default=1.0)
-    nb_fit_prior = BoolParameter()
+    n = IntParameter()
     
-    svm_c = Parameter(default=1.0)
-    svm_kernel = Parameter(default='linear')
-    svm_gamma = Parameter(default='0.1')
-    svm_degree = Parameter(default='1')
-    svm_class_weight = Parameter(default='balanced')
-
-    lr_c = Parameter(default='1.0')
-    lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
-    lr_penalty = Parameter(default='l2')
-    lr_multiclass = Parameter(default='ovr')
-    lr_maxiter = Parameter(default='1000')
-
-    xg_booster = Parameter() 
-    xg_silent = Parameter()
-    xg_learning_rate = Parameter() 
-    xg_min_child_weight = Parameter() 
-    xg_max_depth = Parameter() 
-    xg_gamma = Parameter() 
-    xg_max_delta_step = Parameter()
-    xg_subsample = Parameter() 
-    xg_colsample_bytree = Parameter() 
-    xg_reg_lambda = Parameter()
-    xg_reg_alpha = Parameter() 
-    xg_scale_pos_weight = Parameter()
-    xg_objective = Parameter() 
-    xg_seed = IntParameter()
-    xg_n_estimators = Parameter() 
-
-    knn_n_neighbors = Parameter()
-    knn_weights = Parameter()
-    knn_algorithm = Parameter()
-    knn_leaf_size = Parameter()
-    knn_metric = Parameter()
-    knn_p = IntParameter()
-
-    # vectorizer parameters
-    weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
-    prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    scale = BoolParameter()
+    append_parameters = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.balanced.weight_' + self.weight + '.prune_' + str(self.prune) + '.' + self.in_instances_append().path.split('/')[-1].split('.')[:-2] + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.balance and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.weight_' + self.weight + '.prune_' + str(self.prune) + '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature else '.bow.' + '_'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.bow_as_feature and self.scale else '.'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.scale.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp' if self.scale else '.'.join(self.in_instances_append().path.split('/')[-1].split('.')[:-2]) + '.labels_' + '_'.join(self.in_labels().path.split('/')[-1].split('.')[:-1]) + '.' + self.classifier + '.exp')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.nfoldcv')
                                     
     def run(self):
 
@@ -322,19 +198,7 @@ class FoldsAppend(Task):
         for fold in range(self.n):
             yield RunFoldAppend(
                 directory=self.out_exp().path, instances=self.in_instances().path, instances_append=self.in_instances_append().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
-                i=fold,
-                weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-                bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-                classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
-                nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-                svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-                lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-                xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-                xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-                xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-                xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-                knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-                knn_metric=self.knn_metric, knn_p=self.knn_p
+                i=fold,append_parameters=append_parameters,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )                
 
 class ValidateAppendTask(Task):
@@ -382,63 +246,11 @@ class RunFoldAppend(WorkflowComponent):
     # fold-parameters
     i = IntParameter()
 
-    # append parameters
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
-    bow_classifier = Parameter(default='naive_bayes')
-    bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
-    bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
-
-    # classifier parameters
-    classifier = Parameter(default='naive_bayes')
-    ordinal = BoolParameter()
-    jobs = IntParameter(default=1)
-    iterations = IntParameter(default=10)
-    scoring = Parameter(default='roc_auc')
-    
-    nb_alpha = Parameter(default='1.0')
-    nb_fit_prior = BoolParameter()
-    
-    svm_c = Parameter(default='1.0')
-    svm_kernel = Parameter(default='linear')
-    svm_gamma = Parameter(default='0.1')
-    svm_degree = Parameter(default='1')
-    svm_class_weight = Parameter(default='balanced')
-
-    lr_c = Parameter(default='1.0')
-    lr_solver = Parameter(default='liblinear')
-    lr_dual = BoolParameter()
-    lr_penalty = Parameter(default='l2')
-    lr_multiclass = Parameter(default='ovr')
-    lr_maxiter = Parameter(default='1000')
-
-    xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
-    xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
-    xg_learning_rate = Parameter(default='0.1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_min_child_weight = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_depth = Parameter(default='6') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_gamma = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_max_delta_step = Parameter(default='0')
-    xg_subsample = Parameter(default='1') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_colsample_bytree = Parameter(default='1.0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_reg_lambda = Parameter(default='1')
-    xg_reg_alpha = Parameter(default='0') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-    xg_scale_pos_weight = Parameter('1')
-    xg_objective = Parameter(default='binary:logistic') # choices: ['binary:logistic', 'multi:softmax', 'multi:softprob']
-    xg_seed = IntParameter(default=7)
-    xg_n_estimators = Parameter(default='100') # choose 'search' for automatic grid search, define grid values manually by giving them divided by space 
-
-    knn_n_neighbors = Parameter(default='3')
-    knn_weights = Parameter(default='uniform')
-    knn_algorithm = Parameter(default='auto')
-    knn_leaf_size = Parameter(default='30')
-    knn_metric = Parameter(default='euclidean')
-    knn_p = IntParameter(default=2)
-
-    # vectorizer parameters
-    weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
-    prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
-    balance = BoolParameter()
-    scale = BoolParameter()
+    append_parameters = Parameter()
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
     
     def accepts(self):
         return [ ( 
@@ -448,33 +260,15 @@ class RunFoldAppend(WorkflowComponent):
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
-        ),
-        (
-            InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
-            InputFormat(self,format_id='instances',extension='.vectors.npz',inputparameter='instances'),
-            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances_append'), 
-            InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
-            InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
-            InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
         ) ]
  
     def setup(self, workflow, input_feeds):
 
+        kwargs = quoll_helpers.decode_task_input(['classify'],[self.classify_parameters])
+
         fold_append_runner = workflow.new_task(
             'run_fold_append', FoldAppend, autopass=False, 
-            i=self.i, 
-            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p
+            i=self.i,linear_raw=kwargs['linear_raw'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters,append_parameters=self.append_parameters
         )
         fold_append_runner.in_directory = input_feeds['directory']
         fold_append_runner.in_instances = input_feeds['instances']
@@ -483,13 +277,12 @@ class RunFoldAppend(WorkflowComponent):
         fold_append_runner.in_docs = input_feeds['docs']
         fold_append_runner.in_bins = input_feeds['bins']
 
-        fold_append_reporter = workflow.new_task('report_fold_append', ReportPerformance, autopass=True, ordinal=self.ordinal)
+        fold_append_reporter = workflow.new_task('report_fold_append', ReportPerformance, autopass=True, ordinal=kwargs['ordinal'])
         fold_append_reporter.in_predictions = fold_append_runner.out_predictions
         fold_append_reporter.in_testlabels = fold_append_runner.out_testlabels
         fold_append_reporter.in_testdocuments = fold_append_runner.out_testdocs
 
         return fold_append_reporter
-
 
 @registercomponent
 class ValidateAppend(WorkflowComponent):
@@ -499,14 +292,31 @@ class ValidateAppend(WorkflowComponent):
     labels = Parameter()
     docs = Parameter(default = 'xxx.xxx')
 
-    # fold-parameters
-    n = IntParameter(default=10)
-
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
     bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
     bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
+
+    # fold-parameters
+    n = IntParameter(default=10)
+    steps = IntParameter(default=1) # useful to increase if close-by instances, for example sets of 2, are dependent
+    teststart = IntParameter(default=0) # if part of the instances are only used for training and not for testing (for example because they are less reliable), specify the test indices via teststart and testend
+    testend = IntParameter(default=-1)
+
+    # featureselection parameters
+    ga = BoolParameter()
+    num_iterations = IntParameter(default=300)
+    elite = Parameter(default='0.1')
+    population_size = IntParameter(default=100)
+    crossover_probability = Parameter(default='0.9')
+    mutation_rate = Parameter(default='0.3')
+    tournament_size = IntParameter(default=2)
+    n_crossovers = IntParameter(default=1)
+    stop_condition = IntParameter(default=5)
+    weight_feature_size = Parameter(default='0.0')
+    sampling = BoolParameter()
+    samplesize = Parameter(default='0.8')
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
@@ -514,6 +324,12 @@ class ValidateAppend(WorkflowComponent):
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
     scoring = Parameter(default='roc_auc')
+    linear_raw = BoolParameter()
+    scale = BoolParameter()
+    min_scale = Parameter(default='0')
+    max_scale = Parameter(default='1')
+
+    random_clf = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -530,6 +346,10 @@ class ValidateAppend(WorkflowComponent):
     lr_penalty = Parameter(default='l2')
     lr_multiclass = Parameter(default='ovr')
     lr_maxiter = Parameter(default='1000')
+
+    linreg_fit_intercept = Parameter(default='1')
+    linreg_normalize = Parameter(default='0')
+    linreg_copy_X = Parameter(default='1')
 
     xg_booster = Parameter(default='gbtree') # choices: ['gbtree', 'gblinear']
     xg_silent = Parameter(default='1') # set to '1' to mute printed info on progress
@@ -563,7 +383,9 @@ class ValidateAppend(WorkflowComponent):
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
     delimiter = Parameter(default=',')
-    scale = BoolParameter()
+    select = BoolParameter()
+    selector = Parameter(default=False)
+    select_threshold = Parameter(default=False)
 
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
@@ -581,7 +403,6 @@ class ValidateAppend(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='vectorized',extension='.vectors.npz',inputparameter='instances'),
                 InputFormat(self, format_id='featurized',extension='.features.npz',inputparameter='instances'),
                 InputFormat(self, format_id='featurized_csv',extension='.csv',inputparameter='instances'),
                 InputFormat(self, format_id='pre_featurized',extension='.tok.txt',inputparameter='instances'),
@@ -607,21 +428,20 @@ class ValidateAppend(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
+        task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga','validate','append'],workflow.param_kwargs)
+
         if 'docs_instances' in input_feeds.keys():
             docs = input_feeds['docs_instances']
         else:
             docs = input_feeds['docs']
 
-        if 'vectorized' in input_feeds.keys():
-            instances = input_feeds['vectorized']
-        elif 'featurized' in input_feeds.keys():
+        if 'featurized' in input_feeds.keys():
             instances = input_feeds['featurized']
         
         elif 'featurized_csv' in input_feeds.keys():
-            vectorizer = workflow.new_task('vectorize_csv',VectorizeCsv,autopass=True,delimiter=self.delimiter)
-            vectorizer.in_csv = input_feeds['featurized_csv']
-                
-            instances = vectorizer.out_vectors
+            csvtransformer = workflow.new_task('transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
+            csvtransformer.in_csv = input_feeds['featurized_train_csv']
+            instances = csvtransformer.out_features
 
         else:
             if 'pre_featurized' in input_feeds.keys():
@@ -629,11 +449,7 @@ class ValidateAppend(WorkflowComponent):
             else:
                 pre_featurized = input_feeds['docs_instances']
 
-            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=False,
-                ngrams=self.ngrams,blackfeats=self.blackfeats,lowercase=self.lowercase,
-                minimum_token_frequency=self.minimum_token_frequency,featuretypes=self.featuretypes,
-                tokconfig=self.tokconfig,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation
-            )
+            featurizer = workflow.new_task('featurize',FeaturizeTask,autopass=True,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
             featurizer.in_pre_featurized = pre_featurized
 
             instances = featurizer.out_featurized
@@ -641,30 +457,17 @@ class ValidateAppend(WorkflowComponent):
         if 'vectorized_append' in input_feeds.keys():
             instances_append = input_feeds['vectorized_append']
         elif 'featurized_csv_append' in input_feeds.keys():
-            vectorizer_append = workflow.new_task('vectorize_csv_append',VectorizeCsv,autopass=True,delimiter=self.delimiter)
+            vectorizer_append = workflow.new_task('vectorize_csv_append',TransformCsv,autopass=True,delimiter=self.delimiter)
             vectorizer_append.in_csv = input_feeds['featurized_csv_append']
                 
             instances_append = vectorizer_append.out_vectors
 
-        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n)
+        bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
-        foldrunner_append = workflow.new_task(
-            'foldrunner_append', FoldsAppend, autopass=False, 
-            n=self.n, 
-            weight=self.weight, prune=self.prune, balance=self.balance, scale=self.scale,
-            bow_as_feature=self.bow_as_feature, bow_classifier=self.bow_classifier, bow_include_labels=self.bow_include_labels, bow_prediction_probs=self.bow_prediction_probs,
-            classifier=self.classifier, ordinal=self.ordinal, jobs=self.jobs, iterations=self.iterations, scoring=self.scoring,
-            nb_alpha=self.nb_alpha, nb_fit_prior=self.nb_fit_prior,
-            svm_c=self.svm_c,svm_kernel=self.svm_kernel,svm_gamma=self.svm_gamma,svm_degree=self.svm_degree,svm_class_weight=self.svm_class_weight,
-            lr_c=self.lr_c,lr_solver=self.lr_solver,lr_dual=self.lr_dual,lr_penalty=self.lr_penalty,lr_multiclass=self.lr_multiclass,lr_maxiter=self.lr_maxiter,
-            xg_booster=self.xg_booster, xg_silent=self.xg_silent, xg_learning_rate=self.xg_learning_rate, xg_min_child_weight=self.xg_min_child_weight, 
-            xg_max_depth=self.xg_max_depth, xg_gamma=self.xg_gamma, xg_max_delta_step=self.xg_max_delta_step, xg_subsample=self.xg_subsample, 
-            xg_colsample_bytree=self.xg_colsample_bytree, xg_reg_lambda=self.xg_reg_lambda, xg_reg_alpha=self.xg_reg_alpha, xg_scale_pos_weight=self.xg_scale_pos_weight,
-            xg_objective=self.xg_objective, xg_seed=self.xg_seed, xg_n_estimators=self.xg_n_estimators,
-            knn_n_neighbors=self.knn_n_neighbors, knn_weights=self.knn_weights, knn_algorithm=self.knn_algorithm, knn_leaf_size=self.knn_leaf_size,
-            knn_metric=self.knn_metric, knn_p=self.knn_p
-        )
+        foldrunner_append = workflow.new_task('foldrunner_append', FoldsAppend, autopass=True, 
+            n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate'],append_parameters=task_args['append']
+        ) 
         foldrunner_append.in_bins = bin_maker.out_bins
         foldrunner_append.in_instances = instances
         foldrunner_append.in_instances_append = instances_append

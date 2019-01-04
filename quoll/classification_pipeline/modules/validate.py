@@ -246,6 +246,7 @@ class RunFold(WorkflowComponent):
 
     i = IntParameter()
 
+    append_parameters = Parameter()
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -262,7 +263,7 @@ class RunFold(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
-        kwargs = quoll_helpers.decode_task_input(['classify'],[self.classify_parameters])
+        kwargs = quoll_helpers.decode_task_input(['classify','validate','ga','append','vectorize'],[self.classify_parameters,self.validate_parameters,self.ga_parameters,self.append])
         run_fold = workflow.new_task(
             'run_fold', Fold, autopass=False,
             i=self.i,linear_raw=kwargs['linear_raw'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
