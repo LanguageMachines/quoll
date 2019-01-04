@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.validate import MakeBins, Folds
+from quoll.classification_pipeline.modules.quoll import ValidateTask
 from quoll.classification_pipeline.modules.report import ReportFolds
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask
 from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
@@ -68,7 +68,7 @@ class ClassifyAppend(WorkflowComponent):
     max_scale = Parameter(default='1')
     scale = BoolParameter()
 
-    random_type = Parameter(default='equal')
+    random_clf = Parameter(default='equal')
     
     nb_alpha = Parameter(default='1.0')
     nb_fit_prior = BoolParameter()
@@ -149,13 +149,12 @@ class ClassifyAppend(WorkflowComponent):
                 InputFormat(self, format_id='pre_vectors_train',extension='.tok.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='pre_vectors_train',extension='.frog.json',inputparameter='train'),
                 InputFormat(self, format_id='pre_vectors_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='pre_vectors_train',extension='.txt',inputparameter='train'),
                 InputFormat(self, format_id='pre_vectors_train',extension='.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='pre_vectors_train',extension='.txt',inputparameter='train')
+                InputFormat(self, format_id='pre_vectors_train_txt',extension='.txt',inputparameter='train')
                 ),
                 (
                 InputFormat(self, format_id='vectors_train_append',extension='.vectors.npz',inputparameter='train_append'),
-                InputFormat(self, format_id='vectors_train_append_csv',extension='.csv',inputparameter='train_append'),
+                InputFormat(self, format_id='vectors_train_append',extension='.csv',inputparameter='train_append'),
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
@@ -173,7 +172,7 @@ class ClassifyAppend(WorkflowComponent):
                 ),
                 (
                 InputFormat(self, format_id='vectors_test_append',extension='.vectors.npz',inputparameter='test_append'),
-                InputFormat(self, format_id='vectors_test_append_csv',extension='.csv',inputparameter='test_append'),
+                InputFormat(self, format_id='vectors_test_append',extension='.csv',inputparameter='test_append'),
                 ),
                 InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traindocs')
             ]
@@ -191,11 +190,17 @@ class ClassifyAppend(WorkflowComponent):
         trainlabels = input_feeds['labels_train']
 
         vectors = False
+        docs = False
         if 'vectors_train' in input_feeds.keys():
             traininstances = input_feeds['vectors_train']
             vectors = True
         else:
-            traininstances = input_feeds['pre_vectors_train']
+            if 'pre_vectors_train_txt' in input_feeds.keys():
+                docs_train = input_feeds['pre_vectors_train_txt']
+                traininstances = input_feeds['pre_vectors_train_txt']
+                docs = True
+            else:
+                traininstances = input_feeds['pre_vectors_train']
 
         if 'vectors_test' in input_feeds.keys():
 
@@ -226,41 +231,52 @@ class ClassifyAppend(WorkflowComponent):
         trainlabels = vectorizer.out_trainlabels        
         
         # vectorize train_append - test_append 
-        if 'vectors_train_append' in input_feeds.keys():
-            trainvectors_append = input_feeds['vectors_train_append']
-        else:
-            traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-            traincsvtransformer.in_csv = input_feeds['vectors_train_append_csv']
-            trainvectors_append = traincsvtransformer.out_features
+        traininstances_append = input_feeds['vectors_train_append']
 
         if 'vectors_test_append' in input_feeds.keys():
-            testvectors_append = input_feeds['vectors_test_append']
-        elif 'vectors_test_append_csv' in input_feeds.keys():
-            testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-            testcsvtransformer.in_csv = input_feeds['vectors_test_append_csv']
-            testvectors_append = testcsvtransformer.out_features 
+
+            testinstances_append = input_feeds['vectors_test_append']
+                
+            vectorizer_append = workflow.new_task('vectorize_traintest_append',VectorizeTrainTest,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
+            vectorizer_append.in_train = traininstances_append
+            vectorizer_append.in_trainlabels = trainlabels
+            vectorizer_append.in_test = testinstances_append
+
+            testvectors_append = vectorizer_append.out_test                
+
+        else: # only train
+
+            # vectorize traininstances
+            vectorizer_append = workflow.new_task('vectorize_train_append',VectorizeTrain,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+            )
+            vectorizer_append.in_train = traininstances_append
+            vectorizer_append.in_trainlabels = trainlabels
+
+        trainvectors_append = vectorizer_append.out_train 
 
         # prepare bag-of-words feature
         if self.bow_as_feature:
 
+            if not docs:
+                if 'docs_train' in input_feeds.keys():
+                    docs_train = input_feeds['docs_train']
+                else:
+                    print('No traindocs (extension \'.txt\') inputted, which is needed for bow-as-feature setting, exiting program...')
+                    exit()
+            
             if vectors:
                 print('Bag-of-words as features can only be ran on featurized train instances (ending with \'.features.npz\', exiting programme...')
                 exit()
 
-            # make bag-of-words predictions on training instances using 5-fold cv
-            bin_maker = workflow.new_task('make_bins_bow', MakeBins, autopass=True, n=5)
-            bin_maker.in_labels = trainlabels
-
-            foldrunner = workflow.new_task('nfold_cv_bow', Folds, autopass=False,
+            bow_validator = workflow.new_task('nfold_cv_bow', ValidateTask, autopass=False,
                 n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
             )
-            foldrunner.in_bins = bin_maker.out_bins
-            foldrunner.in_instances = traininstances
-            foldrunner.in_labels = trainlabels
-            foldrunner.in_docs = input_feeds['docs_train']
-
-            foldreporter = workflow.new_task('report_folds_bow', ReportFolds, autopass=True)
-            foldreporter.in_exp = fold_runner.out_exp
+            bow_validator.in_instances = traininstances
+            bow_validator.in_labels = input_feeds['labels_train']
+            bow_validator.in_docs = docs_train
 
             # prepare bow test vectors
             bow_trainer = workflow.new_task('train_bow',Train,autopass=True,classifier=self.bow_classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
@@ -287,11 +303,11 @@ class ClassifyAppend(WorkflowComponent):
             # prepare bow train vectors
             if self.bow_prediction_probs:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
-                fold_vectorizer.in_full_predictions = foldreporter.out_full_predictions
+                fold_vectorizer.in_full_predictions = validator.out_report
                 fold_vectorizer.in_bins = bin_maker.out_bins
             else:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
-                fold_vectorizer.in_predictions = foldreporter.out_predictions
+                fold_vectorizer.in_predictions = validator.out_report
                 fold_vectorizer.in_bins = bin_maker.out_bins
 
             trainvectors = fold_vectorizer.out_vectors
@@ -318,7 +334,7 @@ class ClassifyAppend(WorkflowComponent):
         ### Testing phase ####
         ######################
 
-        if 'vectors_test' in input_feeds.keys():
+        if test:
 
             predictor = workflow.new_task('predictor',Predict,autopass=True,
                 classifier=self.classifier,ordinal=self.ordinal,linear_raw=self.linear_raw,scale=self.scale,ga=self.ga)
@@ -327,7 +343,7 @@ class ClassifyAppend(WorkflowComponent):
             predictor.in_model = trainer.out_model
 
             if self.linear_raw:
-                translator = workflow.new_task('predictor',TranslatePredictions,autopass=True)
+                translator = workflow.new_task('translator',TranslatePredictions,autopass=True)
                 translator.in_linear_labels = trainlabels
                 translator.in_predictions = predictor.out_predictions
                 return translator
