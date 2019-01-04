@@ -86,7 +86,7 @@ class ValidateTask(Task):
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
    
-    def out_exp(self):
+    def out_report(self):
         return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.report')
                                     
     def run(self):
@@ -199,7 +199,7 @@ class Quoll(WorkflowComponent):
     perceptron_alpha = Parameter(default='1.0')
 
     tree_class_weight = Parameter(default=False)
-                                                                          
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
