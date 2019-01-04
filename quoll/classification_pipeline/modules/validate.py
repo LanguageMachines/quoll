@@ -196,6 +196,37 @@ class Folds(Task):
             )
 
 
+class ValidateTask(Task):
+
+    in_instances = InputSlot()
+    in_labels = InputSlot()
+    in_docs = InputSlot()
+
+    validate_parameters = Parameter()
+    ga_parameters = Parameter()
+    classify_parameters = Parameter()
+    vectorize_parameters = Parameter()
+    featurize_parameters = Parameter()
+    preprocess_parameters = Parameter()
+   
+    def out_report(self):
+        return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.report')
+
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.predictions.txt')
+
+    def out_full_predictions(self):
+        return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.full_predictions.txt')
+                                    
+    def run(self):
+
+        if self.complete(): # necessary as it will not complete otherwise
+            return True
+
+        kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
+
+
 ################################################################################
 ### Components #################################################################
 ################################################################################
@@ -327,7 +358,7 @@ class Validate(WorkflowComponent):
     perceptron_alpha = Parameter(default='1.0')
 
     tree_class_weight = Parameter(default=False)
-    
+
     # vectorizer parameters
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting

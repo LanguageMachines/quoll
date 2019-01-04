@@ -6,8 +6,8 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
-from quoll.classification_pipeline.modules.validate import Validate
-from quoll.classification_pipeline.modules.validate_append import ValidateAppend
+from quoll.classification_pipeline.modules.validate import ValidateTask
+from quoll.classification_pipeline.modules.validate_append import ValidateAppendTask
 from quoll.classification_pipeline.modules.report import Report, ReportPerformance, ReportDocpredictions, ReportFolds, ClassifyTask, TrainTask
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainTest, VectorizeTrainCombinedTask, VectorizeTestCombinedTask, TranslatePredictions 
 from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine
@@ -43,59 +43,7 @@ class ReportTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        print('REPORT KWARGS',kwargs)
         yield Report(train=self.in_train().path,test=self.in_test().path,trainlabels=self.in_trainlabels().path,testlabels=self.in_testlabels().path,testdocs=self.in_testdocs().path,**kwargs)
-
-class ValidateAppendTask(Task):
-
-    in_instances = InputSlot()
-    in_instances_append = InputSlot()
-    in_labels = InputSlot()
-    in_docs = InputSlot()
-    
-    validate_parameters = Parameter()
-    append_parameters = Parameter()
-    ga_parameters = Parameter()
-    classify_parameters = Parameter()
-    vectorize_parameters = Parameter()
-    featurize_parameters = Parameter()
-    preprocess_parameters = Parameter()
-   
-    def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.report')
-                                    
-    def run(self):
-
-        if self.complete(): # necessary as it will not complete otherwise
-            return True
-
-        kwargs = quoll_helpers.decode_task_input(['validate','append','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.append_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ValidateAppend(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
-
-
-class ValidateTask(Task):
-
-    in_instances = InputSlot()
-    in_labels = InputSlot()
-    in_docs = InputSlot()
-
-    validate_parameters = Parameter()
-    ga_parameters = Parameter()
-    classify_parameters = Parameter()
-    vectorize_parameters = Parameter()
-    featurize_parameters = Parameter()
-    preprocess_parameters = Parameter()
-   
-    def out_report(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.'.join(self.in_instances().path.split('.')[-2:]) if (self.in_instances().path[-3:] == 'npz' or self.in_instances().path[-7:-4] == 'tok') else '.' + self.in_instances().path.split('.')[-1], addextension='.validated.report')
-                                    
-    def run(self):
-
-        if self.complete(): # necessary as it will not complete otherwise
-            return True
-
-        kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
 
 
 ################################################################################

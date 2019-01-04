@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.quoll import ValidateTask
+from quoll.classification_pipeline.modules.validate import ValidateTask
 from quoll.classification_pipeline.modules.report import ReportFolds
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask
 from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
@@ -303,11 +303,11 @@ class ClassifyAppend(WorkflowComponent):
             # prepare bow train vectors
             if self.bow_prediction_probs:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter_probs', VectorizeFoldreporterProbs, autopass=True, include_labels=self.bow_include_labels)
-                fold_vectorizer.in_full_predictions = validator.out_report
+                fold_vectorizer.in_full_predictions = validator.out_full_predictions
                 fold_vectorizer.in_bins = bin_maker.out_bins
             else:
                 fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
-                fold_vectorizer.in_predictions = validator.out_report
+                fold_vectorizer.in_predictions = validator.out_predictions
                 fold_vectorizer.in_bins = bin_maker.out_bins
 
             trainvectors = fold_vectorizer.out_vectors
