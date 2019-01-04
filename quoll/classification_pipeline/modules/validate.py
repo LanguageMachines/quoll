@@ -191,8 +191,8 @@ class Folds(Task):
         self.setup_output_dir(self.out_exp().path)
         # for each fold
         for fold in range(self.n):
-            yield RunFold(directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, i=fold, 
-                validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+            yield RunFold(directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path,
+                i=fold+1,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )
 
 
@@ -246,7 +246,6 @@ class RunFold(WorkflowComponent):
 
     i = IntParameter()
 
-    append_parameters = Parameter()
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -263,7 +262,7 @@ class RunFold(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
-        kwargs = quoll_helpers.decode_task_input(['classify','validate','ga','append','vectorize'],[self.classify_parameters,self.validate_parameters,self.ga_parameters,self.append])
+        kwargs = quoll_helpers.decode_task_input(['classify','validate','ga','vectorize'],[self.classify_parameters,self.validate_parameters,self.ga_parameters,self.vectorize_parameters])
         run_fold = workflow.new_task(
             'run_fold', Fold, autopass=False,
             i=self.i,linear_raw=kwargs['linear_raw'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters

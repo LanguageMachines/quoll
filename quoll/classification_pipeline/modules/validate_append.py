@@ -9,7 +9,7 @@ from quoll.classification_pipeline.modules.report import Report, ReportFolds, Re
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend
 from quoll.classification_pipeline.modules.vectorize import TransformCsv, FeaturizeTask
 
-from quoll.classification_pipeline.functions import docreader
+from quoll.classification_pipeline.functions import docreader, quoll_helpers
 
 #################################################################
 ### Tasks #######################################################
@@ -26,6 +26,7 @@ class FoldAppend(Task):
     
     i = IntParameter()
     linear_raw = BoolParameter()
+    bow_as_feature = BoolParameter()
 
     append_parameters = Parameter()
     validate_parameters = Parameter()
@@ -69,14 +70,26 @@ class FoldAppend(Task):
     def out_trainvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train.featureselection.txt')
 
+    def out_trainvocabulary_append(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train_append.featureselection.txt')
+    
     def out_testvocabulary(self):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test.featureselection.txt')
+
+    def out_testvocabulary_append(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test_append.featureselection.txt')
+
+    def out_traindocs(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.docs.txt')
 
     def out_testdocs(self):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.docs.txt')
 
-    def run(self):
+    def out_predictions(self):
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.bow.combined.predictions.txt' if self.bow_as_feature else '.nfoldcv/fold' + str(self.i) + '/test.combined.predictions.txt')
 
+    def run(self):
+        
         if self.complete(): # needed as it will not complete otherwise
             return True
         
@@ -166,7 +179,7 @@ class FoldAppend(Task):
 
         print('Running experiment for fold',self.i)
 
-        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
+        kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','append'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.append_parameters])
         yield ClassifyAppend(train=self.out_train().path,train_append=self.out_train_append().path,trainlabels=self.out_trainlabels().path,test=self.out_test().path,test_append=self.out_test_append().path,traindocs=self.out_traindocs().path,**kwargs) 
 
 
@@ -198,7 +211,7 @@ class FoldsAppend(Task):
         for fold in range(self.n):
             yield RunFoldAppend(
                 directory=self.out_exp().path, instances=self.in_instances().path, instances_append=self.in_instances_append().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
-                i=fold,append_parameters=append_parameters,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+                i=fold+1,append_parameters=self.append_parameters,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )                
 
 class ValidateAppendTask(Task):
@@ -254,9 +267,9 @@ class RunFoldAppend(WorkflowComponent):
     
     def accepts(self):
         return [ ( 
-            InputFormat(self,format_id='directory',extension='.exp',inputparameter='directory'), 
+            InputFormat(self,format_id='directory',extension='.nfoldcv',inputparameter='directory'), 
             InputFormat(self,format_id='instances',extension='.features.npz',inputparameter='instances'),
-            InputFormat(self,format_id='instances_append',extension='.vectors.npz',inputparameter='instances_append'), 
+            InputFormat(self,format_id='instances_append',extension='.features.npz',inputparameter='instances_append'), 
             InputFormat(self, format_id='labels', extension='.labels', inputparameter='labels'), 
             InputFormat(self,format_id='docs',extension='.txt',inputparameter='docs'),
             InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins') 
@@ -264,11 +277,11 @@ class RunFoldAppend(WorkflowComponent):
  
     def setup(self, workflow, input_feeds):
 
-        kwargs = quoll_helpers.decode_task_input(['classify'],[self.classify_parameters])
+        kwargs = quoll_helpers.decode_task_input(['classify','validate','append'],[self.classify_parameters,self.validate_parameters,self.append_parameters])
 
         fold_append_runner = workflow.new_task(
             'run_fold_append', FoldAppend, autopass=False, 
-            i=self.i,linear_raw=kwargs['linear_raw'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters,append_parameters=self.append_parameters
+            i=self.i,linear_raw=kwargs['linear_raw'],bow_as_feature=kwargs['bow_as_feature'],validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters,append_parameters=self.append_parameters
         )
         fold_append_runner.in_directory = input_feeds['directory']
         fold_append_runner.in_instances = input_feeds['instances']
@@ -277,7 +290,7 @@ class RunFoldAppend(WorkflowComponent):
         fold_append_runner.in_docs = input_feeds['docs']
         fold_append_runner.in_bins = input_feeds['bins']
 
-        fold_append_reporter = workflow.new_task('report_fold_append', ReportPerformance, autopass=True, ordinal=kwargs['ordinal'])
+        fold_append_reporter = workflow.new_task('report_fold_append', ReportPerformance, autopass=True, ordinal=kwargs['ordinal'],teststart=kwargs['teststart'])
         fold_append_reporter.in_predictions = fold_append_runner.out_predictions
         fold_append_reporter.in_testlabels = fold_append_runner.out_testlabels
         fold_append_reporter.in_testdocuments = fold_append_runner.out_testdocs
@@ -295,6 +308,7 @@ class ValidateAppend(WorkflowComponent):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
+    bow_nfolds = Parameter(default=5)
     bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
     bow_prediction_probs = BoolParameter() # choose to add prediction probabilities
 
@@ -460,7 +474,7 @@ class ValidateAppend(WorkflowComponent):
             vectorizer_append = workflow.new_task('vectorize_csv_append',TransformCsv,autopass=True,delimiter=self.delimiter)
             vectorizer_append.in_csv = input_feeds['featurized_csv_append']
                 
-            instances_append = vectorizer_append.out_vectors
+            instances_append = vectorizer_append.out_features
 
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']

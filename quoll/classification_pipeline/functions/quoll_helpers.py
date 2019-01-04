@@ -55,7 +55,7 @@ def prepare_ga_input(kwargs):
     ]])
 
 def prepare_append_input(kwargs):
-    return '--'.join([str(x) for x in [kwargs['bow_as_feature'],kwargs['bow_classifier'],kwargs['bow_include_labels'],kwargs['bow_prediction_probs']]])
+    return '--'.join([str(x) for x in [kwargs['bow_as_feature'],kwargs['bow_classifier'],kwargs['bow_nfolds'],kwargs['bow_include_labels'],kwargs['bow_prediction_probs']]])
 
 def prepare_validate_input(kwargs):
     return '--'.join([str(x) for x in [kwargs['n'],kwargs['steps'],kwargs['teststart'],kwargs['testend']]])
@@ -97,7 +97,7 @@ def decode_ga_input(paramstring):
         'samplesize'],paramstring.split('--')))
 
 def decode_append_input(paramstring):
-    return zip(['bow_as_feature','bow_classifier','bow_include_labels','bow_prediction_probs'],paramstring.split('--'))
+    return zip(['bow_as_feature','bow_classifier','bow_nfolds','bow_include_labels','bow_prediction_probs'],paramstring.split('--'))
 
 def decode_validate_input(paramstring):
     return zip(['n','steps','teststart','testend'],paramstring.split('--'))
@@ -126,7 +126,7 @@ def set_parameter_types(parameterdict):
         'nb_fit_prior':'bool','lr_dual':'bool','xg_seed':'int','knn_p':'int','tree_class_weight':'bool',
         'ga':'bool','num_iterations':'bool','population_size':'int','tournament_size':'int',
         'n_crossovers':'int','stop_condition':'int','steps':'int','sampling':'bool',
-        'bow_as_feature':'bool','bow_prediction_probs':'bool',
+        'bow_as_feature':'bool','bow_nfolds':'bool','bow_prediction_probs':'bool',
         'n':'int','teststart':'int','testend':'int'
     }
     for k in list(set(parameterdict.keys()) & set(type_dict.keys())):

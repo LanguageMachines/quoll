@@ -66,6 +66,7 @@ class Quoll(WorkflowComponent):
     # append parameters
     bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     bow_classifier = Parameter(default='naive_bayes')
+    bow_nfolds = Parameter(default=5)
     bow_include_labels = Parameter(default='all') # will give prediction probs as feature for each label by default, can specify particular labels (separated by a space) here, only applies when 'bow_prediction_probs' is chosen
     bow_prediction_probs = BoolParameter() # choose to add prediction probabilities                
     # nfold-cv parameters
