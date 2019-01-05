@@ -31,7 +31,7 @@ class ReportTask(Task):
     preprocess_parameters = Parameter()
 
     def out_report(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.report' if self.testlabels_true else '.docpredictions.csv')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok' or self.in_test().path[-15:] == 'predictions.txt') else '.' + self.in_test().path.split('.')[-1], addextension='.report' if self.testlabels_true else '.docpredictions.csv')
 
     def run(self):
 
@@ -50,6 +50,8 @@ class ClassifyAppendTask(Task):
     in_test_append = InputSlot()
     in_trainlabels = InputSlot()
 
+    bow_as_feature = BoolParameter()
+ 
     append_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -58,7 +60,7 @@ class ClassifyAppendTask(Task):
     preprocess_parameters = Parameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.predictions.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.bow.combined.predictions.txt' if self.bow_as_feature else '.combined.predictions.txt')
     
     def run(self):
 
@@ -66,7 +68,7 @@ class ClassifyAppendTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['append','ga','classify','vectorize','featurize','preprocess'],[self.append_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ClassifyAppend(train=self.in_train().path,train=self.in_train_append().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,test=self.in_test_append().path,**kwargs)
+        yield ClassifyAppend(train=self.in_train().path,train_append=self.in_train_append().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,test_append=self.in_test_append().path,**kwargs)
 
 
 class TrainAppendTask(Task):
@@ -75,8 +77,8 @@ class TrainAppendTask(Task):
     in_train_append = InputSlot()
     in_trainlabels = InputSlot()
 
-    bow_as_feature = Parameter()
-
+    bow_as_feature = BoolParameter()
+ 
     append_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -88,12 +90,12 @@ class TrainAppendTask(Task):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.bow.combined.model.pkl' if self.bow_as_feature else '.combined.model.pkl')
     
     def run(self):
-
+        
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
         kwargs = quoll_helpers.decode_task_input(['append','ga','classify','vectorize','featurize','preprocess'],[self.append_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ClassifyAppend(train=self.in_train().path,train=self.in_train_append().path,trainlabels=self.in_trainlabels().path,**kwargs)
+        yield ClassifyAppend(train=self.in_train().path,train_append=self.in_train_append().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
 
 ################################################################################
@@ -314,8 +316,7 @@ class Quoll(WorkflowComponent):
 
             else:
                 validator = workflow.new_task('validate', ValidateTask, autopass=True,
-                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
-                    classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']  
+                        classifier=self.classifier,n=self.n,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']  
                 )
             
             validator.in_instances = train
@@ -378,7 +379,7 @@ class Quoll(WorkflowComponent):
                     exit()
 
                 append_classifier = workflow.new_task('classify_append',ClassifyAppendTask,autopass=True,
-                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],append_parameters=task_args['append']
+                    bow_as_feature=self.bow_as_feature,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],append_parameters=task_args['append']
                 )
                 append_classifier.in_train = train
                 append_classifier.in_train_append = trainvectors_append
@@ -398,12 +399,12 @@ class Quoll(WorkflowComponent):
             else:
 
                 reporter = workflow.new_task('report', ReportTask, autopass=True, 
-                    testlabels_true=testlabels_true,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
+                    testlabels_true=testlabels_true,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
                 )
                 reporter.in_train = train
                 reporter.in_test = test
                 reporter.in_trainlabels = trainlabels
                 reporter.in_testlabels = testlabels
-                reporter.in_testdocs = docs
+                reporter.in_testdocs = testdocs
 
             return reporter

@@ -27,7 +27,7 @@ class FoldAppend(Task):
     i = IntParameter()
     linear_raw = BoolParameter()
     bow_as_feature = BoolParameter()
-
+    
     append_parameters = Parameter()
     validate_parameters = Parameter()
     ga_parameters = Parameter()
@@ -44,49 +44,49 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
 
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1))    
 
     def out_train(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_train_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))   
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))   
 
     def out_test(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))         
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))         
 
     def out_test_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test_append.' + '.'.join(self.in_instances_append().path.split('.')[-2:]))
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i+1) + '/train.labels')
 
     def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.labels')
 
     def out_nominal_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/train.featureselection.txt')
 
     def out_trainvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train_append.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/train_append.featureselection.txt')
     
     def out_testvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/test.featureselection.txt')
 
     def out_testvocabulary_append(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test_append.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test_append.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/test_append.featureselection.txt')
 
     def out_traindocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.docs.txt')
 
     def out_testdocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.docs.txt')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.bow.combined.predictions.txt' if self.bow_as_feature else '.nfoldcv/fold' + str(self.i) + '/test.combined.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.bow.combined.predictions.txt' if self.bow_as_feature else '.nfoldcv/fold' + str(self.i+1) + '/test.combined.predictions.txt')
 
     def run(self):
         
@@ -177,7 +177,7 @@ class FoldAppend(Task):
         with open(self.out_testdocs().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
-        print('Running experiment for fold',self.i)
+        print('Running experiment for fold',self.i+1)
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','append'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.append_parameters])
         yield ClassifyAppend(train=self.out_train().path,train_append=self.out_train_append().path,trainlabels=self.out_trainlabels().path,test=self.out_test().path,test_append=self.out_test_append().path,traindocs=self.out_traindocs().path,**kwargs) 
@@ -211,7 +211,7 @@ class FoldsAppend(Task):
         for fold in range(self.n):
             yield RunFoldAppend(
                 directory=self.out_exp().path, instances=self.in_instances().path, instances_append=self.in_instances_append().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path, 
-                i=fold+1,append_parameters=self.append_parameters,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+                i=fold,append_parameters=self.append_parameters,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )                
 
 class ValidateAppendTask(Task):
@@ -238,7 +238,7 @@ class ValidateAppendTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['validate','append','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.append_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ValidateAppend(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
+        yield ValidateAppend(instances=self.in_instances().path,instances_append=self.in_instances_append().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
 
 
 

@@ -65,31 +65,31 @@ class Fold(Task):
         return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
             
     def out_fold(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i))    
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1))    
 
     def out_train(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.' + '.'.join(self.in_instances().path.split('.')[-2:]))        
 
     def out_test(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.' + '.'.join(self.in_instances().path.split('.')[-2:]))
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.raw.labels' if self.linear_raw else '.nfoldcv/fold' + str(self.i+1) + '/train.labels')
 
     def out_testlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.labels')
 
     def out_nominal_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.labels')
 
     def out_trainvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/train.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/train.featureselection.txt')
 
     def out_testvocabulary(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i) + '/test.featureselection.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/test.featureselection.txt')
 
     def out_testdocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.docs.txt')
 
     def run(self):
         
@@ -162,7 +162,7 @@ class Fold(Task):
         with open(self.out_testdocs().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(test_documents))
 
-        print('Running experiment for fold',self.i)
+        print('Running experiment for fold',self.i+1)
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
         yield Report(train=self.out_train().path, trainlabels=self.out_trainlabels().path, test=self.out_test().path, testlabels=self.out_testlabels().path, testdocs=self.out_testdocs().path,**kwargs)
@@ -192,7 +192,7 @@ class Folds(Task):
         # for each fold
         for fold in range(self.n):
             yield RunFold(directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path,
-                i=fold+1,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+                i=fold,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )
 
 
@@ -203,6 +203,8 @@ class ValidateTask(Task):
     in_docs = InputSlot()
 
     classifier = Parameter()
+    n = Parameter()
+    
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -228,7 +230,9 @@ class ValidateTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,classifier=self.classifier,**kwargs)
+        del kwargs['classifier']
+        del kwargs['n']
+        yield Validate(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,n=self.n,classifier=self.classifier,**kwargs)
 
 
 ################################################################################
