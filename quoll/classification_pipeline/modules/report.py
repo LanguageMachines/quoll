@@ -375,6 +375,7 @@ class Report(WorkflowComponent):
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
+    ensemble = Parameter(default=False)
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
@@ -458,27 +459,27 @@ class Report(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
-                InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
+                InputFormat(self, format_id='train',extension ='.model.pkl',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.vectors.npz',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.csv',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.features.npz',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.tok.txt',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.tok.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.frog.json',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.txt',inputparameter='train'),
                 ),
                 (
                 InputFormat(self, format_id='classified_test',extension='.predictions.txt',inputparameter='test'),
-                InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
-                InputFormat(self, format_id='vectorized_test_csv',extension='.csv',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.vectors.npz',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.csv',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.features.npz',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.tok.txt',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.tok.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.frog.json',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test')
                 ),
                 (
@@ -507,26 +508,9 @@ class Report(WorkflowComponent):
             ############################
 
             trainlabels = input_feeds['labels_train']
-            
-            if 'modeled_train' in input_feeds.keys():
-                traininstances = input_feeds['modeled_train']
-            elif 'vectorized_train' in input_feeds.keys():
-                traininstances = input_feeds['vectorized_train']
-            elif 'featurized_train_csv' in input_feeds.keys():
-                traininstances = input_feeds['featurized_train_csv']
-            elif 'featurized_train' in input_feeds.keys():
-                traininstances = input_feeds['featurized_train']
-            elif 'pre_featurized_train' in input_feeds.keys():
-                traininstances = input_feeds['pre_featurized_train']
-     
-            if 'vectorized_test' in input_feeds.keys():
-                testinstances = input_feeds['vectorized_test']
-            elif 'featurized_test_csv' in input_feeds.keys():
-                testinstances = input_feeds['featurized_test_csv']
-            elif 'featurized_test' in input_feeds.keys():
-                testinstances = input_feeds['featurized_test']
-            elif 'pre_featurized_test' in input_feeds.keys():
-                testinstances = input_feeds['pre_featurized_test']
+            traininstances = input_feeds['train']
+            if 'test' in input_feeds.keys():
+                testinstances = input_feeds['test']
             elif 'docs_test' in input_feeds.keys():
                 testinstances = input_feeds['docs_test']
                 docs_test = input_feeds['docs_test']
@@ -549,14 +533,12 @@ class Report(WorkflowComponent):
             docs_test = input_feeds['docs']
 
         if 'labels_test' in input_feeds.keys():
-
             reporter = workflow.new_task('report_performance',ReportPerformance,autopass=True,ordinal=self.ordinal,teststart=0)
             reporter.in_predictions = predictions
             reporter.in_testlabels = input_feeds['labels_test']
             reporter.in_testdocuments = docs_test
 
         else: # report docpredictions
-
             reporter = workflow.new_task('report_docpredictions',ReportDocpredictions,autopass=True)
             reporter.in_predictions = predictions
             reporter.in_testdocuments = docs_test

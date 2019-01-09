@@ -53,7 +53,6 @@ class Fold(Task):
     i = IntParameter()
     linear_raw = BoolParameter()
 
-    validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
     vectorize_parameters = Parameter()
@@ -177,7 +176,6 @@ class Folds(Task):
 
     n = IntParameter()
     
-    validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
     vectorize_parameters = Parameter()
@@ -192,7 +190,7 @@ class Folds(Task):
         # for each fold
         for fold in range(self.n):
             yield RunFold(directory=self.out_exp().path, instances=self.in_instances().path, labels=self.in_labels().path, bins=self.in_bins().path, docs=self.in_docs().path,
-                i=fold,validate_parameters=self.validate_parameters,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
+                i=fold,ga_parameters=self.ga_parameters,classify_parameters=self.classify_parameters,vectorize_parameters=self.vectorize_parameters
             )
 
 
@@ -309,6 +307,7 @@ class Validate(WorkflowComponent):
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
+    ensemble = Parameter(default=False)
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)

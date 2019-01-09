@@ -334,6 +334,7 @@ class ValidateAppend(WorkflowComponent):
 
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
+    ensemble = Parameter(default=False)
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)

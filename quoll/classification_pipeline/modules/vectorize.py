@@ -261,11 +261,13 @@ class VectorizeFoldreporter(Task):
     in_predictions = InputSlot()
     in_bins = InputSlot()
 
+    featurename = Parameter()
+
     def out_vectors(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.bow.vectors.npz')
+        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.validated.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.bow.featureselection.txt')
+        return self.outputfrominput(inputformat='predictions', stripextension='.validated.predictions.txt', addextension='.validated.featureselection.txt')
 
     def run(self):
 
@@ -296,7 +298,7 @@ class VectorizeFoldreporter(Task):
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
 
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
-            out.write('BOW')
+            out.write(self.featurename)
 
 
 class VectorizeFoldreporterProbs(Task):
@@ -307,10 +309,10 @@ class VectorizeFoldreporterProbs(Task):
     include_labels = Parameter()
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.vectors.npz')
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.validated.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.featureselection.txt')
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.validated.featureselection.txt')
     
     def run(self):
 
@@ -357,11 +359,13 @@ class VectorizePredictions(Task):
 
     in_predictions = InputSlot()
 
+    featurename = Parameter()
+
     def out_vectors(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.vectors.npz')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.predictions.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.bow.featureselection.txt')
+        return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.predictions.featureselection.txt')
 
     def run(self):
 
@@ -386,7 +390,7 @@ class VectorizePredictions(Task):
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
 
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
-            out.write('BOW')
+            out.write(self.featurename)
 
 class VectorizePredictionsProbs(Task):
  
@@ -395,10 +399,10 @@ class VectorizePredictionsProbs(Task):
     include_labels = Parameter()
 
     def out_vectors(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.vectors.npz')
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.full_predictions.vectors.npz')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.bow.featureselection.txt')
+        return self.outputfrominput(inputformat='full_predictions', stripextension='.full_predictions.txt', addextension='.full_predictions.featureselection.txt')
     
     def run(self):
 
@@ -435,6 +439,7 @@ class VectorizePredictionsProbs(Task):
             for label in included_labels:
                 out.write(label + '_prediction_prob')
 
+
 class FeaturizeTask(Task):
 
     in_pre_featurized = InputSlot()
@@ -455,6 +460,39 @@ class FeaturizeTask(Task):
 #################################################################
 ### Component ###################################################
 #################################################################
+
+@registercomponent
+class PredictionsToVectors(WorkflowComponent):
+
+    predictions = Parameter()
+    bins = Parameter(default='xxx.xxx')
+
+    featurename = Parameter()
+
+    def accepts(self):
+        return [tuple(x) for x in numpy.array(numpy.meshgrid(*
+            [
+                (
+                    InputFormat(self,format_id='predictions',extension='.validated.predictions.txt',inputparameter='predictions')
+                ),
+                (
+                    InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins')
+                )
+            ]
+            )).T.reshape(-1,2)]  
+
+    def setup(self, workflow, input_feeds):
+
+        if 'bins' in input_feeds.keys():
+            vectorize = workflow.new_task('vectorize_folds', VectorizeFoldreporter, autopass=False,featurename=self.featurename)
+            vectorize.in_predictions = input_feeds['predictions']
+            vectorize.in_bins = input_feeds['bins']
+        else: # not folds
+            vectorize = workflow.new_task('vectorize', VectorizePredictions, autopass=False,featurename=self.featurename)
+            vectorize.in_predictions = input_feeds['predictions']
+
+        return vectorize
+
 
 @registercomponent
 class Vectorize(WorkflowComponent):
@@ -492,12 +530,12 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.frog.jsondir',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txt',inputparameter='train'),
-                InputFormat(self, format_id='pre_featurized_train',extension='.txtdir',inputparameter='train')
+                InputFormat(self, format_id='featurized_train',extension='.tok.txt',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.tok.txtdir',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.frog.json',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.txt',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.txtdir',inputparameter='train')
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
@@ -506,12 +544,12 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.frog.jsondir',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txt',inputparameter='test'),
-                InputFormat(self, format_id='pre_featurized_test',extension='.txtdir',inputparameter='test')
+                InputFormat(self, format_id='featurized_test',extension='.tok.txt',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.tok.txtdir',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.frog.json',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.txt',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.txtdir',inputparameter='test')
                 ),
             ]
             )).T.reshape(-1,3)]  
@@ -535,11 +573,9 @@ class Vectorize(WorkflowComponent):
                 traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
                 traincsvtransformer.in_csv = input_feeds['featurized_train_csv']
                 trainfeatures = traincsvtransformer.out_features
-            elif 'featurized_train' in input_feeds.keys():
-                trainfeatures = input_feeds['featurized_train']
-            else: # pre_featurized
+            else:
                 trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
-                trainfeaturizer.in_pre_featurized = input_feeds['pre_featurized_train']
+                trainfeaturizer.in_pre_featurized = input_feeds['featurized_train']
 
                 trainfeatures = trainfeaturizer.out_featurized
 
@@ -568,11 +604,9 @@ class Vectorize(WorkflowComponent):
                     testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
                     testcsvtransformer.in_csv = input_feeds['featurized_test_csv']
                     testfeatures = testcsvtransformer.out_features
-                elif 'featurized_test' in input_feeds.keys():
-                    testfeatures = input_feeds['featurized_test']
-                else: # pre_featurized
+                else:
                     testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
-                    testfeaturizer.in_pre_featurized = input_feeds['pre_featurized_test']
+                    testfeaturizer.in_pre_featurized = input_feeds['featurized_test']
 
                     testfeatures = testfeaturizer.out_featurized
                     

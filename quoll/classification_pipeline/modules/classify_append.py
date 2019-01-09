@@ -9,9 +9,9 @@ from collections import defaultdict
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.modules.validate import ValidateTask
-from quoll.classification_pipeline.modules.report import ReportFolds
+from quoll.classification_pipeline.modules.report import TrainTask, ClassifyTask
 from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask
-from quoll.classification_pipeline.modules.vectorize import Vectorize, TransformCsv, FeaturizeTask, Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
+from quoll.classification_pipeline.modules.vectorize import Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
 
 from quoll.classification_pipeline.functions.classifier import *
 from quoll.classification_pipeline.functions import quoll_helpers
@@ -60,6 +60,7 @@ class ClassifyAppend(WorkflowComponent):
     
     # classifier parameters
     classifier = Parameter(default='naive_bayes')
+    ensemble = Parameter(default=False)
     ordinal = BoolParameter()
     jobs = IntParameter(default=1)
     iterations = IntParameter(default=10)
@@ -298,7 +299,7 @@ class ClassifyAppend(WorkflowComponent):
                     prediction_vectorizer = workflow.new_task('vectorize_predictions_probs', VectorizePredictionsProbs, autopass=True, include_labels=self.bow_include_labels)
                     prediction_vectorizer.in_full_predictions = bow_predictor.out_full_predictions
                 else:
-                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True)
+                    prediction_vectorizer = workflow.new_task('vectorize_predictions', VectorizePredictions, autopass=True, featurename='BOW')
                     prediction_vectorizer.in_predictions = bow_predictor.out_predictions
 
                 testvectors = prediction_vectorizer.out_vectors
@@ -309,7 +310,7 @@ class ClassifyAppend(WorkflowComponent):
                 fold_vectorizer.in_full_predictions = bow_validator.out_full_predictions
                 fold_vectorizer.in_bins = bow_validator.out_bins
             else:
-                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True)
+                fold_vectorizer = workflow.new_task('vectorize_foldreporter', VectorizeFoldreporter, autopass=True, featurename='BOW')
                 fold_vectorizer.in_predictions = bow_validator.out_predictions
                 fold_vectorizer.in_bins = bow_validator.out_bins
 
@@ -320,39 +321,32 @@ class ClassifyAppend(WorkflowComponent):
         traincombiner.in_vectors = trainvectors
         traincombiner.in_vectors_append = trainvectors_append
 
+        #######################
+        ### Train and test ####
+        #######################
+
         if test:
             testvector_combiner = workflow.new_task('vectorize_test_combined_vectors',Combine,autopass=True)
             testvector_combiner.in_vectors = testvectors
             testvector_combiner.in_vectors_append = testvectors_append
 
-        #######################
-        ### Training phase ####
-        #######################
+            classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
+                classify_parameters=task_args['classify'],ga_parameters=task_args['ga']     
+            )
+            classifier.in_train = traincombiner.out_combined
+            classifier.in_test = testvector_combiner.out_combined
+            classifier.in_trainlabels = trainlabels
 
-        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
-        trainer.in_train = traincombiner.out_combined
-        trainer.in_trainlabels = trainlabels          
+            return classifier
 
-        ######################
-        ### Testing phase ####
-        ######################
+        else: # only train
 
-        if test:
+            trainer = workflow.new_task('train_append',TrainTask,autopass=True,
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
+                classify_parameters=task_args['classify'],ga_parameters=task_args['ga']     
+            )
+            trainer.in_train = traincombiner.out_combined
+            trainer.in_trainlabels = trainlabels
 
-            predictor = workflow.new_task('predictor',Predict,autopass=True,
-                classifier=self.classifier,ordinal=self.ordinal,linear_raw=self.linear_raw,scale=self.scale,ga=self.ga)
-            predictor.in_test = testvector_combiner.out_combined
-            predictor.in_trainlabels = trainlabels
-            predictor.in_model = trainer.out_model
-
-            if self.linear_raw:
-                translator = workflow.new_task('translator',TranslatePredictions,autopass=True)
-                translator.in_linear_labels = trainlabels
-                translator.in_predictions = predictor.out_predictions
-                return translator
-
-            else:
-                return predictor
-
-        else:
-            return trainer            
+            return trainer         
