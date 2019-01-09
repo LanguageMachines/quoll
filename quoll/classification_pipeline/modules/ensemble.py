@@ -57,6 +57,7 @@ class EnsembleTrainTask(Task):
         # extract ensemble classifiers
         kwargs = quoll_helpers.decode_task_input(['ga','classify'],[self.ga_parameters,self.classify_parameters])
         ensemble_clfs = kwargs['ensemble'].split()
+        print('TRAIN ENSEMBLE',kwargs['ensemble'])
         kwargs['ensemble'] = False
         kwargs['n'] = 5
 
@@ -67,15 +68,19 @@ class EnsembleTrainTask(Task):
             # prepare files
             kwargs['classifier'] = ensemble_clf
             clfdir = self.out_ensembledir().path + '/' + ensemble_clf
-            os.mkdir(clfdir)
-            instances = clfdir + '/instances.npz'
+            print('TRAIN ENSEMBLE CLF MKDIR',clfdir)
+            if not os.path.exists(clfdir):
+                os.mkdir(clfdir)
+            instances = clfdir + '/instances.features.npz'
             labels = clfdir + '/instances.labels'
             docs = clfdir + '/docs.txt'
             vocabulary = clfdir + '/instances.vocabulary.txt'
-            os.system('cp ' + self.in_train().path + ' ' + instances)
-            os.system('cp ' + self.in_trainlabels().path + ' ' + labels)
-            os.system('cp ' + self.in_docs().path + ' ' + docs)
-            os.system('cp ' + self.in_vocabulary().path + ' ' + vocabulary)
+            if not os.path.exists(instances):
+                os.system('cp ' + self.in_train().path + ' ' + instances)
+                os.system('cp ' + self.in_trainlabels().path + ' ' + labels)
+                os.system('cp ' + self.in_docs().path + ' ' + docs)
+                os.system('cp ' + self.in_vocabulary().path + ' ' + vocabulary)
+                print('VALIDATE INSTANCES',instances)
             yield Validate(instances=instances,labels=labels,docs=docs,**kwargs)
             yield PredictionsToVectors(bins=bins,predictions=clfdir + '/instances.validated.predictions.txt',featurename=ensemble_clf)
             featurenames.append(ensemble_clf)
@@ -133,21 +138,24 @@ class EnsemblePredictTask(Task):
         # extract ensemble classifiers
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
         ensemble_clfs = kwargs['ensemble'].split()
+        print('ENSEMBLE',kwargs['ensemble'])
         kwargs['ensemble'] = False
 
         vectors = []
         featurenames = []
+        print('ENSEMBLECLFS',ensemble_clfs)
         # for each ensemble clf
         for ensemble_clf in ensemble_clfs:
             # prepare files
             kwargs['classifier'] = ensemble_clf
             clfdir = self.out_ensembledir().path + '/' + ensemble_clf
+            print('MKDIR',clfdir)
             os.mkdir(clfdir)
             train = clfdir + '/train.features.npz'
             trainlabels = clfdir + '/train.labels'
             test = clfdir + '/test.features.npz'
             os.system('cp ' + self.in_train().path + ' ' + train)
-            os.system('cp ' + self.in_trainlabels().path + ' ' + labels)
+            os.system('cp ' + self.in_trainlabels().path + ' ' + trainlabels)
             os.system('cp ' + self.in_test().path + ' ' + test)
             yield Classify(train=self.in_train().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,**kwargs)
             yield PredictionsToVectors(predictions=clfdir+'/test.predictions.txt')
@@ -176,7 +184,7 @@ class EnsembleTrain(Task):
     preprocess_parameters = Parameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.ensemble.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.ensemble.labels')
@@ -186,7 +194,7 @@ class EnsembleTrain(Task):
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
-        kwargs = quoll_helpers.decode_task_input(['classify','ga','vectorize'],[self.classify_parameters,self.ga_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])        
+        kwargs = quoll_helpers.decode_task_input(['classify','ga','vectorize','featurize','preprocess'],[self.classify_parameters,self.ga_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])        
         yield Ensemble(train=self.in_train().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
 
@@ -203,23 +211,23 @@ class EnsembleTrainTest(Task):
     preprocess_parameters = Parameter()
 
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.ensemble.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.ensemble.labels')
     
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.ensemble.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.vectors.npz')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.ensemble.predictions.txt')        
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.predictions.txt')        
 
     def run(self):
 
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
-        kwargs = quoll_helpers.decode_task_input(['classify','ga','vectorize'],[self.classify_parameters,self.ga_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])        
+        kwargs = quoll_helpers.decode_task_input(['classify','ga','vectorize','featurize','preprocess'],[self.classify_parameters,self.ga_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])        
         yield Ensemble(train=self.in_train().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,**kwargs)
 
 
@@ -335,8 +343,6 @@ class Ensemble(WorkflowComponent):
         return [tuple(x) for x in numpy.array(numpy.meshgrid(*
             [
                 (
-                InputFormat(self, format_id='modeled_train',extension ='.model.pkl',inputparameter='train'),
-                InputFormat(self, format_id='vectors_train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='train_csv',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.features.npz',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.tok.txt',inputparameter='train'),
@@ -350,7 +356,6 @@ class Ensemble(WorkflowComponent):
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
                 ),
                 (
-                InputFormat(self, format_id='vectors_test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='test_csv',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.features.npz',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.tok.txt',inputparameter='test'),
@@ -366,35 +371,25 @@ class Ensemble(WorkflowComponent):
     def setup(self, workflow, input_feeds):
 
         task_args = quoll_helpers.prepare_task_input(['preprocess','featurize','vectorize','classify','ga'],workflow.param_kwargs)
-
+        
         trainlabels = input_feeds['labels_train']
-
-        traininstances = False
-        model = False
 
         ######################
         ### featurize ########
         ######################
 
-        if 'modeled_train' in input_feeds.keys():
-            model = input_feeds['modeled_train']
-        if 'vectors_train' in input_feeds.keys():
-            traininstances = input_feeds['vectors_train']
+        if 'train_csv' in input_feeds.keys():
+            traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
+            traincsvtransformer.in_csv = input_feeds['featurized_train_csv']
+            trainfeatures = traincsvtransformer.out_features
         else:
-            elif 'train_csv' in input_feeds.keys():
-                traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-                traincsvtransformer.in_csv = input_feeds['featurized_train_csv']
-                trainfeatures = traincsvtransformer.out_features
-            else:
-                trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
-                trainfeaturizer.in_pre_featurized = input_feeds['train']
-                trainfeatures = trainfeaturizer.out_featurized
+            trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
+            trainfeaturizer.in_pre_featurized = input_feeds['train']
+            trainfeatures = trainfeaturizer.out_featurized
 
         if set(['test','test_csv','vectors_test']) & set(list(input_feeds.keys())):
             
-            if 'vectors_test' in input_feeds.keys():
-                testinstances = input_feeds['vectors_test']
-            elif 'test_csv' in input_feeds.keys():
+            if 'test_csv' in input_feeds.keys():
                 testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
                 testcsvtransformer.in_csv = input_feeds['featurized_test_csv']
                 testfeatures = testcsvtransformer.out_features
@@ -407,45 +402,19 @@ class Ensemble(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        if set(['test','test_csv','vectors_test']) & set(list(input_feeds.keys())):
-            ensembler = workflow.new_task('ensemble_traintest',EnsembleTrainTest,autopass=True,
-                classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],vectorize_parameters=task_args['vectorize'])
-            ensembler.in_test = testfeatures
-            ensembler.in_train = trainfeatures
-            ensembler.in_trainlabels = trainlabels
-        else: # only train
-            ensembler = workflow.new_task('ensemble_train',EnsembleTrain,autopass=True,
-                classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],vectorize_parameters=task_args['vectorize'])
-            ensembler.in_train = trainfeatures
-            ensembler.in_trainlabels = trainlabels
+        ensemble_trainer = workflow.new_task('train_ensemble',EnsembleTrainTask,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
+        ensemble_trainer.in_train = trainfeatures
+        ensemble_trainer.in_trainlabels = trainlabels
 
-        trainer = workflow.new_task('train',Train,autopass=True,classifier=self.classifier,classify_parameters=task_args['classify'],ga_parameters=task_args['ga'])
-        trainer.in_train = ensembler.out_train
-        trainer.in_trainlabels = ensembler.out_labels            
+        if 'test' in input_feeds.keys():
 
-        ######################
-        ### Testing phase ####
-        ######################
+            ensemble_predictor = workflow.new_task('predict_ensemble',EnsemblePredictTask,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
+            ensemble_predictor.in_train = trainfeatures
+            ensemble_predictor.in_trainlabels = trainlabels
+            ensemble_predictor.in_test = testfeatures
 
-        if set(['test','test_csv','vectors_test']) & set(list(input_feeds.keys())):
-
-            if not model:
-                model = trainer.out_model
-
-            predictor = workflow.new_task('predictor',Predict,autopass=True,
-                classifier=self.classifier,ordinal=self.ordinal,linear_raw=self.linear_raw,scale=self.scale,ga=self.ga)
-            predictor.in_test = ensembler.out_test
-            predictor.in_trainlabels = ensembler.out_labels
-            predictor.in_model = model
-
-            if self.linear_raw:
-                translator = workflow.new_task('predictor',TranslatePredictions,autopass=True)
-                translator.in_linear_labels = trainlabels
-                translator.in_predictions = predictor.out_predictions
-                return translator
-
-            else:
-                return predictor
+            return ensemble_trainer, ensemble_predictor
 
         else:
-            return trainer
+
+            return ensemble_trainer
