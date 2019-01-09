@@ -9,7 +9,6 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
-from quoll.classification_pipeline.modules.validate import Validate
 from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask, Combine, PredictionsToVectors
 
 from quoll.classification_pipeline.functions.classifier import *
