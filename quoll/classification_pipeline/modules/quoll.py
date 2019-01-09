@@ -5,6 +5,7 @@ from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercompon
 
 from quoll.classification_pipeline.modules.validate import ValidateTask
 from quoll.classification_pipeline.modules.validate_append import ValidateAppendTask
+from quoll.classification_pipeline.modules.ensemble import EnsembleTrain, EnsembleTrainTest
 from quoll.classification_pipeline.modules.report import Report, TrainTask
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend 
 
@@ -396,7 +397,24 @@ class Quoll(WorkflowComponent):
                 reporter.in_trainlabels = trainlabels
                 reporter.in_testlabels = testlabels
                 reporter.in_testdocs = testdocs
-                    
+
+            elif self.ensemble:
+                ensemble_classifier = workflow.new_task('ensemble',EnsembleTrainTest, autopass=True,
+                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
+                )
+                ensemble_classifier.in_train = train
+                ensemble_classifier.in_trainlabels = trainlabels
+                ensemble_classifier.in_test = test
+
+                reporter = workflow.new_task('report_append', ReportTask, autopass=True, 
+                    testlabels_true=testlabels_true,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']                   
+                )
+                reporter.in_train = ensemble_classifier.out_train
+                reporter.in_test = ensemble_classifier.out_predictions
+                reporter.in_trainlabels = ensemble_classifier.out_trainlabels
+                reporter.in_testlabels = testlabels
+                reporter.in_testdocs = testdocs                
+
             else:
 
                 reporter = workflow.new_task('report', ReportTask, autopass=True, 
