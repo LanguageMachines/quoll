@@ -9,6 +9,7 @@ from collections import defaultdict
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
+from quoll.classification_pipeline.modules.validate import Validate
 from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask, Combine, PredictionsToVectors
 
 from quoll.classification_pipeline.functions.classifier import *
@@ -446,7 +447,7 @@ class EnsemblePredictTask(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
-    in_test = InpuSlot()
+    in_test = InputSlot()
 
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -820,7 +821,7 @@ class Classify(WorkflowComponent):
                 else:
                     trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
                     trainfeaturizer.in_pre_featurized = input_feeds['train']
-                    trainfeatures = testfeaturizer.out_featurized
+                    trainfeatures = trainfeaturizer.out_featurized
 
             else:
                 if 'vectors_train' in input_feeds.keys(): 
@@ -830,7 +831,7 @@ class Classify(WorkflowComponent):
                 else:
                     traininstances = input_feeds['train']
 
-        if set(['test','test_csv','vectors_test']) & list(input_feeds.keys()):
+        if set(['test','test_csv','vectors_test']) & set(list(input_feeds.keys())):
             
             if self.ensemble:
                 if 'vectors_test' in input_feeds.keys():

@@ -10,7 +10,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 
 from quoll.classification_pipeline.modules.validate import ValidateTask
 from quoll.classification_pipeline.modules.report import TrainTask, ClassifyTask
-from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainCombinedTask, VectorizeTrainTest, VectorizeTestCombinedTask
+from quoll.classification_pipeline.modules.classify import Train, Predict, VectorizeTrain, VectorizeTrainTest
 from quoll.classification_pipeline.modules.vectorize import Combine, VectorizeFoldreporter, VectorizeFoldreporterProbs, VectorizePredictions, VectorizePredictionsProbs
 
 from quoll.classification_pipeline.functions.classifier import *
