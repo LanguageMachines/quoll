@@ -293,7 +293,7 @@ class TranslatePredictions(Task):
     in_predictions = InputSlot()
 
     def in_nominal_labels(self):
-        return self.outputfrominput(inputformat='linear_labels', stripextension='.raw.labels', addextension='.labels')
+        return self.outputfrominput(inputformat='linear_labels', stripextension='.vectors.raw.labels', addextension='.labels')
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.predictions.txt')
@@ -302,7 +302,7 @@ class TranslatePredictions(Task):
         return self.outputfrominput(inputformat='predictions', stripextension='.predictions.txt', addextension='.translated.full_predictions.txt')
 
     def out_translator(self):
-        return self.outputfrominput(inputformat='linear_labels', stripextension='.labels', addextension='.labeltranslator.txt')
+        return self.outputfrominput(inputformat='linear_labels', stripextension='.vectors.raw.labels', addextension='.labeltranslator.txt')
 
     def run(self):
 
@@ -374,18 +374,20 @@ class VectorizeTrain(Task):
     vectorize_parameters = Parameter()
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
+    linear_raw = BoolParameter()
     
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.vectors.labels' if self.in_trainlabels().path[-14:-7] == 'vectors' else '.raw.labels' if self.linear_raw else '.labels', addextension='.vectors.raw.labels' if self.linear_raw else '.vectors.labels')       
 
     def run(self):
         
         if self.complete(): # necessary as it will not complete otherwise
             return True
         kwargs = quoll_helpers.decode_task_input(['vectorize','featurize','preprocess'],[self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs['linear_raw'] = self.linear_raw
         yield Vectorize(train=self.in_train().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
 
@@ -398,22 +400,24 @@ class VectorizeTrainTest(Task):
     vectorize_parameters = Parameter()
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
+    linear_raw = BoolParameter()
     
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-3:] == 'pkl' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
     
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')       
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.vectors.labels' if self.in_trainlabels().path[-14:-7] == 'vectors' else '.raw.labels' if self.linear_raw else '.labels', addextension='.vectors.raw.labels' if self.linear_raw else '.vectors.labels')       
 
     def out_test(self):
         return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
 
     def run(self):
-
+        
         if self.complete(): # necessary as it will not complete otherwise
             return True
         
         kwargs = quoll_helpers.decode_task_input(['vectorize','featurize','preprocess'],[self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs['linear_raw'] = self.linear_raw
         if '.'.join(self.in_train().path.split('.')[-2:]) == 'model.pkl':
             train = '.'.join(self.in_train().path.split('.')[:-2]) + '.vectors.npz'
         else:
@@ -582,7 +586,7 @@ class Classify(WorkflowComponent):
             testinstances = input_feeds['test']
                 
             vectorizer = workflow.new_task('vectorize_traintest',VectorizeTrainTest,autopass=True,
-                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],linear_raw=self.linear_raw
                 )
             vectorizer.in_train = traininstances
             vectorizer.in_trainlabels = trainlabels
@@ -598,7 +602,7 @@ class Classify(WorkflowComponent):
             assert traininstances, 'Only model given as inputfile, can only be given in combination with test data' 
 
             vectorizer = workflow.new_task('vectorize_train',VectorizeTrain,autopass=True,
-                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize']
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],linear_raw=self.linear_raw
             )
             vectorizer.in_train = traininstances
             vectorizer.in_trainlabels = trainlabels

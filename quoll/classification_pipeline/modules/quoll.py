@@ -400,7 +400,7 @@ class Quoll(WorkflowComponent):
 
             elif self.ensemble:
                 ensemble_classifier = workflow.new_task('ensemble',EnsembleTrainTest, autopass=True,
-                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
+                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=self.linear_raw
                 )
                 ensemble_classifier.in_train = train
                 ensemble_classifier.in_trainlabels = trainlabels

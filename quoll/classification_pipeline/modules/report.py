@@ -309,9 +309,10 @@ class ClassifyTask(Task):
     vectorize_parameters = Parameter()
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
+    linear_raw = BoolParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.predictions.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.translated.predictions.txt' if self.linear_raw else '.predictions.txt')
     
     def run(self):
 
@@ -319,6 +320,7 @@ class ClassifyTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs['linear_raw'] = self.linear_raw
         yield Classify(train=self.in_train().path,trainlabels=self.in_trainlabels().path,test=self.in_test().path,**kwargs)
 
 
@@ -332,6 +334,7 @@ class TrainTask(Task):
     vectorize_parameters = Parameter()
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
+    linear_raw = BoolParameter()
     
     def out_model(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.model.pkl')
@@ -342,6 +345,7 @@ class TrainTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize','featurize','preprocess'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
+        kwargs['linear_raw'] = self.linear_raw
         yield Classify(train=self.in_train().path,trainlabels=self.in_trainlabels().path,**kwargs)
 
             
@@ -516,8 +520,7 @@ class Report(WorkflowComponent):
                 docs_test = input_feeds['docs_test']
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
-                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
-                classify_parameters=task_args['classify'],ga_parameters=task_args['ga']     
+                preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=self.linear_raw     
             )
             classifier.in_train = traininstances
             classifier.in_test = testinstances

@@ -7,11 +7,12 @@ import math
 import random
 from collections import defaultdict
 
-from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
+from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
 from quoll.classification_pipeline.modules.validate import Validate
-from quoll.classification_pipeline.modules.classify import Classify, Train, Predict, TranslatePredictions
-from quoll.classification_pipeline.modules.vectorize import FeaturizeTask, TransformCsv, PredictionsToVectors
+from quoll.classification_pipeline.modules.report import ClassifyTask
+from quoll.classification_pipeline.modules.classify import Classify
+from quoll.classification_pipeline.modules.vectorize import FeaturizeTask, TransformCsv, VectorizeFoldreporter, VectorizePredictions
 
 from quoll.classification_pipeline.functions import quoll_helpers, vectorizer
 
@@ -36,7 +37,7 @@ class EnsembleTrainClf(Task):
         return self.outputfrominput(inputformat='instances', stripextension='.features.npz', addextension='.vocabulary.txt')   
 
     def in_nominal_labels(self):
-        return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
+        return self.outputfrominput(inputformat='labels', stripextension='.raw.labels' if (self.linear_raw and self.classifier == 'linreg') else '.labels', addextension='.labels')   
             
     def out_ensemble_clf(self):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier))    
@@ -45,7 +46,7 @@ class EnsembleTrainClf(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.features.npz')        
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.raw.labels' if self.linear_raw else '.ensemble/' + str(self.classifier) + '/instances.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.raw.labels' if (self.linear_raw and self.classifier == 'linreg') else '.ensemble/' + str(self.classifier) + '/instances.labels')
 
     def out_nominal_labels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.labels')
@@ -57,7 +58,7 @@ class EnsembleTrainClf(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.docs.txt')
 
     def out_bins(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.nfoldcv.bins.csv')
+        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.raw.nfoldcv.bins.csv' if (self.linear_raw and self.classifier == 'linreg') else '.ensemble/' + str(self.classifier) + '/instances.nfoldcv.bins.csv')
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/instances.validated.predictions.txt')
@@ -87,13 +88,12 @@ class EnsembleTrainClf(Task):
             documents = numpy.array(infile.read().strip().split('\n'))
 
         # write data
-        if self.linear_raw:
+        if self.linear_raw and self.classifier == 'linreg':
             # open labels
             with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
                 nominal_labels = numpy.array(infile.read().strip().split('\n'))        
-            labels_nominal = numpy.concatenate([nominal_labels[indices] for j,indices in enumerate(bins) if j != self.i] + [nominal_labels[fixed_train_indices]])
-            with open(self.out_nominal_labels().path,'w',encoding='utf-8') as outfile:
-                outfile.write('\n'.join(labels_nominal))
+                with open(self.out_nominal_labels().path,'w',encoding='utf-8') as outfile:
+                    outfile.write('\n'.join(nominal_labels))
         numpy.savez(self.out_instances().path, data=instances.data, indices=instances.indices, indptr=instances.indptr, shape=instances.shape)
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as outfile:
             outfile.write('\n'.join(vocabulary))
@@ -106,26 +106,29 @@ class EnsembleTrainClf(Task):
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
         kwargs['ensemble'] = False
         kwargs['classifier'] = self.classifier
+        kwargs['n'] = 5
+        if self.linear_raw:
+            if not self.classifier == 'linreg':
+                kwargs['linear_raw'] = False                
         yield Validate(instances=self.out_instances().path,labels=self.out_labels().path,docs=self.out_docs().path,**kwargs)
 
 class EnsembleTrainClfs(Task):
 
     in_train = InputSlot()
     in_trainlabels = InputSlot()
-    in_docs = InputSlot()
 
     ensemble_clfs = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
     vectorize_parameters = Parameter()
+
+    def in_docs(self):
+        return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.txt')
     
     def out_ensembledir(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.ensemble')
-
+    
     def run(self):
-        
-        if self.complete(): # necessary as it will not complete otherwise
-            return True
 
         # make ensemble directory
         self.setup_output_dir(self.out_ensembledir().path)
@@ -146,10 +149,10 @@ class EnsembleTrainVectorizer(Task):
         return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.vectors.npz')
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.labels')
+        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.vectors.labels')
 
     def out_featurenames(self):
-        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.featurenames.txt')  
+        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.featureselection.txt')  
 
     def run(self):
         
@@ -161,15 +164,16 @@ class EnsembleTrainVectorizer(Task):
         featurenames = []
         for clf in self.ensemble_clfs.split():
             featurenames.append(clf)
-            prediction_file = self.in_ensembledir().path + '/' + clf + '/instances.validated.predictions.txt'
-            with open(prediction_file,'r',encoding='utf-8') as file_in:
-                vectors.append(file_in.read().strip().split('\n'))
-
+            vector_file = self.in_ensembledir().path + '/' + clf + '/instances.validated.vectors.npz'
+            loader = numpy.load(vector_file)
+            vector = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+            vectors.append(vector)
+            
         # combine and write vectors
-        ensemblevectors = sparse.csr_matrix(vectors).transpose()
+        ensemblevectors = sparse.hstack(vectors).tocsr()
         with open(self.in_labels().path,'r',encoding='utf-8') as infile:
             ensemblelabels = infile.read().strip().split('\n')
-        if kwargs['balance']:
+        if self.balance:
             ensemblevectors, ensemblelabels = vectorizer.balance_data(ensemblevectors, ensemblelabels)
         numpy.savez(self.out_vectors().path, data=ensemblevectors.data, indices=ensemblevectors.indices, indptr=ensemblevectors.indptr, shape=ensemblevectors.shape)
         with open(self.out_labels().path, 'w', encoding='utf-8') as l_out:
@@ -198,7 +202,7 @@ class EnsemblePredictClf(Task):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.vocabulary.txt')   
 
     def in_nominal_labels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.labels')   
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if (self.linear_raw and self.classifier == 'linreg') else '.labels', addextension='.labels')   
             
     def out_ensemble_clf(self):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier))    
@@ -210,9 +214,9 @@ class EnsemblePredictClf(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/train.vocabulary.txt')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/train.raw.labels' if self.linear_raw else '.ensemble/' + str(self.classifier) + '/train.labels')
+        return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/train.raw.labels' if (self.linear_raw and self.classifier == 'linreg') else '.ensemble/' + str(self.classifier) + '/train.labels')
 
-    def out_nominal_trainlabels(self):
+    def out_nominal_labels(self):
         return self.outputfrominput(inputformat='directory', stripextension='.ensemble', addextension='.ensemble/' + str(self.classifier) + '/train.labels')
 
     def out_test(self):
@@ -253,11 +257,11 @@ class EnsemblePredictClf(Task):
             testvocabulary = infile.read().strip().split('\n')
 
         # write data
-        if self.linear_raw:
+        if self.linear_raw and self.classifier == 'linreg':
             # open labels
-            with open(self.in_nominal_trainlabels().path,'r',encoding='utf-8') as infile:
+            with open(self.in_nominal_labels().path,'r',encoding='utf-8') as infile:
                 nominal_trainlabels = numpy.array(infile.read().strip().split('\n'))        
-           with open(self.out_nominal_labels().path,'w',encoding='utf-8') as outfile:
+            with open(self.out_nominal_labels().path,'w',encoding='utf-8') as outfile:
                 outfile.write('\n'.join(nominal_trainlabels))
         numpy.savez(self.out_train().path, data=train.data, indices=train.indices, indptr=train.indptr, shape=train.shape)
         with open(self.out_trainvocabulary().path,'w',encoding='utf-8') as outfile:
@@ -271,6 +275,9 @@ class EnsemblePredictClf(Task):
         kwargs = quoll_helpers.decode_task_input(['ga','classify','vectorize'],[self.ga_parameters,self.classify_parameters,self.vectorize_parameters])
         kwargs['ensemble'] = False
         kwargs['classifier'] = self.classifier
+        if self.linear_raw:
+            if not self.classifier == 'linreg':
+                kwargs['linear_raw'] = False                
         yield Classify(train=self.out_train().path,trainlabels=self.out_trainlabels().path,test=self.out_test().path,**kwargs)
 
 class EnsemblePredictClfs(Task):
@@ -288,9 +295,6 @@ class EnsemblePredictClfs(Task):
         return self.outputfrominput(inputformat='test', stripextension='.features.npz', addextension='.ensemble')
 
     def run(self):
-        
-        if self.complete(): # necessary as it will not complete otherwise
-            return True
 
         # make ensemble directory
         self.setup_output_dir(self.out_ensembledir().path)
@@ -309,7 +313,7 @@ class EnsemblePredictVectorizer(Task):
         return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.vectors.npz')
 
     def out_featurenames(self):
-        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.featurenames.txt')  
+        return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.featureselection.txt')  
 
     def run(self):
         
@@ -321,12 +325,13 @@ class EnsemblePredictVectorizer(Task):
         featurenames = []
         for clf in self.ensemble_clfs.split():
             featurenames.append(clf)
-            prediction_file = self.in_ensembledir().path + '/' + clf + '/test.predictions.txt'
-            with open(prediction_file,'r',encoding='utf-8') as file_in:
-                vectors.append(file_in.read().strip().split('\n'))
+            vector_file = self.in_ensembledir().path + '/' + clf + '/test.predictions.vectors.npz'
+            loader = numpy.load(vector_file)
+            vector = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+            vectors.append(vector)
 
         # combine and write vectors
-        ensemblevectors = sparse.csr_matrix(vectors).transpose()
+        ensemblevectors = sparse.hstack(vectors).tocsr()
         numpy.savez(self.out_vectors().path, data=ensemblevectors.data, indices=ensemblevectors.indices, indptr=ensemblevectors.indptr, shape=ensemblevectors.shape)
         with open(self.out_featurenames().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(featurenames))
@@ -347,7 +352,7 @@ class EnsembleTrain(Task):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.model.pkl')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.ensemble.labels')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.ensemble.vectors.labels')
 
     def run(self):
         
@@ -369,18 +374,19 @@ class EnsembleTrainTest(Task):
     vectorize_parameters = Parameter()
     featurize_parameters = Parameter()
     preprocess_parameters = Parameter()
+    linear_raw = BoolParameter()
 
     def out_train(self):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.model.pkl')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.ensemble.labels')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.ensemble.vectors.labels')
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.predictions.txt')        
 
     def run(self):
-
+        
         if self.complete(): # necessary as it will not complete otherwise
             return True
 
@@ -424,7 +430,11 @@ class RunEnsembleTrainClf(WorkflowComponent):
         ensemble_train.in_labels = input_feeds['labels']
         ensemble_train.in_docs = input_feeds['docs']
 
-        return ensemble_train
+        ensemble_train_vectorizer = workflow.new_task('vectorize_ensemble_train',VectorizeFoldreporter,autopass=True,featurename=self.classifier)
+        ensemble_train_vectorizer.in_bins = ensemble_train.out_bins
+        ensemble_train_vectorizer.in_predictions = ensemble_train.out_predictions
+
+        return ensemble_train_vectorizer
 
 
 @registercomponent
@@ -459,7 +469,10 @@ class RunEnsemblePredictClf(WorkflowComponent):
         ensemble_predict.in_trainlabels = input_feeds['trainlabels']
         ensemble_predict.in_test = input_feeds['test']
 
-        return ensemble_predict
+        ensemble_predict_vectorizer = workflow.new_task('vectorize_ensemble_predict',VectorizePredictions,autopass=True,featurename=self.classifier)
+        ensemble_predict_vectorizer.in_predictions = ensemble_predict.out_predictions
+        
+        return ensemble_predict_vectorizer
 
 
 @registercomponent
@@ -607,7 +620,7 @@ class Ensemble(WorkflowComponent):
 
         if 'train_csv' in input_feeds.keys():
             traincsvtransformer = workflow.new_task('train_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-            traincsvtransformer.in_csv = input_feeds['featurized_train_csv']
+            traincsvtransformer.in_csv = input_feeds['train_csv']
             trainfeatures = traincsvtransformer.out_features
         else:
             trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
@@ -618,7 +631,7 @@ class Ensemble(WorkflowComponent):
             
             if 'test_csv' in input_feeds.keys():
                 testcsvtransformer = workflow.new_task('test_transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-                testcsvtransformer.in_csv = input_feeds['featurized_test_csv']
+                testcsvtransformer.in_csv = input_feeds['test_csv']
                 testfeatures = testcsvtransformer.out_features
             else:
                 testfeaturizer = workflow.new_task('featurize_test',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
@@ -639,7 +652,7 @@ class Ensemble(WorkflowComponent):
 
         if set(['test','test_csv']) & set(list(input_feeds.keys())):
 
-            ensemble_predictor = workflow.new_task('predict_ensemble',EnsemblePredictClfs,autopass=True,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
+            ensemble_predictor = workflow.new_task('predict_ensemble',EnsemblePredictClfs,autopass=True,ensemble_clfs=self.ensemble,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
             ensemble_predictor.in_train = trainfeatures
             ensemble_predictor.in_trainlabels = trainlabels
             ensemble_predictor.in_test = testfeatures
@@ -649,7 +662,7 @@ class Ensemble(WorkflowComponent):
 
             classifier = workflow.new_task('classify',ClassifyTask,autopass=True,
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
-                classify_parameters=task_args['classify'],ga_parameters=task_args['ga']     
+                classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=False     
             )
             classifier.in_train = ensemble_train_vectorizer.out_vectors
             classifier.in_test = ensemble_predict_vectorizer.out_vectors
@@ -661,7 +674,7 @@ class Ensemble(WorkflowComponent):
 
             trainer = workflow.new_task('train_append',TrainTask,autopass=True,
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
-                classify_parameters=task_args['classify'],ga_parameters=task_args['ga']     
+                classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=False     
             )
             trainer.in_train = ensemble_train_vectorizer.out_vectors
             trainer.in_trainlabels = ensemble_train_vectorizer.out_labels

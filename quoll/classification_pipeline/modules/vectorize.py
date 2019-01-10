@@ -20,7 +20,8 @@ class FitVectorizer(Task):
     in_trainlabels = InputSlot()
 
     vectorize_parameters = Parameter()
-
+    linear_raw = BoolParameter()
+    
     def in_vocabulary(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vocabulary.txt')   
      
@@ -28,7 +29,7 @@ class FitVectorizer(Task):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.vectors.npz')
 
     def out_labels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.labels', addextension='.vectors.labels')
+        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.vectors.raw.labels' if self.linear_raw else '.vectors.labels')
 
     def out_featureweights(self):
         return self.outputfrominput(inputformat='train', stripextension='.features.npz', addextension='.featureweights.txt')
@@ -282,8 +283,8 @@ class VectorizeFoldreporter(Task):
 
         # generate prediction dict (to convert names to numbers)
         predictiondict = {}
-        for i,pred in enumerate(list(set(predictions))):
-            predictiondict[pred] = 0
+        for i,pred in enumerate(sorted(list(set(predictions)))):
+            predictiondict[pred] = i
 
         # initialize vectorcolumn
         vectors = [[0]] * len(indices)
@@ -375,8 +376,8 @@ class VectorizePredictions(Task):
 
         # generate prediction dict (to convert names to numbers)
         predictiondict = {}
-        for i,pred in enumerate(list(set(predictions))):
-            predictiondict[pred] = 0
+        for i,pred in enumerate(sorted(list(set(predictions)))):
+            predictiondict[pred] = i
 
         # initialize vectorcolumn
         vectors = []
@@ -476,7 +477,8 @@ class Vectorize(WorkflowComponent):
     selector = Parameter(default=False)
     select_threshold = Parameter(default=False)
     balance = BoolParameter()
-
+    linear_raw = BoolParameter()
+    
     # featurizer parameters
     ngrams = Parameter(default='1 2 3')
     blackfeats = Parameter(default=False)
@@ -549,7 +551,7 @@ class Vectorize(WorkflowComponent):
             # assert that labels are inputted, in order to run the vectorizer
             assert labels, 'Cannot run vectorizer without trainlabels as inputfile...' 
                 
-            trainvectorizer = workflow.new_task('vectorizer',FitVectorizer,autopass=True,vectorize_parameters=task_args['vectorize'])
+            trainvectorizer = workflow.new_task('vectorizer',FitVectorizer,autopass=True,linear_raw=self.linear_raw,vectorize_parameters=task_args['vectorize'])
             trainvectorizer.in_train = trainfeatures
             trainvectorizer.in_trainlabels = labels
 
