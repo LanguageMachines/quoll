@@ -462,39 +462,6 @@ class FeaturizeTask(Task):
 #################################################################
 
 @registercomponent
-class PredictionsToVectors(WorkflowComponent):
-
-    predictions = Parameter()
-    bins = Parameter(default='xxx.xxx')
-
-    featurename = Parameter()
-
-    def accepts(self):
-        return [tuple(x) for x in numpy.array(numpy.meshgrid(*
-            [
-                (
-                    InputFormat(self,format_id='predictions',extension='.validated.predictions.txt',inputparameter='predictions')
-                ),
-                (
-                    InputFormat(self,format_id='bins',extension='.bins.csv',inputparameter='bins')
-                )
-            ]
-            )).T.reshape(-1,2)]  
-
-    def setup(self, workflow, input_feeds):
-
-        if 'bins' in input_feeds.keys():
-            vectorize = workflow.new_task('vectorize_folds', VectorizeFoldreporter, autopass=False,featurename=self.featurename)
-            vectorize.in_predictions = input_feeds['predictions']
-            vectorize.in_bins = input_feeds['bins']
-        else: # not folds
-            vectorize = workflow.new_task('vectorize', VectorizePredictions, autopass=False,featurename=self.featurename)
-            vectorize.in_predictions = input_feeds['predictions']
-
-        return vectorize
-
-
-@registercomponent
 class Vectorize(WorkflowComponent):
     
     train = Parameter()

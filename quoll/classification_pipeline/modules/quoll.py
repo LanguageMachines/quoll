@@ -3,10 +3,10 @@ import numpy
 
 from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
 
+from quoll.classification_pipeline.modules.report import Report, TrainTask
 from quoll.classification_pipeline.modules.validate import ValidateTask
 from quoll.classification_pipeline.modules.validate_append import ValidateAppendTask
-from quoll.classification_pipeline.modules.ensemble import EnsembleTrain, EnsembleTrainTest
-from quoll.classification_pipeline.modules.report import Report, TrainTask
+from quoll.classification_pipeline.modules.classify_ensemble import EnsembleTrain, EnsembleTrainTest
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend 
 
 from quoll.classification_pipeline.functions import quoll_helpers
