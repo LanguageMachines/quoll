@@ -6,6 +6,7 @@ from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercompon
 from quoll.classification_pipeline.modules.report import Report, TrainTask
 from quoll.classification_pipeline.modules.validate import ValidateTask
 from quoll.classification_pipeline.modules.validate_append import ValidateAppendTask
+from quoll.classification_pipeline.modules.validate_ensemble import ValidateEnsembleTask
 from quoll.classification_pipeline.modules.classify_ensemble import EnsembleTrain, EnsembleTrainTest
 from quoll.classification_pipeline.modules.classify_append import ClassifyAppend 
 
@@ -315,7 +316,11 @@ class Quoll(WorkflowComponent):
                     classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate'],append_parameters=task_args['append']                   
                 )
                 validator.in_instances_append = trainvectors_append
-
+            elif self.ensemble:
+                validator = workflow.new_task('validate_ensemble', ValidateEnsembleTask, autopass=True,
+                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
+                    classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
+                )             
             else:
                 validator = workflow.new_task('validate', ValidateTask, autopass=True,
                         classifier=self.classifier,n=self.n,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']  
@@ -327,12 +332,14 @@ class Quoll(WorkflowComponent):
 
             # also train a model on all data
             if train_append:
-
                 foldtrainer = workflow.new_task('train_append',TrainAppendTask,autopass=True,
                     preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],append_parameters=task_args['append']
                 ) 
                 foldtrainer.in_train_append = trainvectors_append
-
+            elif self.ensemble:
+                foldtrainer = workflow.new_task('train_ensemble',EnsembleTrain,autopass=True,
+                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
+                ) 
             else:
 
                 foldtrainer = workflow.new_task('train',TrainTask,autopass=True,
