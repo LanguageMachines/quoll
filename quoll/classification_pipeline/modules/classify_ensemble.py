@@ -371,7 +371,7 @@ class EnsembleTrain(Task):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.ensemble.model.pkl')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.ensemble.vectors.labels')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.ensemble.vectors.labels')
 
     def run(self):
 
@@ -399,7 +399,7 @@ class EnsembleTrainTest(Task):
         return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.model.pkl')
 
     def out_trainlabels(self):
-        return self.outputfrominput(inputformat='trainlabels', stripextension='.raw.labels' if self.linear_raw else '.labels', addextension='.ensemble.vectors.labels')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.vectors.labels')
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.ensemble.predictions.txt')        
@@ -661,7 +661,7 @@ class Ensemble(WorkflowComponent):
         ### Training phase ###
         ######################
 
-        ensemble_trainer = workflow.new_task('train_ensemble',EnsembleTrainClfs,autopass=True,ensemble_clfs=self.ensemble,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
+        ensemble_trainer = workflow.new_task('train_ensemble',EnsembleTrainClfs,autopass=False,ensemble_clfs=self.ensemble,ga_parameters=task_args['ga'],classify_parameters=task_args['classify'],vectorize_parameters=task_args['vectorize'])
         ensemble_trainer.in_train = trainfeatures
         ensemble_trainer.in_trainlabels = trainlabels
 
@@ -691,7 +691,7 @@ class Ensemble(WorkflowComponent):
 
         else:
 
-            trainer = workflow.new_task('train_append',TrainTask,autopass=True,
+            trainer = workflow.new_task('train_ensemble',TrainTask,autopass=True,
                 preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
                 classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=False     
             )

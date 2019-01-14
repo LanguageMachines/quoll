@@ -180,7 +180,7 @@ class SVMClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, c='1.0', kernel='linear', gamma='0.1', degree='1', class_weight='balanced', jobs=1, iterations=10, scoring='f1_micro', v=2):
-        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+        if len(list(set(labels))) > 2: # more than two classes to distinguish
             parameters = ['estimator__C', 'estimator__kernel', 'estimator__gamma', 'estimator__degree']
             multi = True
         else: # only two classes to distinguish
@@ -463,10 +463,10 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         iterations='50',scoring='roc_auc',v=2):
         # prepare grid search
         if len(list(set(labels))) > 2: # more than two classes to distinguish
-            parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__scale_pos_weight']
+            parameters = ['estimator__n_estimators','estimator__min_child_weight', 'estimator__max_depth', 'estimator__gamma', 'estimator__subsample','estimator__colsample_bytree','estimator__reg_alpha','estimator__reg_lambda','estimator__scale_pos_weight']
             multi = True
         else: # only two classes to distinguish
-            parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha', 'scale_pos_weight'] 
+            parameters = ['n_estimators','min_child_weight', 'max_depth', 'gamma', 'subsample','colsample_bytree','reg_alpha', 'reg_lambda', 'scale_pos_weight'] 
             multi = False
         silent = int(silent)
         nthread=int(jobs)
@@ -474,7 +474,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         iterations=int(iterations)
         learning_rate = float(learning_rate)
         max_delta_step = float(max_delta_step)
-        reg_lambda = float(reg_lambda)
+        reg_lambda_values = [i/10 for i in range(0,5)] if reg_lambda == 'search' else [float(x) for x in reg_lambda.split()]
         n_estimators_values = list(range(100,1000,100)) if n_estimators == 'search' else [int(x) for x in n_estimators.split()]
         min_child_weight_values = list(range(1,6,1)) if min_child_weight == 'search' else [int(x) for x in min_child_weight.split()]
         max_depth_values = list(range(3,10,1)) if max_depth == 'search' else [int(x) for x in max_depth.split()]
@@ -483,7 +483,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         colsample_bytree_values = [i/10 for i in range(6,10)] if colsample_bytree == 'search' else [float(x) for x in colsample_bytree.split()]
         reg_alpha_values = [1e-5,1e-2,0.1,1,100] if reg_alpha == 'search' else [float(x) for x in reg_alpha.split()]
         scale_pos_weight_values = [1,3,5,7,9] if scale_pos_weight == 'search' else [int(x) for x in scale_pos_weight.split()]
-        grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values, scale_pos_weight_values]
+        grid_values = [n_estimators_values,min_child_weight_values, max_depth_values, gamma_values, subsample_values, colsample_bytree_values, reg_alpha_values, reg_lambda_values, scale_pos_weight_values]
         if not False in [len(x) == 1 for x in grid_values]: # only sinle parameter settings
             settings = {}
             for i, parameter in enumerate(parameters):
@@ -492,7 +492,7 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             param_grid = {}
             for i, parameter in enumerate(parameters):
                 param_grid[parameter] = grid_values[i]
-            model = XGBClassifier(silent=silent,nthread=nthread,learning_rate=learning_rate,max_delta_step=max_delta_step,reg_lambda=reg_lambda,scale_pos_weight=scale_pos_weight)
+            model = XGBClassifier(silent=silent,nthread=nthread,learning_rate=learning_rate,max_delta_step=max_delta_step)
             if multi:
                 model = OutputCodeClassifier(model)
                 trainvectors = trainvectors.todense()
@@ -505,7 +505,6 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
         self.model = XGBClassifier(
             learning_rate = learning_rate, 
             max_delta_step = max_delta_step, 
-            reg_lambda = reg_lambda, 
             silent = silent,
             nthread = nthread,
             n_estimators = settings[parameters[0]], 
@@ -515,7 +514,8 @@ class XGBoostClassifier(AbstractSKLearnClassifier):
             subsample = settings[parameters[4]],
             colsample_bytree = settings[parameters[5]],
             reg_alpha = settings[parameters[6]],
-            scale_pos_weight = settings[parameters[7]],
+            reg_lambda = settings[parameters[7]], 
+            scale_pos_weight = settings[parameters[8]],
             verbose = v
         )
         self.model.fit(trainvectors, labels)
@@ -559,7 +559,7 @@ class KNNClassifier(AbstractSKLearnClassifier):
         return AbstractSKLearnClassifier.return_label_encoding(self, labels)
 
     def train_classifier(self, trainvectors, labels, n_neighbors='3', weights='uniform', algorithm='auto', leaf_size='30', metric='euclidean', p=2, scoring='roc_auc', jobs=1, v=2):
-        if len(self.label_encoder.classes_) > 2: # more than two classes to distinguish
+        if len(list(set(labels))) > 2: # more than two classes to distinguish
             parameters = ['estimator__n_neighbors','estimator__weights', 'estimator__leaf_size', 'estimator__metric']
             multi = True
         else: # only two classes to distinguish

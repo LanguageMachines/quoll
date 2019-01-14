@@ -311,13 +311,13 @@ class Quoll(WorkflowComponent):
                     exit()
 
             if train_append:
-                validator = workflow.new_task('validate_append', ValidateAppendTask, autopass=True,
+                validator = workflow.new_task('validate_append', ValidateAppendTask, autopass=False,
                     preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
                     classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate'],append_parameters=task_args['append']                   
                 )
                 validator.in_instances_append = trainvectors_append
             elif self.ensemble:
-                validator = workflow.new_task('validate_ensemble', ValidateEnsembleTask, autopass=True,
+                validator = workflow.new_task('validate_ensemble', ValidateEnsembleTask, autopass=False,
                     preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],
                     classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
                 )             

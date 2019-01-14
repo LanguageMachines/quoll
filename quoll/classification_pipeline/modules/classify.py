@@ -208,12 +208,12 @@ class Predict(Task):
             vectorized_instances = vectorizer.align_vectors(vectorized_instances, featureselection_vocabulary, testfeatureselection_vocabulary)
 
         # apply classifier
-        if self.ordinal:
-            predictions, full_predictions = clf.apply_model(model,vectorized_instances,sorted(list(set([int(x) for x in trainlabels]))))
-            predictions = [str(int(x)) for x in predictions]
-        elif self.linear_raw:
+        if self.linear_raw:
             predictions, full_predictions = clf.apply_model(model,vectorized_instances,['raw'])
             predictions = [str(x) for x in predictions]
+        elif self.ordinal:
+            predictions, full_predictions = clf.apply_model(model,vectorized_instances,sorted(list(set([int(x) for x in trainlabels]))))
+            predictions = [str(int(x)) for x in predictions]
         else:
             clf.set_label_encoder(trainlabels)
             predictions, full_predictions = clf.apply_model(model,vectorized_instances)
