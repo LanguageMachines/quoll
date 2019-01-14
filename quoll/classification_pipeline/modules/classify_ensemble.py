@@ -14,7 +14,7 @@ from quoll.classification_pipeline.modules.report import ClassifyTask, TrainTask
 from quoll.classification_pipeline.modules.classify import Classify
 from quoll.classification_pipeline.modules.vectorize import FeaturizeTask, TransformCsv, VectorizeFoldreporter, VectorizePredictions
 
-from quoll.classification_pipeline.functions import quoll_helpers, vectorizer
+from quoll.classification_pipeline.functions import quoll_helpers, vectorizer, docreader
 
 #################################################################
 ### Tasks #######################################################
@@ -173,14 +173,40 @@ class EnsembleTrainVectorizer(Task):
             return True
 
         # collect prediction files
-        vectors = []
         featurenames = []
+        all_indices = []
+        all_predictions = []
         for clf in self.ensemble_clfs.split():
             featurenames.append(clf)
-            vector_file = self.in_ensembledir().path + '/' + clf + '/instances.validated.vectors.npz'
-            loader = numpy.load(vector_file)
-            vector = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-            vectors.append(vector.transpose())
+            prediction_file = self.in_ensembledir().path + '/' + clf + '/instances.validated.predictions.txt'
+            bins_file = self.in_ensembledir().path + '/instances.raw.nfoldcv.bins.csv' if self.linear_raw and clf == 'linreg' else self.in_ensembledir().path + '/instances.nfoldcv.bins.csv'        
+            # open bin indices
+            dr = docreader.Docreader()
+            bins_str = dr.parse_csv(binsfile)
+            all_indices.append = sum([[int(x) for x in bin] for bin in bins_str],[])
+            # load predictions
+            with open(prediction_file,'r',encoding='utf-8') as file_in:
+                all_predictions.append(file_in.read().strip().split('\n'))
+
+        # generate prediction dict (to convert names to numbers)
+        predictiondict = {}
+        for i,pred in enumerate(sorted(list(set(sum(all_predictions,[]))))):
+            predictiondict[pred] = i
+
+        vectors = []
+        # for each set of predictions
+        for i,predictions in enumerate(all_predictions):
+            # initialize vectorcolumn
+            vector = []
+            # for each prediction
+            indices = all_indices[i]
+            for j,prediction in enumerate(predictions):
+                index = indices[j]
+                vector.append([index,predictiondict[prediction]])
+            vector_sorted = sorted(vector,key = lambda k : k[0])
+            vector_final = [x[1] for x in vector_sorted]
+            vector_csr = sparse.csr_matrix(vector_final.transpose())
+            vectors.append(vector_csr)
             
         # combine and write vectors
         ensemblevectors = sparse.hstack(vectors).tocsr()
@@ -326,6 +352,7 @@ class EnsemblePredictVectorizer(Task):
     in_ensembledir = InputSlot()
 
     ensemble_clfs = Parameter()
+    linear_raw = BoolParameter()
 
     def out_vectors(self):
         return self.outputfrominput(inputformat='ensembledir', stripextension='.ensemble', addextension='.ensemble.vectors.npz')
@@ -339,15 +366,32 @@ class EnsemblePredictVectorizer(Task):
             return True
 
         # collect prediction files
-        vectors = []
         featurenames = []
+        all_indices = []
+        all_predictions = []
         for clf in self.ensemble_clfs.split():
             featurenames.append(clf)
-            vector_file = self.in_ensembledir().path + '/' + clf + '/test.predictions.vectors.npz'
-            loader = numpy.load(vector_file)
-            vector = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
-            vectors.append(vector)
+            prediction_file = self.in_ensembledir().path + '/' + clf + '/test.translated.predictions.txt' if self.linear_raw and clf == 'linreg' else self.in_ensembledir().path + '/' + clf + '/test.predictions.txt'
+            # load predictions
+            with open(prediction_file,'r',encoding='utf-8') as file_in:
+                all_predictions.append(file_in.read().strip().split('\n'))
 
+        # generate prediction dict (to convert names to numbers)
+        predictiondict = {}
+        for i,pred in enumerate(sorted(list(set(sum(all_predictions,[]))))):
+            predictiondict[pred] = i
+
+        vectors = []
+        # for each set of predictions
+        for predictions in all_predictions:
+            # initialize vectorcolumn
+            vector = []
+            # for each prediction
+            for i,prediction in enumerate(predictions):
+                vector.append(predictiondict[prediction])
+            vector_csr = sparse.csr_matrix(vector).transpose()
+            vectors.append(vector_csr)
+            
         # combine and write vectors
         ensemblevectors = sparse.hstack(vectors).tocsr()
         numpy.savez(self.out_vectors().path, data=ensemblevectors.data, indices=ensemblevectors.indices, indptr=ensemblevectors.indptr, shape=ensemblevectors.shape)
@@ -449,11 +493,7 @@ class RunEnsembleTrainClf(WorkflowComponent):
         ensemble_train.in_labels = input_feeds['labels']
         ensemble_train.in_docs = input_feeds['docs']
 
-        ensemble_train_vectorizer = workflow.new_task('vectorize_ensemble_train',VectorizeFoldreporter,autopass=True,featurename=self.classifier)
-        ensemble_train_vectorizer.in_bins = ensemble_train.out_bins
-        ensemble_train_vectorizer.in_predictions = ensemble_train.out_predictions
-
-        return ensemble_train_vectorizer
+        return ensemble_train
 
 
 @registercomponent
@@ -487,11 +527,8 @@ class RunEnsemblePredictClf(WorkflowComponent):
         ensemble_predict.in_train = input_feeds['train']
         ensemble_predict.in_trainlabels = input_feeds['trainlabels']
         ensemble_predict.in_test = input_feeds['test']
-
-        ensemble_predict_vectorizer = workflow.new_task('vectorize_ensemble_predict',VectorizePredictions,autopass=True,featurename=self.classifier)
-        ensemble_predict_vectorizer.in_predictions = ensemble_predict.out_predictions
         
-        return ensemble_predict_vectorizer
+        return ensemble_predict
 
 
 @registercomponent
