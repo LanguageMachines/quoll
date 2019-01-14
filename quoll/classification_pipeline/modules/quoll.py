@@ -338,7 +338,7 @@ class Quoll(WorkflowComponent):
                 foldtrainer.in_train_append = trainvectors_append
             elif self.ensemble:
                 foldtrainer = workflow.new_task('train_ensemble',EnsembleTrain,autopass=True,
-                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga']
+                    preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'],vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],linear_raw=self.linear_raw
                 ) 
             else:
 

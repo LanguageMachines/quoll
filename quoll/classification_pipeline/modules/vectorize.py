@@ -287,13 +287,15 @@ class VectorizeFoldreporter(Task):
             predictiondict[pred] = i
 
         # initialize vectorcolumn
-        vectors = [[0]] * len(indices)
-
+        vectors = []
+        
         # for each prediction
         for i,prediction in enumerate(predictions):
             index = indices[i]
-            vectors[index][0] = predictiondict[prediction]
-        vectors_csr = sparse.csr_matrix(vectors)
+            vectors.append([index,predictiondict[prediction]])
+        vectors_sorted = sorted(vectors,key = lambda k : k[0])
+        vectors_final = [x[1] for x in vectors_sorted]
+        vectors_csr = sparse.csr_matrix(vectors_final)
 
         # write output
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)

@@ -26,7 +26,6 @@ class FoldEnsemble(Task):
     i = IntParameter()
     linear_raw = BoolParameter()
     
-    append_parameters = Parameter()
     validate_parameters = Parameter()
     ga_parameters = Parameter()
     classify_parameters = Parameter()
@@ -63,10 +62,10 @@ class FoldEnsemble(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.vocabulary.txt' if '.'.join(self.in_instances().path.split('.')[-2:]) == 'features.npz' else '.nfoldcv/fold' + str(self.i+1) + '/test.featureselection.txt')
 
     def out_traindocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/train.txt')
 
     def out_testdocs(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.docs.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.txt')
 
     def out_predictions(self):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.ensemble.predictions.txt')
@@ -201,7 +200,7 @@ class ValidateEnsembleTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['validate','ga','classify','vectorize','featurize','preprocess'],[self.validate_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ValidateAppend(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
+        yield ValidateEnsemble(instances=self.in_instances().path,labels=self.in_labels().path,docs=self.in_docs().path,**kwargs)
 
 
 
@@ -249,10 +248,10 @@ class RunFoldEnsemble(WorkflowComponent):
         fold_ensemble_runner.in_docs = input_feeds['docs']
         fold_ensemble_runner.in_bins = input_feeds['bins']
 
-        fold_append_reporter = workflow.new_task('report_fold_append', ReportPerformance, autopass=True, ordinal=kwargs['ordinal'],teststart=kwargs['teststart'])
-        fold_append_reporter.in_predictions = fold_ensemble_runner.out_predictions
-        fold_append_reporter.in_testlabels = fold_ensemble_runner.out_testlabels
-        fold_append_reporter.in_testdocuments = fold_ensemble_runner.out_testdocs
+        fold_ensemble_reporter = workflow.new_task('report_fold_ensemble', ReportPerformance, autopass=True, ordinal=kwargs['ordinal'],teststart=kwargs['teststart'])
+        fold_ensemble_reporter.in_predictions = fold_ensemble_runner.out_predictions
+        fold_ensemble_reporter.in_testlabels = fold_ensemble_runner.out_testlabels
+        fold_ensemble_reporter.in_testdocuments = fold_ensemble_runner.out_testdocs
 
         return fold_ensemble_reporter
 
@@ -414,16 +413,16 @@ class ValidateEnsemble(WorkflowComponent):
                 instances = input_feeds['featurized']
             trainfeaturizer = workflow.new_task('featurize_train',FeaturizeTask,autopass=False,preprocess_parameters=task_args['preprocess'],featurize_parameters=task_args['featurize'])
             trainfeaturizer.in_pre_featurized = instances
-            trainfeatures = trainfeaturizer.out_features
+            trainfeatures = trainfeaturizer.out_featurized
 
         bin_maker = workflow.new_task('make_bins', MakeBins, autopass=True, n=self.n, steps=self.steps, teststart=self.teststart, testend=self.testend)
         bin_maker.in_labels = input_feeds['labels']
 
-        foldrunner_ensemble = workflow.new_task('foldrunner_append', FoldsEnsemble, autopass=True, 
+        foldrunner_ensemble = workflow.new_task('foldrunner_ensemble', FoldsEnsemble, autopass=True, 
             n=self.n,vectorize_parameters=task_args['vectorize'],classify_parameters=task_args['classify'],ga_parameters=task_args['ga'],validate_parameters=task_args['validate']
         ) 
         foldrunner_ensemble.in_bins = bin_maker.out_bins
-        foldrunner_ensemble.in_instances = instances
+        foldrunner_ensemble.in_instances = trainfeatures
         foldrunner_ensemble.in_labels = input_feeds['labels']
         foldrunner_ensemble.in_docs = docs
 
@@ -435,4 +434,4 @@ class ValidateEnsemble(WorkflowComponent):
         validator_ensemble.in_testlabels = foldreporter.out_labels
         validator_ensemble.in_testdocuments = foldreporter.out_docs
 
-        return validate_ensemble
+        return validator_ensemble
