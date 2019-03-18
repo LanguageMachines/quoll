@@ -427,7 +427,7 @@ class Validate(WorkflowComponent):
             instances = input_feeds['featurized']
         elif 'featurized_csv' in input_feeds.keys():
             csvtransformer = workflow.new_task('transformer_csv',TransformCsv,autopass=True,delimiter=self.delimiter)
-            csvtransformer.in_csv = input_feeds['featurized_train_csv']
+            csvtransformer.in_csv = input_feeds['featurized_csv']
             instances = csvtransformer.out_features
         else:
             if 'pre_featurized' in input_feeds.keys():
