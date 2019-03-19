@@ -200,7 +200,7 @@ class FoldsAppend(Task):
     vectorize_parameters = Parameter()
     
     def out_exp(self):
-        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.nfoldcv')
+        return self.outputfrominput(inputformat='instances', stripextension='.' + '.'.join(self.in_instances().path.split('.')[-2:]), addextension='.append.nfoldcv')
                                     
     def run(self):
 
