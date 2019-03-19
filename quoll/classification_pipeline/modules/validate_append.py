@@ -86,7 +86,7 @@ class FoldAppend(Task):
         return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.docs.txt')
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.bow.combined.predictions.txt' if self.bow_as_feature else '.nfoldcv/fold' + str(self.i+1) + '/test.combined.predictions.txt')
+        return self.outputfrominput(inputformat='directory', stripextension='.nfoldcv', addextension='.nfoldcv/fold' + str(self.i+1) + '/test.predictions.combined.predictions.txt' if self.bow_as_feature else '.nfoldcv/fold' + str(self.i+1) + '/test.combined.predictions.txt')
 
     def run(self):
         

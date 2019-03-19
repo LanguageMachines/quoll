@@ -179,11 +179,11 @@ class EnsembleTrainVectorizer(Task):
         for clf in self.ensemble_clfs.split():
             featurenames.append(clf)
             prediction_file = self.in_ensembledir().path + '/' + clf + '/instances.validated.predictions.txt'
-            bins_file = self.in_ensembledir().path + '/instances.raw.nfoldcv.bins.csv' if self.linear_raw and clf == 'linreg' else self.in_ensembledir().path + '/instances.nfoldcv.bins.csv'        
+            bins_file = self.in_ensembledir().path + '/' + clf + '/instances.raw.nfoldcv.bins.csv' if self.linear_raw and clf == 'linreg' else self.in_ensembledir().path + '/' + clf + '/instances.nfoldcv.bins.csv'        
             # open bin indices
             dr = docreader.Docreader()
-            bins_str = dr.parse_csv(binsfile)
-            all_indices.append = sum([[int(x) for x in bin] for bin in bins_str],[])
+            bins_str = dr.parse_csv(bins_file)
+            all_indices.append(sum([[int(x) for x in bin] for bin in bins_str],[]))
             # load predictions
             with open(prediction_file,'r',encoding='utf-8') as file_in:
                 all_predictions.append(file_in.read().strip().split('\n'))
@@ -205,8 +205,9 @@ class EnsembleTrainVectorizer(Task):
                 vector.append([index,predictiondict[prediction]])
             vector_sorted = sorted(vector,key = lambda k : k[0])
             vector_final = [x[1] for x in vector_sorted]
-            vector_csr = sparse.csr_matrix(vector_final.transpose())
-            vectors.append(vector_csr)
+            vector_csr = sparse.csr_matrix(vector_final)
+            vector_csr_transposed = vector_csr.transpose()
+            vectors.append(vector_csr_transposed)
             
         # combine and write vectors
         ensemblevectors = sparse.hstack(vectors).tocsr()

@@ -137,7 +137,6 @@ class Train(Task):
             with open(self.out_model_insights().path + '/' + mi[0],'w',encoding='utf-8') as outfile:
                 outfile.write(mi[1])
 
-
 class Predict(Task):
 
     in_model = InputSlot()

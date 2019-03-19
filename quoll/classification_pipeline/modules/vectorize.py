@@ -220,7 +220,7 @@ class Combine(Task):
         return self.outputfrominput(inputformat='vectors', stripextension='.vectors.npz', addextension='.combined.vectors.npz')
     
     def run(self):
-
+        
         # assert that vocabulary file exists (not checked in component)
         assert os.path.exists(self.in_vocabulary().path), 'Vocabulary file not found, make sure the file exists and/or change vocabulary path name to ' + self.in_vocabulary().path 
         
@@ -294,9 +294,9 @@ class VectorizeFoldreporter(Task):
             index = indices[i]
             vectors.append([index,predictiondict[prediction]])
         vectors_sorted = sorted(vectors,key = lambda k : k[0])
-        vectors_final = [x[1] for x in vectors_sorted]
+        vectors_final = [[x[1]] for x in vectors_sorted]
         vectors_csr = sparse.csr_matrix(vectors_final)
-
+        
         # write output
         numpy.savez(self.out_vectors().path, data=vectors_csr.data, indices=vectors_csr.indices, indptr=vectors_csr.indptr, shape=vectors_csr.shape)
 

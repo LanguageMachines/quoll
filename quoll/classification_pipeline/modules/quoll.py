@@ -78,7 +78,8 @@ class TrainAppendTask(Task):
     in_train = InputSlot()
     in_train_append = InputSlot()
     in_trainlabels = InputSlot()
-
+    in_traindocs = InputSlot()
+    
     bow_as_feature = BoolParameter()
  
     append_parameters = Parameter()
@@ -97,7 +98,7 @@ class TrainAppendTask(Task):
             return True
 
         kwargs = quoll_helpers.decode_task_input(['append','ga','classify','vectorize','featurize','preprocess'],[self.append_parameters,self.ga_parameters,self.classify_parameters,self.vectorize_parameters,self.featurize_parameters,self.preprocess_parameters])
-        yield ClassifyAppend(train=self.in_train().path,train_append=self.in_train_append().path,trainlabels=self.in_trainlabels().path,**kwargs)
+        yield ClassifyAppend(train=self.in_train().path,train_append=self.in_train_append().path,trainlabels=self.in_trainlabels().path,traindocs=self.in_traindocs().path,**kwargs)
 
 
 ################################################################################
@@ -268,7 +269,7 @@ class Quoll(WorkflowComponent):
                 InputFormat(self, format_id='docs',extension='.txt',inputparameter='docs')
                 )
             ]
-            )).T.reshape(-1,9)]
+            )).T.reshape(-1,7)]
 
     def setup(self, workflow, input_feeds):
         
@@ -277,7 +278,7 @@ class Quoll(WorkflowComponent):
         ######################
         ### Training phase ###
         ######################
-
+        
         trainlabels = input_feeds['labels_train']
 
         if 'train_append' in input_feeds.keys():
@@ -348,6 +349,7 @@ class Quoll(WorkflowComponent):
 
             foldtrainer.in_trainlabels = trainlabels
             foldtrainer.in_train = train
+            foldtrainer.in_traindocs = traindocs
 
             return foldtrainer, validator
 
