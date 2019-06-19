@@ -6,7 +6,7 @@ The Featurize module is the second module in the pipeline, taking care of featur
 Input
 --------
 
-*If the input to Preprocess_ (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.* 
+*If the input to :ref:`preprocess` (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.* 
 
 --inputfile                 + The featurize module takes preprocessed documents as input. They can come in four formats:
                             1. Extension **.tok.txt** - File with tokenized text documents on each line. 
