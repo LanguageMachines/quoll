@@ -246,25 +246,17 @@ class Featurize(StandardWorkflowComponent):
     strip_punctuation = BoolParameter(default=True)
 
     def accepts(self):
-        return InputFormat(self,format_id='tokenized',extension='tok.txt'),InputFormat(self,format_id='frogged',extension='frog.json'),InputFormat(self,format_id='txt',extension='txt'),InputFormat(self,format_id='toktxtdir',extension='.tok.txtdir',directory=True),InputFormat(self,format_id='frogjsondir',extension='.frog.jsondir',directory=True),InputFormat(self,format_id='txtdir',extension='txtdir',directory=True)
+        return InputFormat(self,format_id='txtdir',extension='txtdir',directory=True), InputFormat(self,format_id='txt',extension='txt'), InputFormat(self,format_id='preprocessed',extension='preprocessed.json'), InputFormat(self,format_id='preprocessdir',extension='.preprocessdir',directory=True)
                     
     def setup(self, workflow, input_feeds):
 
-        if 'tokenized' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_tokens', Tokenized2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-            featurizertask.in_tokenized = input_feeds['tokenized']
-
-        elif 'frogged' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_frogged', Frog2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-            featurizertask.in_frogged = input_feeds['frogged']            
-
-        elif 'toktxtdir' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_tokdir', Tokdir2Features, autopass=True, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-            featurizertask.in_tokdir = input_feeds['toktxtdir']
-
-        elif 'frogjsondir' in input_feeds.keys():
-            featurizertask = workflow.new_task('FeaturizerTask_frogdir', Frogdir2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
-            featurizertask.in_frogdir = input_feeds['frogjsondir']
+        if 'preprocessed' in input_feeds.keys():
+            featurizertask = workflow.new_task('DocFeaturizer', FeaturizeDoc, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask.in_preprocessed = input_feeds['preprocessed']
+  
+        elif 'preprocessdir' in input_feeds.keys():
+            featurizertask = workflow.new_task('DirFeaturizer', FeaturizeDir, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
+            featurizertask.in_preprocessdir = input_feeds['preprocessdir']
 
         elif 'txt' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
