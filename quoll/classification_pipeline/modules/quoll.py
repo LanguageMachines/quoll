@@ -90,7 +90,7 @@ class TrainAppendTask(Task):
     preprocess_parameters = Parameter()
     
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.bow.combined.model.pkl' if self.bow_as_feature else '.combined.model.pkl')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.validated.combined.model.pkl' if self.bow_as_feature else '.combined.model.pkl')
     
     def run(self):
         
@@ -207,7 +207,6 @@ class Quoll(WorkflowComponent):
     weight = Parameter(default = 'frequency') # options: frequency, binary, tfidf
     prune = IntParameter(default = 5000) # after ranking the topfeatures in the training set, based on frequency or idf weighting
     balance = BoolParameter()
-    bow_as_feature = BoolParameter() # to combine bow as separate classification with other features, only relevant in case of train_append
     delimiter = Parameter(default=',')
     select = BoolParameter()
     selector = Parameter(default=False)

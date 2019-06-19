@@ -211,8 +211,8 @@ class ReportFolds(Task):
        
         # gather fold reports
         print('gathering fold reports')
-        performance_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.report/performance.csv') ]
-        docprediction_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/*.report/docpredictions.csv') ]
+        performance_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/test*.report/performance.csv') ]
+        docprediction_files = [ filename for filename in glob.glob(self.in_exp().path + '/fold*/test*.report/docpredictions.csv') ]
         
         # calculate average performance
         dr = docreader.Docreader()
