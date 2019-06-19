@@ -17,7 +17,7 @@ import colibricore
 def extract_tokentype(docs, tokentype):
     documents_tokentype = []
     for document in docs:
-        documents_tokentype.append([[token[tokentype] for token in sentence] for sentence in document])
+        documents_tokentype.append([[token[tokentype] for token in sentence] for sentence in document['processed']])
     return documents_tokentype
 
 
@@ -457,8 +457,9 @@ class CharNgrams:
         List of feature names, to keep track of the values of feature indices
     """
     def __init__(self, **kwargs):
-        self.name = 'char_ngrams'
+        self.name = 'chars'
         self.n_list = [int(x) for x in kwargs['n_list']]
+        self.mt = kwargs['mt']
         if 'blackfeats' in kwargs.keys():
             self.blackfeats = kwargs['blackfeats']
         else:
@@ -473,7 +474,18 @@ class CharNgrams:
         for word in text:
             c[word] += 1
         return c
-        
+
+    def find_ngrams(self,input_list, n):
+        """
+        Calculate n-grams from a list of tokens/characters with added begin and end
+        items. Based on the implementation by Scott Triglia
+        http://locallyoptimal.com/blog/2013/01/20/elegant-n-gram-generation-in-python/
+        """
+        for x in range(n-1):
+            input_list.insert(0, '')
+            input_list.append('')
+        return zip(*[input_list[i:] for i in range(n)])
+    
     def fit(self, documents):
         """
         Model fitter
@@ -492,11 +504,11 @@ class CharNgrams:
         """
         features = {}
         for document in documents:
-            document = list(document)
+            document = list(document['raw'])
             for n in self.n_list:
-                features.update(self.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
-        self.features = [i for i,j in sorted(features.items(), reverse=True, key=operator.itemgetter(1)) if not bool(set(i.split("_")) & set(self.blackfeats))]
-
+                features.update(self.freq_dict([''.join(item) for item in self.find_ngrams(document, n)]))
+        self.features = [i for i,j in sorted(features.items(), reverse=True, key=operator.itemgetter(1)) if not bool(set(i.split("_")) & set(self.blackfeats)) and not (i == '') and j >= self.mt]
+        
     def transform(self, documents):
         """
         Model transformer
@@ -515,12 +527,12 @@ class CharNgrams:
         """
         instances = []
         for document in documents:
-            document = list(document)
+            document = list(document['raw'])
             char_dict = {}
             for n in self.n_list:
-                char_dict.update(self.freq_dict([''.join(item) for item in utils.find_ngrams(document, n)]))
+                char_dict.update(self.freq_dict([''.join(item) for item in self.find_ngrams(document, n)]))
             instances.append([char_dict.get(f,0) for f in self.features])
-        return np.array(instances)
+        return sparse.csr_matrix(instances)
 
     def fit_transform(self, documents):
         """

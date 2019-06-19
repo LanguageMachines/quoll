@@ -53,7 +53,7 @@ class FeaturizeDoc(Task):
             features[featuretype] = {'n_list':ngrams, 'blackfeats':blackfeats, 'mt':self.minimum_token_frequency}
         
         # read in file and put in right format
-        with open(self.in_frogged().path, 'r', encoding = 'utf-8') as file_in:
+        with open(self.in_preprocessed().path, 'r', encoding = 'utf-8') as file_in:
             documents = json.loads(file_in.read())
         
         # set text to lowercase if argument is given

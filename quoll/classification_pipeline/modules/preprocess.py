@@ -116,7 +116,6 @@ class Frog_document(Task):
             if i in reports:
                 print(i, 'of', numlines, 'lines frogged.')
             # frog
-            print(line)
             frogged = frogger.process(line)
             # initialize sentences
             sentences = []
