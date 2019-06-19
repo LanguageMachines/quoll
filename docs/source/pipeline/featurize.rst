@@ -6,21 +6,19 @@ The Featurize module is the second module in the pipeline, taking care of featur
 Input
 --------
 
-*If the input to Preprocess_ (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.* 
+If the input to Preprocess_ (.txt or .txtdir) is given as inputfile, this module is ran prior to the Featurize module.
 
---inputfile                 + The featurize module takes preprocessed documents as input. They can come in four formats:
-                            1. Extension **.tok.txt** - File with tokenized text documents on each line. 
-                            2. Extension **.tok.txtdir** - Directory with tokenized text documents (files ending with **.tok.txt**).
-                            3. Extension **.frog.json** - File with frogged text documents.
-                            4. Extension **.frog.jsondir** - Directory with frogged text documents (files ending with **.frog.json**).                  
+--inputfile                 + The featurize module takes preprocessed documents as input. They can come in two formats:
+                            1. Extension **.preprocessed.frog** - File with tokenized text documents on each line. 
+                            2. Extension **.preprocessdir** - Directory with tokenized text documents (files ending with **.tok.txt**).                
 
 Options
 --------
 
 --featuretypes              + Specify the types of features to extract
-                            + Options: **tokens**, **lemmas**, **pos**
-                            + lemmas and pos only apply to input with extension *.frog.json* and *.frog.json.dir*
-                            + multiple options can be given with quotes, divided by a space (for example: *\'tokens lemmas pos\'*)
+                            + Options: **tokens**, **lemmas**, **pos**, **chars**
+                            + lemmas and pos only apply when frog is used during preprocessing
+                            + multiple options can be given with quotes, divided by a space (for example: *\'chars tokens pos\'*)
                             + String parameter; default: **tokens**
 
 --ngrams                    + Specify the length of the N-grams that you want to include
@@ -42,37 +40,35 @@ Options
 Output
 -------
 :.features.npz:
-  Binary file in Numpy format, storing the extracted features per document in sparse format 
+Binary file in Numpy format, storing the extracted features per document in sparse form 
 :.vocabulary.txt:
-  File that stores the index of each feature
+File that stores the index of each feature
 
 Overview
 --------
 
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
-| --inputfile      | --featuretypes        | --ngrams      | --blackfeats       | --lowercase      | --minimum-token-frequency      | Output                                                                                |
-+==================+=======================+===============+====================+==================+================================+=======================================================================================+
-| docs.tok.txt     | tokens                | \'1 2 3\'     | False              | True             | 2                              | + docs.tokens.n_1_2_3.min2.lower_True.black_False.features.npz                        |
-|                  |                       |               |                    |                  |                                | + docs.tokens.n_1_2_3.min2.lower_True.black_False.vocabulary.txt                      |                     
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
-| dos.frog.jsondir | \'tokens lemmas pos\' | 1             | \'koala kangaroo\' | False            | 10                             | + docs.tokens.lemmas.pos.n_1.min10.lower_False.black_koala_kangaroo.features.npz      |
-|                  |                       |               |                    |                  |                                | + docs.tokens.lemmas.pos.n_1.min10.lower_False.black_koala_kangaroo.vocabulary.txt    |
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
+| --inputfile            | --featuretypes        | --ngrams  | --blackfeats       | --lowercase  | --minimum-token-frequency  |                                                                              
++========================+=======================+===========+====================+==============+============================+
+| docs.preprocessed.json | \'tokens chars\'      | \'1 2 3\' | False              | True         | 2                          | 
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
+| docs.preprocessdir     | \'tokens lemmas pos\' | 1         | \'koala kangaroo\' | False        | 10                         |
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
 
 Examples of command line usage
 --------
 
-**Extract word Ngrams from tokenized text document, lowercasing them and stripping away token Ngrams that occur less than 5 times**
+**Extract word Ngrams from preprocessed text document, lowercasing them and stripping away Ngrams that occur less than 5 times**
 
-$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.tok.txt --lowercase --minimum-token-frequency 5
+$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.preprocessed.json --lowercase --minimum-token-frequency 5
 
 **Extract lemma and pos Ngrams from directory with frogged texts**
 
-$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.frog.jsondir --featuretypes \'lemmas pos\'
+$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.preprocessdir --featuretypes \'lemmas pos\'
 
-**Frog text document, extract text and pos features and strip away any feature with the word \'snake\'**
+**Frog text document, extract character, text and pos features and strip away any feature with the word \'snake\'**
 
-$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg --featuretypes \'tokens pos\' --blackfeats snake
+$ luiginlp Featurize --module quoll.classification_pipeline.modules.featurize --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg --featuretypes \'tokens pos chars\' --blackfeats snake
 
 .. _ColibriCore: https://proycon.github.io/colibri-core/
 .. _Preprocess: preprocess.rst
