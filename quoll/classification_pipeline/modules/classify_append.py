@@ -157,7 +157,7 @@ class ClassifyAppend(WorkflowComponent):
                 (
                 InputFormat(self, format_id='vectors_train_append',extension='.vectors.npz',inputparameter='train_append'),
                 InputFormat(self, format_id='vectors_train_append',extension='.csv',inputparameter='train_append'),
-                InputFormat(self, format_id='vectors_train_append',extension='.features.npz',inputparameter='train'),
+                InputFormat(self, format_id='vectors_train_append',extension='.features.npz',inputparameter='train_append'),
                 ),
                 (
                 InputFormat(self, format_id='labels_train',extension='.labels',inputparameter='trainlabels')
@@ -176,7 +176,7 @@ class ClassifyAppend(WorkflowComponent):
                 (
                 InputFormat(self, format_id='vectors_test_append',extension='.vectors.npz',inputparameter='test_append'),
                 InputFormat(self, format_id='vectors_test_append',extension='.csv',inputparameter='test_append'),
-                InputFormat(self, format_id='vectors_test_append',extension='.features.npz',inputparameter='test'),
+                InputFormat(self, format_id='vectors_test_append',extension='.features.npz',inputparameter='test_append'),
                 ),
                 InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='traindocs')
             ]

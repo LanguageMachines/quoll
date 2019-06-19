@@ -78,7 +78,7 @@ class Tokenize_txtdir(Task):
         yield [ Tokenize_doc(inputfile=inputfile,outputdir=self.out_preprocessdir().path,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
 
 
-class Frog_instances(Task):
+class Frog_document(Task):
     """"
     Frogs a file one document per line
     """
@@ -116,6 +116,7 @@ class Frog_instances(Task):
             if i in reports:
                 print(i, 'of', numlines, 'lines frogged.')
             # frog
+            print(line)
             frogged = frogger.process(line)
             # initialize sentences
             sentences = []
@@ -298,7 +299,7 @@ $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess 
                 preprocess = workflow.new_task('tokenize_document', Tokenize_document, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
                 preprocess.in_txt = input_feeds['txt']
             elif self.frogconfig:
-                preprocess = workflow.new_task('frog_instances', Frog_instances, autopass=True, frogconfig=self.frogconfig, strip_punctuation=self.strip_punctuation)
+                preprocess = workflow.new_task('frog_document', Frog_document, autopass=True, frogconfig=self.frogconfig, strip_punctuation=self.strip_punctuation)
                 preprocess.in_txt = input_feeds['txt']
 
         elif 'txtdir' in input_feeds.keys():

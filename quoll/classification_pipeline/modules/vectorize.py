@@ -234,7 +234,7 @@ class Combine(Task):
         # load vocabulary append
         with open(self.in_vocabulary_append().path,'r',encoding='utf-8') as infile:
             vocabulary_append = infile.read().strip().split('\n')
-
+            
         # load vectors
         loader = numpy.load(self.in_vectors().path)
         vectors = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
