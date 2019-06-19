@@ -7,41 +7,6 @@ import ucto
 import glob
 import json
 
-class Tokenize_instances(Task):
-    """
-    Tokenizes a file one document per line
-    """
-
-    in_txt = InputSlot()
-
-    tokconfig = Parameter()
-    strip_punctuation = BoolParameter()
-
-    def out_tokenized(self):
-        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.tok.txt')
-
-    def run(self):
-
-        with open(self.in_txt().path, 'r', encoding = 'utf-8') as file_in:
-            lines = file_in.read().strip().split('\n')
-
-        
-        c = 0
-        tokenizer = ucto.Tokenizer(self.tokconfig)
-        documents = []
-        for line in lines:
-            tokenizer.process(line)
-            tokens = []
-            for token in tokenizer:
-                if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
-                    tokens.append({'text':token.text})
-            documents.append({'raw':line,'processed':tokens})
-            c += 1
-        print(len(lines),c)
-
-        with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
-            json.dump(documents,file_out)
-
 class Tokenize_document(Task):
     """"
     Tokenizes a document
@@ -52,25 +17,42 @@ class Tokenize_document(Task):
     tokconfig = Parameter()
     strip_punctuation = BoolParameter()
 
-    def out_tokenized(self):
-        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.tok.txt')
+    def out_preprocessed(self):
+        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.preprocessed.json')
 
     def run(self):
 
+        # open file
         with open(self.in_txt().path, 'r', encoding = 'utf-8') as file_in:
-            parts = file_in.read().strip().split('\n')
+            lines = file_in.read().strip().split('\n')
 
-        with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
-            tokenizer = ucto.Tokenizer(self.tokconfig)
-            for part in parts:
-                tokenizer.process(part)
-                tokens = []
-                for token in tokenizer:
-                    if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
-                        tokens.append(token.text)
-                    if token.isendofsentence():
-                        file_out.write(' '.join(tokens) + '\n')
-                        tokens = []
+        # initialize tokenizer
+        tokenizer = ucto.Tokenizer(self.tokconfig)
+
+        # for each line
+        documents = []
+        for line in lines:
+            # tokenize
+            tokenizer.process(line)
+            # initialize sentences
+            sentences = []
+            sentence = []
+            for token in tokenizer:
+                # add each token to the sentence...
+                if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
+                    sentence.append({'text':token.text})
+                # ...until the sentence ends
+                if token.isendofsentence():
+                    sentences.append(sentence)
+                    # initialize a new sentence
+                    sentence = []
+            # scrape last bits of info
+            if len(sentence) > 0:
+                sentences.append(sentence)
+            documents.append({'raw':line,'processed':sentences})
+
+        with open(self.out_preprocessed().path,'w',encoding = 'utf-8') as file_out:
+            json.dump(documents,file_out)
 
 class Tokenize_txtdir(Task):
     """"
@@ -82,8 +64,8 @@ class Tokenize_txtdir(Task):
     tokconfig = Parameter()
     strip_punctuation = BoolParameter()
 
-    def out_toktxtdir(self):
-        return self.outputfrominput(inputformat='txtdir', stripextension='.txtdir', addextension='.tok.txtdir')
+    def out_preprocessdir(self):
+        return self.outputfrominput(inputformat='txtdir', stripextension='.txtdir', addextension='.preprocessdir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically
@@ -93,9 +75,7 @@ class Tokenize_txtdir(Task):
         inputfiles = [ filename for filename in glob.glob(self.in_txtdir().path + '/*.txt') ]
 
         print('Running Tokenizer...')
-        yield [ Tokenize_doc(inputfile=inputfile,outputdir=self.out_toktxtdir().path,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
-
-
+        yield [ Tokenize_doc(inputfile=inputfile,outputdir=self.out_preprocessdir().path,tokconfig=self.tokconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
 
 
 class Frog_instances(Task):
@@ -108,8 +88,8 @@ class Frog_instances(Task):
     frogconfig = Parameter()
     strip_punctuation = BoolParameter()
 
-    def out_frogged(self):
-        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.frog.json')
+    def out_preprocessed(self):
+        return self.outputfrominput(inputformat='txt', stripextension='.txt', addextension='.preprocessed.json')
 
     def run(self):
 
@@ -152,10 +132,11 @@ class Frog_instances(Task):
             # scrape last bits of info
             if len(sentence) > 0:
                 sentences.append(sentence)
-            documents.append(sentences)
+            # when finished add sentences as new document, along with the original raw line
+            documents.append({'raw':line,'processed':sentences})
 
         # write output
-        with open(self.out_frogged().path,'w',encoding = 'utf-8') as file_out:
+        with open(self.out_preprocessed().path,'w',encoding = 'utf-8') as file_out:
             json.dump(documents,file_out)
 
 class Frog_txtdir(Task):
@@ -168,8 +149,8 @@ class Frog_txtdir(Task):
     frogconfig = Parameter()
     strip_punctuation = BoolParameter()
 
-    def out_frogjsondir(self):
-        return self.outputfrominput(inputformat='txtdir', stripextension='.txtdir', addextension='.frog.jsondir')
+    def out_preprocessdir(self):
+        return self.outputfrominput(inputformat='txtdir', stripextension='.txtdir', addextension='.preprocessdir')
 
     def run(self):
         #Set up the output directory, will create it and tear it down on failure automatically
@@ -179,7 +160,7 @@ class Frog_txtdir(Task):
         inputfiles = [ filename for filename in glob.glob(self.in_txtdir().path + '/*.txt') ]
 
         print('Running Frogger...')
-        yield [ Frog_doc(inputfile=inputfile,outputdir=self.out_frogjsondir().path,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
+        yield [ Frog_doc(inputfile=inputfile,outputdir=self.out_preprocessdir().path,frogconfig=self.frogconfig,strip_punctuation=self.strip_punctuation) for inputfile in inputfiles ]
 
 #################################################################
 ### Components
@@ -238,45 +219,41 @@ class Preprocess(StandardWorkflowComponent):
                         + Using LaMachine, the path can be found in path-to-lamachine-directory/share/ucto/
                         + Ucto supports several languages
                         + Will not work if frogconfig is also specified 
-                        + Output: **.tok.txt** or **.tok.txt**
+                        + Output: **.preprocessed.json** or **.preprocessdir**
 
 --frogconfig            + Give path to frog configuration file to tokenize, stem and part-of-speech tag the textdocuments applying Frog.
                         + Using Lamachine, the path can be found as path-to-lamachine-directory/share/frog/nld/frog.cfg
                         + Frog currently only supports the Dutch language. 
                         + Will not work if tokconfig is also specified.
-                        + Output: **.frog.json** or **.frog.jsondir**
+                        + Output: **.preprocessed.json** or **.preprocessdir**
                         
 --strip-punctuation     + Boolean option; default is False
                         + Choose to strip punctuation from text.
 
 Output
 -------
-The output comes in one of the following four extensions, depending on the setting (see `Overview`_). 
+The output comes in one of the following two extensions, depending on the input (repectively **.txt** and **.txtdir** (see `Overview`_). 
 
-:.tok.txt:
-  File with each token divided by a space
-:.tok.txtdir:
-  Directory with .tok.txt files
-:.frog.json:
-  Json-file where each document is a list of tokens, and each token is a dictionary with keys 'text', 'lemma' and 'pos'
+:.preprocessed.json:
+  Json-file where each document is comes in the form of the raw text (key 'raw') and the processed text (key 'processed'), as a list of tokens, where each token is a dictionary with keys 'text' (and 'lemma' and 'pos' if frog is used)
 :.frog.jsondir:
-  Directory with .frog.json files
+  Directory with .preprocessed.json files per document
 
 
 Overview
 --------
 
-+---------+------------+---------------+
-| Input   | Option     | Output        |
-+=========+============+===============+
-| .txt    | tokconfig  | .tok.txt      |
-+---------+------------+---------------+
-| .txt    | frogconfig | .frog.json    |
-+---------+------------+---------------+
-| .txtdir | tokconfig  | .tok.txtdir   |
-+---------+------------+---------------+
-| .txtdir | frogconfig | .frog.jsondir |
-+---------+------------+---------------+
++---------+------------+--------------------+
+| Input   | Option     | Output             |
++=========+============+====================+
+| .txt    | tokconfig  | .preprocessed.json |
++---------+------------+--------------------+
+| .txt    | frogconfig | .preprocessed.json |
++---------+------------+--------------------+
+| .txtdir | tokconfig  | .preprocessdir     |
++---------+------------+--------------------+
+| .txtdir | frogconfig | .preprocessdir     |
++---------+------------+--------------------+
 
 Command line examples 
 --------
@@ -318,7 +295,7 @@ $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess 
         if 'txt' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
             if self.tokconfig:
-                preprocess = workflow.new_task('tokenize_instances', Tokenize_instances, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
+                preprocess = workflow.new_task('tokenize_document', Tokenize_document, autopass=True, tokconfig=self.tokconfig, strip_punctuation=self.strip_punctuation)
                 preprocess.in_txt = input_feeds['txt']
             elif self.frogconfig:
                 preprocess = workflow.new_task('frog_instances', Frog_instances, autopass=True, frogconfig=self.frogconfig, strip_punctuation=self.strip_punctuation)
