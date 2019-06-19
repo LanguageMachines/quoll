@@ -27,7 +27,7 @@ Options
                         + Choose to strip punctuation from text.
 Output
 -------
-The output comes in one of the following two extensions, depending on the input (repectively **.txt** and **.txtdir** (see `Overview`_).
+The output comes in one of the following two extensions, depending on the input (repectively **.txt** and **.txtdir**).
 :.preprocessed.json:
   Json-file where each document is comes in the form of the raw text (key 'raw') and the processed text (key 'processed'), as a list of tokens, where each token is a dictionary with keys 'text' (and 'lemma' and 'pos' if frog is used)
 :.preprocessdir:
