@@ -40,22 +40,20 @@ Options
 Output
 -------
 :.features.npz:
-  Binary file in Numpy format, storing the extracted features per document in sparse form 
+Binary file in Numpy format, storing the extracted features per document in sparse form 
 :.vocabulary.txt:
-  File that stores the index of each feature
+File that stores the index of each feature
 
 Overview
 --------
 
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
-| --inputfile      | --featuretypes        | --ngrams      | --blackfeats       | --lowercase      | --minimum-token-frequency      | Output                                                                                |
-+==================+=======================+===============+====================+==================+================================+=======================================================================================+
-| docs.preprocessed.json     | \'tokens chars\'                | \'1 2 3\'     | False              | True             | 2                              | + docs.tokens.n_1_2_3.min2.lower_True.black_False.features.npz                        |
-|                  |                       |               |                    |                  |                                | + docs.features.npz, docs.vocabulary.txt                      |                     
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
-| docs.preprocessdir | \'tokens lemmas pos\' | 1             | \'koala kangaroo\' | False            | 10                             | + docs.features.npz      |
-|                  |                       |               |                    |                  |                                | + docs.vocabulary.txt    |
-+------------------+-----------------------+---------------+--------------------+------------------+--------------------------------+---------------------------------------------------------------------------------------+
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
+| --inputfile            | --featuretypes        | --ngrams  | --blackfeats       | --lowercase  | --minimum-token-frequency  |                                                                              
++========================+=======================+===========+====================+==============+============================+
+| docs.preprocessed.json | \'tokens chars\'      | \'1 2 3\' | False              | True         | 2                          | 
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
+| docs.preprocessdir     | \'tokens lemmas pos\' | 1         | \'koala kangaroo\' | False        | 10                         |
++------------------------+-----------------------+-----------+--------------------+--------------+----------------------------+
 
 Examples of command line usage
 --------
