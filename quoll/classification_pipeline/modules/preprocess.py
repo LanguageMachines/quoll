@@ -25,19 +25,22 @@ class Tokenize_instances(Task):
         with open(self.in_txt().path, 'r', encoding = 'utf-8') as file_in:
             lines = file_in.read().strip().split('\n')
 
-        with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
-            c = 0
-            tokenizer = ucto.Tokenizer(self.tokconfig)
-            for line in lines:
-                tokenizer.process(line)
-                tokens = []
-                for token in tokenizer:
-                    if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
-                        tokens.append(token.text)
-                file_out.write(' '.join(tokens) + '\n')
-                c += 1
-            print(len(lines),c)
+        
+        c = 0
+        tokenizer = ucto.Tokenizer(self.tokconfig)
+        documents = []
+        for line in lines:
+            tokenizer.process(line)
+            tokens = []
+            for token in tokenizer:
+                if not (self.strip_punctuation and token.tokentype == 'PUNCTUATION'):
+                    tokens.append({'text':token.text})
+            documents.append({'raw':line,'processed':tokens})
+            c += 1
+        print(len(lines),c)
 
+        with open(self.out_tokenized().path,'w',encoding = 'utf-8') as file_out:
+            json.dump(documents,file_out)
 
 class Tokenize_document(Task):
     """"

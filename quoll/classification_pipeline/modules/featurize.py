@@ -279,6 +279,7 @@ class Featurize(StandardWorkflowComponent):
                 featurizertask = workflow.new_task('FeaturizerTask_txt', Frog2Features, autopass=True, featuretypes=self.featuretypes, ngrams=self.ngrams, blackfeats=self.blackfeats, lowercase=self.lowercase, minimum_token_frequency=self.minimum_token_frequency)
                 featurizertask.in_frogged = frogger.out_frogged
 
+
         elif 'txtdir' in input_feeds.keys():
             # could either be frogged or tokenized according to the config that is given as argument
             if self.tokconfig:
