@@ -48,14 +48,13 @@ Overview
 Command line examples 
 --------
 **Tokenize text document and strip punctuation**
-$ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --tokconfig /mylamachinedir/share/ucto/tokconfig-nld --strip-punctuation
+  $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --tokconfig /mylamachinedir/share/ucto/tokconfig-nld --strip-punctuation
 **Tokenize directory with text documents**
-$ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txtdir --tokconfig /mylamachinedir/share/ucto/tokconfig-nld
+  $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txtdir --tokconfig /mylamachinedir/share/ucto/tokconfig-nld
 **Frog text document**
-$ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg
+  $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg
 **Frog directory with text documents and strip punctuation**
-$ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg --strip-punctuation
+  $ luiginlp Preprocess --module quoll.classification_pipeline.modules.preprocess --inputfile docs.txt --frogconfig /mylamachinedir/share/frog/nld/frog.cfg --strip-punctuation
 .. _Ucto: https://languagemachines.github.io/ucto/
 .. _Frog: https://languagemachines.github.io/frog/
 .. _Featurize: featurize.rst
-    """
