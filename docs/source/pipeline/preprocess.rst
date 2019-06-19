@@ -5,10 +5,7 @@ The preprocess module is the first module in the pipeline, taking care of basic 
 Input
 --------
 
---inputfile             + The preprocess module takes text documents as input. They can come in two formats:
-1. Extension **.txt** - File with text documents on each line. Note that text documents with a linebreak will be seen as two separate documents
-2. Extension **.txtdir** - Directory with text documents (files ending with **.txt**).
-
+--inputfile             + The preprocess module takes text documents as input. They can come in two formats: 1. Extension **.txt** - File with text documents on each line. Note that text documents with a linebreak will be seen as two separate documents 2. Extension **.txtdir** - Directory with text documents (files ending with **.txt**).
 
 Options
 --------
