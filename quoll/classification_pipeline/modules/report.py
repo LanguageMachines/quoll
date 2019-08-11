@@ -1,14 +1,14 @@
 
-import numpy
-from scipy import sparse
-import glob
-from collections import defaultdict
-
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter, FloatParameter
 
 from quoll.classification_pipeline.modules.classify import Classify 
 
 from quoll.classification_pipeline.functions import reporter, quoll_helpers, linewriter, docreader
+
+import numpy
+from scipy import sparse
+import glob
+from collections import defaultdict
 
 #################################################################
 ### Tasks #######################################################
@@ -312,7 +312,7 @@ class ClassifyTask(Task):
     linear_raw = BoolParameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.translated.predictions.txt' if self.linear_raw else '.predictions.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-4:] == 'json') else '.' + self.in_test().path.split('.')[-1], addextension='.translated.predictions.txt' if self.linear_raw else '.predictions.txt')
     
     def run(self):
 
@@ -337,7 +337,7 @@ class TrainTask(Task):
     linear_raw = BoolParameter()
     
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.model.pkl')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-4:] == 'json') else '.' + self.in_train().path.split('.')[-1], addextension='.model.pkl')
     
     def run(self):
 
@@ -467,10 +467,8 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessed.json',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessdir',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.txt',inputparameter='train'),
                 ),
@@ -479,10 +477,8 @@ class Report(WorkflowComponent):
                 InputFormat(self, format_id='test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocess.json',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocessdir',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test')
                 ),

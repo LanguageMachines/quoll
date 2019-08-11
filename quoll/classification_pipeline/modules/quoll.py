@@ -33,7 +33,7 @@ class ReportTask(Task):
     preprocess_parameters = Parameter()
 
     def out_report(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok' or self.in_test().path[-15:] == 'predictions.txt') else '.' + self.in_test().path.split('.')[-1], addextension='.report' if self.testlabels_true else '.docpredictions.csv')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-4:] == 'json' or self.in_test().path[-15:] == 'predictions.txt') else '.' + self.in_test().path.split('.')[-1], addextension='.report' if self.testlabels_true else '.docpredictions.csv')
 
     def run(self):
 
@@ -62,7 +62,7 @@ class ClassifyAppendTask(Task):
     preprocess_parameters = Parameter()
 
     def out_predictions(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.bow.combined.predictions.txt' if self.bow_as_feature else '.combined.predictions.txt')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-4:] == 'json') else '.' + self.in_test().path.split('.')[-1], addextension='.bow.combined.predictions.txt' if self.bow_as_feature else '.combined.predictions.txt')
     
     def run(self):
 
@@ -90,7 +90,7 @@ class TrainAppendTask(Task):
     preprocess_parameters = Parameter()
     
     def out_model(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.validated.combined.model.pkl' if self.bow_as_feature else '.combined.model.pkl')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-4:] == 'json') else '.' + self.in_train().path.split('.')[-1], addextension='.validated.combined.model.pkl' if self.bow_as_feature else '.combined.model.pkl')
     
     def run(self):
         
@@ -231,10 +231,8 @@ class Quoll(WorkflowComponent):
                 InputFormat(self, format_id='train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessed.json',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessdir',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.txtdir',inputparameter='train'),
                 InputFormat(self, format_id='docs_train',extension='.txt',inputparameter='train')
                 ),
@@ -247,10 +245,8 @@ class Quoll(WorkflowComponent):
                 InputFormat(self, format_id='test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocess.json',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocessdir',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.txtdir',inputparameter='test'),
                 InputFormat(self, format_id='docs_test',extension='.txt',inputparameter='test')
                 ),

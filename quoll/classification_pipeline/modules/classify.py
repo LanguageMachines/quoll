@@ -1,4 +1,11 @@
 
+from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
+
+from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask, Combine
+
+from quoll.classification_pipeline.functions.classifier import *
+from quoll.classification_pipeline.functions import ga, quoll_helpers, vectorizer
+
 import os
 import numpy
 from scipy import sparse
@@ -6,13 +13,6 @@ import pickle
 import math
 import random
 from collections import defaultdict
-
-from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
-
-from quoll.classification_pipeline.modules.vectorize import Vectorize, FeaturizeTask, Combine
-
-from quoll.classification_pipeline.functions.classifier import *
-from quoll.classification_pipeline.functions import ga, quoll_helpers, vectorizer
 
 #################################################################
 ### Tasks #######################################################
@@ -376,7 +376,7 @@ class VectorizeTrain(Task):
     linear_raw = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-4:] == 'json') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
 
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.vectors.labels' if self.in_trainlabels().path[-14:-7] == 'vectors' else '.raw.labels' if self.linear_raw else '.labels', addextension='.vectors.raw.labels' if self.linear_raw else '.vectors.labels')       
@@ -402,13 +402,13 @@ class VectorizeTrainTest(Task):
     linear_raw = BoolParameter()
     
     def out_train(self):
-        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-3:] == 'pkl' or self.in_train().path[-7:-4] == 'tok') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='train', stripextension='.'.join(self.in_train().path.split('.')[-2:]) if (self.in_train().path[-3:] == 'npz' or self.in_train().path[-3:] == 'pkl' or self.in_train().path[-4:] == 'json') else '.' + self.in_train().path.split('.')[-1], addextension='.vectors.npz')
     
     def out_trainlabels(self):
         return self.outputfrominput(inputformat='trainlabels', stripextension='.vectors.labels' if self.in_trainlabels().path[-14:-7] == 'vectors' else '.raw.labels' if self.linear_raw else '.labels', addextension='.vectors.raw.labels' if self.linear_raw else '.vectors.labels')       
 
     def out_test(self):
-        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-7:-4] == 'tok') else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
+        return self.outputfrominput(inputformat='test', stripextension='.'.join(self.in_test().path.split('.')[-2:]) if (self.in_test().path[-3:] == 'npz' or self.in_test().path[-4:] == 'json') else '.' + self.in_test().path.split('.')[-1], addextension='.vectors.npz')
 
     def run(self):
         
@@ -540,10 +540,8 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.csv',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.features.npz',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessed.json',inputparameter='train'),
+                InputFormat(self, format_id='train',extension='.preprocessdir',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.txt',inputparameter='train'),
                 InputFormat(self, format_id='train',extension='.txtdir',inputparameter='train')
                 ),
@@ -554,10 +552,8 @@ class Classify(WorkflowComponent):
                 InputFormat(self, format_id='test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.csv',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.features.npz',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocess.json',inputparameter='test'),
+                InputFormat(self, format_id='test',extension='.preprocessdir',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.txt',inputparameter='test'),
                 InputFormat(self, format_id='test',extension='.txtdir',inputparameter='test')
                 ),

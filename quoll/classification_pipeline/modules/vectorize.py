@@ -1,14 +1,15 @@
 
+from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
+
+from quoll.classification_pipeline.modules.featurize import Featurize
+
+from quoll.classification_pipeline.functions import vectorizer, featselector, quoll_helpers, docreader
+
 import numpy
 from scipy import sparse
 import os
 import itertools
 import pickle
-
-from luiginlp.engine import Task, WorkflowComponent, InputFormat, registercomponent, InputSlot, Parameter, BoolParameter, IntParameter
-
-from quoll.classification_pipeline.functions import vectorizer, featselector, quoll_helpers, docreader
-from quoll.classification_pipeline.modules.featurize import Featurize
 
 #################################################################
 ### Tasks #######################################################
@@ -501,10 +502,8 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='vectorized_train',extension='.vectors.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.features.npz',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train_csv',extension='.csv',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.tok.txt',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.tok.txtdir',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.frog.json',inputparameter='train'),
-                InputFormat(self, format_id='featurized_train',extension='.frog.jsondir',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.preprocessed.json',inputparameter='train'),
+                InputFormat(self, format_id='featurized_train',extension='.preprocessdir',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.txt',inputparameter='train'),
                 InputFormat(self, format_id='featurized_train',extension='.txtdir',inputparameter='train')
                 ),
@@ -515,10 +514,8 @@ class Vectorize(WorkflowComponent):
                 InputFormat(self, format_id='vectorized_test',extension='.vectors.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.features.npz',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test_csv',extension='.csv',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.tok.txt',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.tok.txtdir',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.frog.json',inputparameter='test'),
-                InputFormat(self, format_id='featurized_test',extension='.frog.jsondir',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.preprocessed.json',inputparameter='test'),
+                InputFormat(self, format_id='featurized_test',extension='.preprocessdir',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.txt',inputparameter='test'),
                 InputFormat(self, format_id='featurized_test',extension='.txtdir',inputparameter='test')
                 ),
